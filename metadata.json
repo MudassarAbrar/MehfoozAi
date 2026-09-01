@@ -1,0 +1,6 @@
+{
+  "name": "Mehfooz — Safe Legal Information & Support Assistant",
+  "description": "A privacy-first assistant for gender-based violence legal information, encrypted incident documentation, complaint preparation, and support navigation in Punjab, Pakistan.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
