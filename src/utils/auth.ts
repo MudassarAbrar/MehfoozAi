@@ -11,7 +11,7 @@ const STORAGE_SESSION_KEY = 'mehfooz_current_session_v1';
 // Seed demo account
 const INITIAL_DEMO_USER: UserProfile = {
   id: 'user-demo-001',
-  email: 'ayesha.rehman@gmail.com',
+  email: 'mudassarabrarr@gmail.com',
   fullName: 'Ayesha Rehman',
   safeNickname: 'Ayesha',
   district: 'Lahore',

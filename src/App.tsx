@@ -31,12 +31,16 @@ import { ComplaintBuilder } from './components/ComplaintBuilder';
 import { TrackingDashboard } from './components/TrackingDashboard';
 import { SupportDirectory } from './components/SupportDirectory';
 import { LandingPage } from './components/LandingPage';
+import { OfflineIndicator } from './components/common/OfflineIndicator';
+import { OfflineLegalCorpusModal } from './components/common/OfflineLegalCorpusModal';
+import { initializeOfflineEmergencyCache } from './utils/offlineEmergencyCache';
 
 export default function App() {
   // Disguise & App State (Default to unlocked for interactive preview, but with instant Esc / stealth button)
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
   const [activeTab, setActiveTab] = useState<ActiveTab>('home');
   const [language, setLanguage] = useState<AppLanguage>('en');
+  const [isOfflineCorpusOpen, setIsOfflineCorpusOpen] = useState<boolean>(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
     const saved = localStorage.getItem('safepath_theme');
     if (saved === 'light' || saved === 'dark') return saved;
@@ -113,6 +117,12 @@ export default function App() {
       document.documentElement.classList.remove('dark');
     }
   }, [themeMode]);
+
+  // Pre-cache Punjab Support Directory & Legal Corpus for zero-network incidents
+  useEffect(() => {
+    const meta = initializeOfflineEmergencyCache();
+    addAuditLog('offline_cache_initialized', `Pre-cached ${meta.totalDirectoryEntries} directory entries & ${meta.totalLegalArticles} legal articles for zero-network incidents`, 1.0);
+  }, [addAuditLog]);
 
   // Quick Exit to Weather handler
   const handleQuickExit = useCallback(() => {
@@ -199,7 +209,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#F8F9FD] dark:bg-[#0F1117] text-[#181A20] dark:text-[#F9FAFB] flex flex-col font-sans selection:bg-[#9333EA] selection:text-white transition-colors duration-200 ${isUrdu ? 'font-urdu' : ''}`}>
+    <div className={`min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] text-[#1C2C34] dark:text-[#F4F4FC] flex flex-col font-sans selection:bg-[#FC7454] selection:text-white transition-colors duration-200 ${isUrdu ? 'font-urdu' : ''}`}>
       {/* 1. Header & Ergonomic Navigation Bar */}
       <Navigation
         activeTab={activeTab}
@@ -215,6 +225,7 @@ export default function App() {
         onToggleInspector={() => setIsInspectorOpen(!isInspectorOpen)}
         inspectorOpen={isInspectorOpen}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        onOpenOfflineCorpus={() => setIsOfflineCorpusOpen(true)}
       />
 
       {/* 2. Main View Router */}
@@ -378,6 +389,20 @@ export default function App() {
         isOpen={isInspectorOpen}
         onClose={() => setIsInspectorOpen(false)}
         auditLogs={auditLogs}
+      />
+
+      {/* 7. Offline Safety Network Monitor Banner */}
+      <OfflineIndicator
+        language={language}
+        onOpenDirectory={() => setActiveTab('directory')}
+        onOpenCrisis={() => setIsCrisisModalOpen(true)}
+      />
+
+      {/* 8. Dedicated Offline Legal Corpus Reference Modal */}
+      <OfflineLegalCorpusModal
+        isOpen={isOfflineCorpusOpen}
+        onClose={() => setIsOfflineCorpusOpen(false)}
+        language={language}
       />
     </div>
   );

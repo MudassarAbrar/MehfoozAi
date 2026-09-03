@@ -22,10 +22,12 @@ import {
   TerminalSquare, 
   CloudSun,
   ShieldCheck,
-  ChevronDown
+  ChevronDown,
+  BookOpen
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLogo } from './common/AppLogo';
+import { PWAInstallButton } from './common/PWAInstallButton';
 import { ActiveTab, AppLanguage, UserProfile } from '../types';
 
 interface NavigationProps {
@@ -42,6 +44,7 @@ interface NavigationProps {
   onToggleInspector: () => void;
   inspectorOpen: boolean;
   onOpenOnboarding: () => void;
+  onOpenOfflineCorpus?: () => void;
   draftCount?: number;
   vaultCount?: number;
 }
@@ -60,6 +63,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onToggleInspector,
   inspectorOpen,
   onOpenOnboarding,
+  onOpenOfflineCorpus,
   draftCount = 0,
   vaultCount = 0,
 }) => {
@@ -110,10 +114,10 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               id="nav-quick-exit-btn"
               onClick={onQuickExit}
-              className="flex items-center space-x-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-50 dark:bg-[#181B24] hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] border border-slate-200 dark:border-slate-700 text-[#181A20] dark:text-slate-200 text-xs font-semibold transition group shadow-2xs flex-shrink-0 cursor-pointer"
+              className="flex items-center space-x-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-semibold transition group shadow-2xs flex-shrink-0 cursor-pointer"
               title="Stealth Weather Screen (Esc)"
             >
-              <CloudSun className="w-4 h-4 text-[#B886FD] group-hover:scale-110 transition-transform" />
+              <CloudSun className="w-4 h-4 text-[#FC7454] group-hover:scale-110 transition-transform" />
               <span className="hidden md:inline font-medium">
                 {isUrdu ? 'موسم' : 'Weather'}
               </span>
@@ -132,7 +136,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             {/* Product Landing Tour Pill */}
             <button
               onClick={() => onSelectTab('landing')}
-              className="hidden xl:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#F5EEFD] dark:bg-[#26193E] hover:bg-[#EDE9FE] dark:hover:bg-[#31214E] border border-[#E9D5FF] dark:border-[#581C87] text-[11px] font-bold text-[#181A20] dark:text-[#E9D5FF] transition shadow-2xs whitespace-nowrap flex-shrink-0 cursor-pointer"
+              className="hidden xl:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] border border-[#BCD4D4] dark:border-[#263842] text-[11px] font-bold text-[#1C2C34] dark:text-[#F4F4FC] transition shadow-2xs whitespace-nowrap flex-shrink-0 cursor-pointer"
             >
               <span>Product Tour</span>
             </button>
@@ -144,12 +148,12 @@ export const Navigation: React.FC<NavigationProps> = ({
             <div className="relative">
               <button
                 onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                className="flex items-center space-x-1 px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-[#181B24] hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] text-[#181A20] dark:text-slate-200 text-xs font-medium border border-slate-200 dark:border-slate-700 transition shadow-2xs flex-shrink-0 whitespace-nowrap cursor-pointer"
+                className="flex items-center space-x-1 px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-medium border border-slate-200 dark:border-slate-700 transition shadow-2xs flex-shrink-0 whitespace-nowrap cursor-pointer"
                 title="Legal Suite"
               >
-                <Scale className="w-3.5 h-3.5 text-[#181A20] dark:text-[#C084FC]" />
+                <Scale className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
                 <span className="hidden md:inline">Legal</span>
-                <ChevronDown className="w-3 h-3 text-[#6B7280] dark:text-slate-400" />
+                <ChevronDown className="w-3 h-3 text-[#5A6E78] dark:text-slate-400" />
               </button>
 
               <AnimatePresence>
@@ -158,7 +162,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                     initial={{ opacity: 0, y: 5 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: 5 }}
-                    className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#181B24] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-xl p-1.5 z-50 space-y-0.5"
+                    className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#18242A] border border-[#BCD4D4]/60 dark:border-slate-700 rounded-2xl shadow-xl p-1.5 z-50 space-y-0.5"
                   >
                     {LEGAL_SUITE.map((sub) => {
                       const Icon = sub.icon;
@@ -172,35 +176,54 @@ export const Navigation: React.FC<NavigationProps> = ({
                           }}
                           className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
                             isSubActive
-                              ? 'bg-[#F5EEFD] dark:bg-[#2D1F47] text-[#181A20] dark:text-[#F9FAFB] font-bold border border-[#E9D5FF] dark:border-[#581C87]'
-                              : 'text-[#181A20] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#221834]'
+                              ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] font-bold border border-[#BCD4D4] dark:border-[#263842]'
+                              : 'text-[#1C2C34] dark:text-slate-200 hover:bg-[#F4F4F4] dark:hover:bg-[#263842]/60'
                           }`}
                         >
                           <div className="flex items-center space-x-2">
-                            <Icon className="w-3.5 h-3.5 text-[#181A20] dark:text-[#C084FC]" />
+                            <Icon className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
                             <span>{isUrdu ? sub.labelUrdu : sub.label}</span>
                           </div>
                           {sub.badge !== undefined && sub.badge > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-[#B886FD] text-white text-[9px] font-bold">
+                            <span className="px-1.5 py-0.2 rounded-full bg-[#FC7454] text-white text-[9px] font-bold">
                               {sub.badge}
                             </span>
                           )}
                         </button>
                       );
                     })}
+
+                    {onOpenOfflineCorpus && (
+                      <button
+                        onClick={() => {
+                          onOpenOfflineCorpus();
+                          setIsMoreMenuOpen(false);
+                        }}
+                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842]/60 transition whitespace-nowrap border-t border-slate-100 dark:border-slate-800 mt-1 pt-1.5 cursor-pointer"
+                      >
+                        <div className="flex items-center space-x-2">
+                          <BookOpen className="w-3.5 h-3.5 text-[#FC7454]" />
+                          <span>{isUrdu ? 'آف لائن قوانین (Corpus)' : 'Offline Legal Corpus'}</span>
+                        </div>
+                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">Offline</span>
+                      </button>
+                    )}
                   </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
+            {/* PWA Install Button (Safe offline installation) */}
+            <PWAInstallButton language={language} variant="badge" />
+
             {/* Direct Emergency SOS 15 */}
             <button
               id="nav-crisis-btn"
               onClick={onOpenCrisis}
-              className="flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#F5EEFD] dark:bg-[#2D1F47] hover:bg-[#EDE9FE] dark:hover:bg-[#3B1D54] text-[#9333EA] dark:text-[#C084FC] text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap border border-[#E9D5FF] dark:border-[#581C87] cursor-pointer"
+              className="flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] text-[#FC7454] dark:text-[#FC7C54] text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap border border-[#BCD4D4] dark:border-slate-700 cursor-pointer"
               title="Police Helpline 15"
             >
-              <PhoneCall className="w-3.5 h-3.5 animate-pulse text-[#9333EA] dark:text-[#C084FC]" />
+              <PhoneCall className="w-3.5 h-3.5 animate-pulse text-[#FC7454]" />
               <span>15</span>
               <span className="hidden sm:inline font-bold">SOS</span>
             </button>
@@ -209,7 +232,7 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               id="nav-theme-toggle-btn"
               onClick={() => onThemeChange(themeMode === 'light' ? 'dark' : 'light')}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-[#181B24] hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] text-[#181A20] dark:text-slate-200 text-xs border border-slate-200 dark:border-slate-700 transition flex-shrink-0 cursor-pointer"
+              className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs border border-slate-200 dark:border-slate-700 transition flex-shrink-0 cursor-pointer"
               title={themeMode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
             >
               {themeMode === 'light' ? (
@@ -223,9 +246,9 @@ export const Navigation: React.FC<NavigationProps> = ({
             <button
               id="nav-language-btn"
               onClick={() => onLanguageChange(language === 'en' ? 'ur' : 'en')}
-              className="h-8 px-2 flex items-center space-x-1 rounded-xl bg-slate-50 dark:bg-[#181B24] hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] text-[#181A20] dark:text-slate-200 text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex-shrink-0 whitespace-nowrap cursor-pointer"
+              className="h-8 px-2 flex items-center space-x-1 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex-shrink-0 whitespace-nowrap cursor-pointer"
             >
-              <Languages className="w-3.5 h-3.5 text-[#181A20] dark:text-[#C084FC]" />
+              <Languages className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
               <span>{language === 'en' ? 'اردو' : 'EN'}</span>
             </button>
 
@@ -235,8 +258,8 @@ export const Navigation: React.FC<NavigationProps> = ({
               onClick={onToggleInspector}
               className={`w-8 h-8 flex items-center justify-center rounded-xl border text-xs transition flex-shrink-0 cursor-pointer ${
                 inspectorOpen 
-                  ? 'bg-[#F5EEFD] dark:bg-[#2D1F47] border-[#E9D5FF] dark:border-[#581C87] text-[#9333EA] dark:text-[#C084FC]' 
-                  : 'bg-slate-50 dark:bg-[#181B24] border-slate-200 dark:border-slate-700 text-[#6B7280] dark:text-slate-400'
+                  ? 'bg-[#ECF4F4] dark:bg-[#18242A] border-[#BCD4D4] dark:border-slate-700 text-[#FC7454] dark:text-[#FC7C54]' 
+                  : 'bg-slate-50 dark:bg-[#18242A] border-slate-200 dark:border-slate-700 text-[#5A6E78] dark:text-slate-400'
               }`}
               title="Telemetry Inspector"
             >
@@ -261,15 +284,15 @@ export const Navigation: React.FC<NavigationProps> = ({
                   onClick={() => onSelectTab(item.id)}
                   className={`relative flex items-center space-x-2 px-3.5 py-2 rounded-xl text-sm font-bold whitespace-nowrap transition-all cursor-pointer ${
                     isActive
-                      ? 'bg-[#181A20] dark:bg-[#C084FC] text-white dark:text-[#0F1117] shadow-xs'
-                      : 'text-[#6B7280] dark:text-slate-400 hover:text-[#181A20] dark:hover:text-[#F9FAFB] hover:bg-[#F5EEFD] dark:hover:bg-[#1E2230]'
+                      ? 'bg-[#1C2C34] dark:bg-[#BCD4D4] text-white dark:text-[#1C2C34] shadow-xs'
+                      : 'text-[#5A6E78] dark:text-slate-400 hover:text-[#1C2C34] dark:hover:text-[#F4F4FC] hover:bg-[#ECF4F4] dark:hover:bg-[#18242A]'
                   }`}
                 >
                   <Icon className="w-4 h-4" />
                   <span>{isUrdu ? item.labelUrdu : item.label}</span>
                   {item.badge !== undefined && item.badge > 0 && (
                     <span className={`text-xs px-1.5 py-0.2 rounded-full font-bold ${
-                      isActive ? 'bg-[#B886FD] dark:bg-[#0F1117] text-white dark:text-[#C084FC]' : 'bg-[#181A20] dark:bg-slate-700 text-white'
+                      isActive ? 'bg-[#FC7454] text-white' : 'bg-[#1C2C34] dark:bg-slate-700 text-white'
                     }`}>
                       {item.badge}
                     </span>
@@ -281,9 +304,9 @@ export const Navigation: React.FC<NavigationProps> = ({
 
           <button
             onClick={onOpenOnboarding}
-            className="text-xs font-bold text-[#181A20] dark:text-slate-300 hover:text-[#9333EA] dark:hover:text-[#C084FC] flex items-center space-x-1 cursor-pointer transition-colors"
+            className="text-xs font-bold text-[#1C2C34] dark:text-slate-300 hover:text-[#FC7454] dark:hover:text-[#FC7C54] flex items-center space-x-1 cursor-pointer transition-colors"
           >
-            <ShieldCheck className="w-4 h-4 text-[#B886FD]" />
+            <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
             <span>Safety Guide</span>
           </button>
         </div>
@@ -303,14 +326,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                 onClick={() => onSelectTab(item.id)}
                 className={`relative flex flex-col items-center justify-center py-1 px-1 rounded-xl transition-all min-h-[50px] cursor-pointer ${
                   isActive
-                    ? 'text-[#181A20] dark:text-[#C084FC] font-black'
-                    : 'text-[#6B7280] dark:text-slate-400 hover:text-[#181A20] dark:hover:text-[#F9FAFB] font-semibold'
+                    ? 'text-[#1C2C34] dark:text-[#BCD4D4] font-black'
+                    : 'text-[#5A6E78] dark:text-slate-400 hover:text-[#1C2C34] dark:hover:text-[#F4F4FC] font-semibold'
                 }`}
               >
                 <div className="relative">
-                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px] scale-105 text-[#181A20] dark:text-[#C084FC]' : 'stroke-[2px]'}`} />
+                  <Icon className={`w-5 h-5 ${isActive ? 'stroke-[2.5px] scale-105 text-[#1C2C34] dark:text-[#BCD4D4]' : 'stroke-[2px]'}`} />
                   {item.badge !== undefined && item.badge > 0 && (
-                    <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-[#B886FD] text-white text-[10px] font-black flex items-center justify-center">
+                    <span className="absolute -top-1 -right-2 w-4 h-4 rounded-full bg-[#FC7454] text-white text-[10px] font-black flex items-center justify-center">
                       {item.badge}
                     </span>
                   )}
@@ -321,7 +344,7 @@ export const Navigation: React.FC<NavigationProps> = ({
                 {isActive && (
                   <motion.div
                     layoutId="mobileActiveIndicator"
-                    className="w-1.5 h-1.5 rounded-full bg-[#B886FD] dark:bg-[#C084FC] mt-0.5"
+                    className="w-1.5 h-1.5 rounded-full bg-[#FC7454] dark:bg-[#BCD4D4] mt-0.5"
                   />
                 )}
               </button>

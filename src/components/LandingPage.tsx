@@ -32,7 +32,9 @@ import {
   Layers,
   MapPin,
   Flame,
-  Check
+  Check,
+  WifiOff,
+  Database
 } from 'lucide-react';
 import { MehfoozLogo } from './common/MehfoozLogo';
 import { AbstractSafetyShieldArt } from './landing/AbstractArt';
@@ -84,7 +86,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   const SCROLL_WAYPOINTS = [
     { id: 'hero', label: 'Origin', title: 'Mehfooz Mission' },
     { id: 'interactive-suite', label: 'Experience', title: 'Visual Suite' },
-    { id: 'features', label: 'Security', title: '6 Safety Layers' },
+    { id: 'features', label: 'Security', title: 'Safety Layers' },
+    { id: 'offline-mode', label: 'Offline', title: 'Zero-Signal Mode' },
     { id: 'simulator', label: 'Engine', title: 'Live Testing' },
     { id: 'safety-network', label: 'Crisis', title: 'Punjab Helplines' },
     { id: 'launch', label: 'Access', title: 'Start Protection' },
@@ -95,7 +98,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     { label: 'Punjab Emergency Dispatch', value: '< 30s', sub: 'Integrated with 15 PSCA' },
     { label: 'Verified Safe Corridors', value: '1,420+', sub: 'Lahore, Rawalpindi, Multan' },
     { label: 'PPWVA Statutory Accuracy', value: '100%', sub: 'Zero-hallucination legal citations' },
-    { label: 'Local AES-256 Vault', value: 'Zero-Log', sub: 'Client cryptographic key derivation' },
+    { label: 'Zero-Signal Offline Cache', value: '100% Ready', sub: 'No internet required for SOS & Helplines' },
   ];
 
   const CORE_PILLARS = [
@@ -115,17 +118,27 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       title: 'Safe Corridor Navigation',
       titleUrdu: 'محفوظ راستے اور سروے',
       tag: 'PSCA & LIGHTING HEATMAPS',
-      color: 'from-purple-500/20 to-indigo-500/10 border-purple-500/30 text-[#9333EA] dark:text-[#C084FC]',
+      color: 'from-[#BCD4D4]/30 to-[#C4DCDC]/20 border-[#BCD4D4] text-[#1C2C34] dark:text-[#BCD4D4]',
       description:
         'Routes pedestrians through verified well-lit avenues, active commercial zones, safe haven verified shops, and PSCA Safe City camera coverage.',
       tab: 'navigate' as ActiveTab
+    },
+    {
+      icon: WifiOff,
+      title: 'Zero-Signal Offline Mode',
+      titleUrdu: 'بغیر انٹرنیٹ ہنگامی رسائی',
+      tag: '100% OFFLINE RESILIENT',
+      color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
+      description:
+        'Zero cellular data required. Built-in cached Punjab directory (15, 1043, 1122), offline statutory legal articles, safe haven locations, and SMS SOS dispatch.',
+      tab: 'home' as ActiveTab
     },
     {
       icon: Scale,
       title: 'Punjab AI Legal Advisor',
       titleUrdu: 'پنجاب قانونی معاون',
       tag: 'RAG STATUTORY ENGINE',
-      color: 'from-violet-500/20 to-purple-500/10 border-violet-500/30 text-violet-600 dark:text-violet-400',
+      color: 'from-[#FC7454]/20 to-[#FC7C54]/10 border-[#FC7454]/30 text-[#FC7454] dark:text-[#FC7C54]',
       description:
         'Grounding on PPWVA 2016, PECA Cyber Laws, and PCSW protections. Synthesizes legal advice and builds police complaint drafts with formal legal citations.',
       tab: 'assistant' as ActiveTab
@@ -135,7 +148,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       title: 'Zero-Knowledge Incident Vault',
       titleUrdu: 'خفیہ انکرپٹڈ والٹ',
       tag: 'AES-256 CLIENT ENCRYPTION',
-      color: 'from-fuchsia-500/20 to-pink-500/10 border-fuchsia-500/30 text-fuchsia-600 dark:text-fuchsia-400',
+      color: 'from-[#A4C4C4]/20 to-[#BCD4D4]/10 border-[#A4C4C4]/30 text-[#1C2C34] dark:text-[#A4C4C4]',
       description:
         'Capture voice memos, harassment timelines, and photographic evidence. Encrypted locally with your custom stealth PIN before any network sync.',
       tab: 'vault' as ActiveTab
@@ -145,7 +158,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       title: 'Silent Destination Check-In',
       titleUrdu: 'خودکار منزل کا چیک ان',
       tag: 'FAILSAFE GUARDIAN TIMERS',
-      color: 'from-purple-500/20 to-violet-500/10 border-purple-500/30 text-purple-600 dark:text-purple-400',
+      color: 'from-[#C4DCDC]/30 to-[#ECF4F4]/50 border-[#C4DCDC] text-[#1C2C34] dark:text-[#C4DCDC]',
       description:
         'Set an expected journey time. If you do not check in at your destination, an automated discreet alert with live coordinates is dispatched to chosen guardians.',
       tab: 'checkin' as ActiveTab
@@ -165,38 +178,42 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#FDFBFE] dark:bg-[#0F1117] text-[#181A20] dark:text-slate-100 font-sans transition-colors selection:bg-[#9333EA] selection:text-white relative"
+      className="min-h-screen bg-[#FCFCFC] dark:bg-[#0F171A] text-[#1C2C34] dark:text-[#F4F4FC] font-sans transition-colors selection:bg-[#FC7454] selection:text-white relative"
     >
       {/* ========================================================================= */}
       {/* GLOBAL SCROLL PROGRESS TOP BAR                                            */}
       {/* ========================================================================= */}
       <motion.div
-        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#9333EA] via-[#B886FD] to-[#C084FC] origin-left z-50 shadow-sm"
+        className="fixed top-0 left-0 right-0 h-1 bg-gradient-to-r from-[#FC7454] via-[#FC7C54] to-[#BCD4D4] origin-left z-50 shadow-sm"
         style={{ scaleX: smoothProgress }}
       />
 
       {/* ========================================================================= */}
       {/* 1. STICKY TOP NAVIGATION BAR                                              */}
       {/* ========================================================================= */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-[#12141C]/95 border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3 transition-colors shadow-xs">
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-[#131E24]/95 border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3 transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
           {/* Brand Logo with the Line Art Icon */}
           <div className="cursor-pointer" onClick={() => onLaunchApp('home')}>
-            <MehfoozLogo variant="horizontal" size="md" showUrdu={true} showTagline={true} />
+            <MehfoozLogo variant="horizontal" size="md" showUrdu={true} />
           </div>
 
           {/* Center Navigation Links (Desktop) */}
-          <nav className="hidden md:flex items-center space-x-6 text-xs font-bold text-[#6B7280] dark:text-slate-300">
-            <a href="#interactive-suite" className="hover:text-[#9333EA] dark:hover:text-[#C084FC] transition-colors">
+          <nav className="hidden md:flex items-center space-x-6 text-xs font-bold text-[#5A6E78] dark:text-slate-300">
+            <a href="#interactive-suite" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
               Interface Suite
             </a>
-            <a href="#features" className="hover:text-[#9333EA] dark:hover:text-[#C084FC] transition-colors">
+            <a href="#features" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
               Security Pillars
             </a>
-            <a href="#simulator" className="hover:text-[#9333EA] dark:hover:text-[#C084FC] transition-colors">
+            <a href="#offline-mode" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors flex items-center space-x-1 text-emerald-700 dark:text-emerald-400">
+              <WifiOff className="w-3.5 h-3.5" />
+              <span>Offline Ready</span>
+            </a>
+            <a href="#simulator" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
               Live Simulator
             </a>
-            <a href="#safety-network" className="hover:text-[#9333EA] dark:hover:text-[#C084FC] transition-colors">
+            <a href="#safety-network" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
               Punjab Helplines
             </a>
           </nav>
@@ -206,19 +223,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Language Switcher */}
             <button
               onClick={() => onLanguageChange(isUrdu ? 'en' : 'ur')}
-              className="px-2.5 py-1.5 rounded-xl bg-[#F5EEFD] dark:bg-[#1E1630] hover:bg-[#EDE9FE] dark:hover:bg-[#2D1F47] text-xs font-bold text-[#181A20] dark:text-[#E9D5FF] border border-[#E9D5FF] dark:border-[#581C87] transition flex items-center space-x-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] text-xs font-bold text-[#1C2C34] dark:text-[#F4F4FC] border border-[#BCD4D4] dark:border-[#263842] transition flex items-center space-x-1 cursor-pointer"
             >
-              <Globe className="w-3.5 h-3.5 text-[#9333EA] dark:text-[#C084FC]" />
+              <Globe className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
               <span>{isUrdu ? 'English' : 'اردو'}</span>
             </button>
 
             {/* Theme Toggle */}
             <button
               onClick={() => onThemeChange(themeMode === 'light' ? 'dark' : 'light')}
-              className="p-2 rounded-xl bg-slate-100 dark:bg-[#1E2230] hover:bg-slate-200 dark:hover:bg-[#2A2F40] text-[#181A20] dark:text-slate-200 border border-slate-200 dark:border-slate-700 transition cursor-pointer"
+              className="p-2 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-slate-200 dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] border border-slate-200 dark:border-slate-700 transition cursor-pointer"
               title="Toggle Theme"
             >
-              {themeMode === 'light' ? <Moon className="w-4 h-4 text-[#9333EA]" /> : <Sun className="w-4 h-4 text-amber-400" />}
+              {themeMode === 'light' ? <Moon className="w-4 h-4 text-[#1C2C34]" /> : <Sun className="w-4 h-4 text-amber-400" />}
             </button>
 
             {/* Stealth Weather Cover Button */}
@@ -233,7 +250,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {/* Main Launch App CTA */}
             <button
               onClick={() => onLaunchApp('home')}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-[#9333EA] hover:bg-[#7E22CE] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#9333EA]/20 hover:shadow-lg transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer"
+              className="px-4 sm:px-5 py-2 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FC7454]/20 hover:shadow-lg transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer"
             >
               <span>Launch Mehfooz</span>
               <ArrowRight className="w-4 h-4" />
@@ -253,19 +270,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
           {/* Active Animated Progress Line */}
           <motion.div
-            className="absolute top-0 w-[3px] bg-gradient-to-b from-[#9333EA] via-[#B886FD] to-[#C084FC] rounded-full shadow-[0_0_12px_rgba(147,51,234,0.6)]"
+            className="absolute top-0 w-[3px] bg-gradient-to-b from-[#FC7454] via-[#FC7C54] to-[#BCD4D4] rounded-full shadow-[0_0_12px_rgba(252,116,84,0.6)]"
             style={{ height: scrollLineHeight }}
           />
 
           {/* Glowing Tracker Bead that follows scroll */}
           <motion.div
-            className="absolute -left-[6.5px] w-4 h-4 rounded-full bg-white dark:bg-[#181A20] border-2 border-[#9333EA] dark:border-[#C084FC] shadow-[0_0_14px_#9333EA] flex items-center justify-center pointer-events-auto"
+            className="absolute -left-[6.5px] w-4 h-4 rounded-full bg-white dark:bg-[#18242A] border-2 border-[#FC7454] dark:border-[#FC7C54] shadow-[0_0_14px_#FC7454] flex items-center justify-center pointer-events-auto"
             style={{
               top: scrollLineHeight,
               transform: 'translateY(-50%)',
             }}
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-[#9333EA] dark:bg-[#C084FC] animate-ping" />
+            <div className="w-1.5 h-1.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54] animate-ping" />
           </motion.div>
 
           {/* Waypoint markers */}
@@ -277,8 +294,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="group flex items-center space-x-3 -ml-2 text-left transition-transform hover:scale-105"
                 title={wp.title}
               >
-                <div className="w-3.5 h-3.5 rounded-full bg-white dark:bg-[#181A20] border-2 border-slate-300 dark:border-slate-700 group-hover:border-[#9333EA] group-hover:bg-[#F5EEFD] dark:group-hover:bg-[#2D1F47] transition shadow-xs" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-[#181A20]/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-slate-200 dark:border-slate-800 text-[10px] font-bold text-[#181A20] dark:text-white shadow-xs whitespace-nowrap">
+                <div className="w-3.5 h-3.5 rounded-full bg-white dark:bg-[#18242A] border-2 border-slate-300 dark:border-slate-700 group-hover:border-[#FC7454] group-hover:bg-[#ECF4F4] dark:group-hover:bg-[#263842] transition shadow-xs" />
+                <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-[#18242A]/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#BCD4D4]/60 dark:border-slate-800 text-[10px] font-bold text-[#1C2C34] dark:text-white shadow-xs whitespace-nowrap">
                   {wp.label} • {wp.title}
                 </span>
               </a>
@@ -291,7 +308,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* 3. HERO SECTION WITH ANIMATED LINE ART LOGO & SCROLL CONNECTOR            */}
       {/* ========================================================================= */}
       <section id="hero" className="relative pt-8 pb-20 sm:pt-16 sm:pb-28 overflow-hidden">
-        {/* Abstract Background Layer in Lilac Palette */}
+        {/* Abstract Background Layer in Soft Palette */}
         <div className="absolute inset-0 pointer-events-none opacity-40 dark:opacity-25">
           <AbstractSafetyShieldArt className="w-full h-full" />
         </div>
@@ -300,32 +317,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="text-center max-w-4xl mx-auto space-y-6">
             
             {/* 3A. HERO ANIMATED LINE-ART ILLUSTRATED LOGO */}
-            <div className="flex justify-center pt-2">
-              <MehfoozLogo variant="animated-hero" size="hero" showUrdu={true} showTagline={true} />
+            <div className="flex justify-center pt-4 pb-2">
+              <MehfoozLogo variant="animated-hero" size="hero" showUrdu={true} />
             </div>
-
-            {/* Top Mission Pill */}
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.8 }}
-              className="inline-flex items-center space-x-2 px-4 py-1.5 rounded-full bg-[#F5EEFD] dark:bg-[#2D1F47] border border-[#E9D5FF] dark:border-[#581C87] shadow-xs"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#9333EA] dark:text-[#C084FC]" />
-              <span className="text-xs font-black tracking-wider text-[#181A20] dark:text-white uppercase">
-                Punjab Women & Citizen Safety Ecosystem • پنجاب محفوظ
-              </span>
-            </motion.div>
 
             {/* Main Punchy Heading */}
             <motion.h1
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 }}
-              className="text-4xl sm:text-6xl lg:text-7xl font-serif font-black tracking-tight text-[#181A20] dark:text-white leading-[1.1]"
+              className="text-4xl sm:text-6xl lg:text-7xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white leading-[1.1]"
             >
               Every Step Protected.{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#9333EA] via-[#B886FD] to-[#C084FC] dark:from-[#C084FC] dark:to-[#E9D5FF]">
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#1C2C34] via-[#FC7454] to-[#FC7C54] dark:from-[#F4F4FC] dark:via-[#FC7454] to-[#BCD4D4]">
                 Every Word Heard.
               </span>
             </motion.h1>
@@ -335,7 +339,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1.1 }}
-              className="text-lg sm:text-xl text-[#4B5563] dark:text-slate-300 max-w-3xl mx-auto leading-relaxed"
+              className="text-lg sm:text-xl text-[#5A6E78] dark:text-slate-300 max-w-3xl mx-auto leading-relaxed"
             >
               The complete safety network combining <strong>discreet weather cover</strong>, <strong>smart corridor navigation</strong>, <strong>grounded Punjab legal statutory AI</strong>, and <strong>zero-knowledge incident evidence lockers</strong>.
             </motion.p>
@@ -349,7 +353,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               <button
                 onClick={() => onLaunchApp('home')}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#9333EA] hover:bg-[#7E22CE] text-white font-black text-base shadow-xl shadow-[#9333EA]/25 hover:shadow-2xl transition-all flex items-center justify-center space-x-2 group active:scale-95 cursor-pointer"
+                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-[#FC7454] hover:bg-[#FC7C54] text-white font-black text-base shadow-xl shadow-[#FC7454]/25 hover:shadow-2xl transition-all flex items-center justify-center space-x-2 group active:scale-95 cursor-pointer"
               >
                 <span>Launch Full Application</span>
                 <ArrowRight className="w-5 h-5 group-hover:translate-x-1.5 transition-transform" />
@@ -357,7 +361,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
               <button
                 onClick={onOpenWeather}
-                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white dark:bg-[#181A20] hover:bg-slate-50 dark:hover:bg-[#202430] text-[#181A20] dark:text-slate-200 border border-slate-200 dark:border-slate-700 font-bold text-base shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
+                className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white dark:bg-[#18242A] hover:bg-[#F4F4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-slate-200 border border-[#BCD4D4]/60 dark:border-slate-700 font-bold text-base shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <CloudSun className="w-5 h-5 text-amber-500" />
                 <span>Test Tuscany Stealth Mode</span>
@@ -374,15 +378,15 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {STATS.map((stat, i) => (
                 <div
                   key={i}
-                  className="p-4 rounded-2xl bg-white/90 dark:bg-[#181A20]/90 backdrop-blur-md border border-[#E9D5FF]/60 dark:border-slate-800 shadow-xs hover:border-[#9333EA] transition"
+                  className="p-4 rounded-2xl bg-white/90 dark:bg-[#18242A]/90 backdrop-blur-md border border-[#BCD4D4]/60 dark:border-slate-800 shadow-xs hover:border-[#FC7454] transition"
                 >
-                  <p className="text-2xl sm:text-3xl font-serif font-black text-[#181A20] dark:text-white">
+                  <p className="text-2xl sm:text-3xl font-serif font-black text-[#1C2C34] dark:text-white">
                     {stat.value}
                   </p>
-                  <h4 className="text-xs font-bold text-[#181A20] dark:text-slate-200 mt-1">
+                  <h4 className="text-xs font-bold text-[#1C2C34] dark:text-slate-200 mt-1">
                     {stat.label}
                   </h4>
-                  <p className="text-[11px] text-[#6B7280] dark:text-slate-400 mt-0.5">
+                  <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 mt-0.5">
                     {stat.sub}
                   </p>
                 </div>
@@ -394,16 +398,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               transition={{ delay: 1.5 }}
-              className="pt-10 flex flex-col items-center space-y-2 text-[#9333EA] dark:text-[#C084FC]"
+              className="pt-10 flex flex-col items-center space-y-2 text-[#FC7454] dark:text-[#FC7C54]"
             >
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#6B7280] dark:text-slate-400">
+              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#5A6E78] dark:text-slate-400">
                 Scroll to Explore Lifeline
               </span>
-              <div className="w-5 h-9 rounded-full border-2 border-[#9333EA] dark:border-[#C084FC] flex items-start justify-center p-1">
+              <div className="w-5 h-9 rounded-full border-2 border-[#FC7454] dark:border-[#FC7C54] flex items-start justify-center p-1">
                 <motion.div
                   animate={{ y: [0, 14, 0] }}
                   transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-1.5 h-1.5 rounded-full bg-[#9333EA] dark:bg-[#C084FC]"
+                  className="w-1.5 h-1.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54]"
                 />
               </div>
             </motion.div>
@@ -417,7 +421,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* ========================================================================= */}
       <section
         id="interactive-suite"
-        className="border-y border-[#E9D5FF]/80 dark:border-slate-800 bg-[#FDFBFE] dark:bg-[#12141C]/80 relative"
+        className="border-y border-[#BCD4D4]/60 dark:border-slate-800 bg-[#F4F4F4] dark:bg-[#131E24] relative"
       >
         <PhoneMockupShowcase
           onLaunchAppTab={(tabKey) => onLaunchApp(tabKey as ActiveTab)}
@@ -430,16 +434,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* ========================================================================= */}
       <section id="features" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#F5EEFD] dark:bg-[#2D1F47] border border-[#E9D5FF] dark:border-[#581C87] shadow-xs">
-            <Layers className="w-4 h-4 text-[#9333EA] dark:text-[#C084FC]" />
-            <span className="text-xs font-bold text-[#181A20] dark:text-white uppercase tracking-wider">
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#ECF4F4] dark:bg-[#18242A] border border-[#BCD4D4] dark:border-[#263842] shadow-xs">
+            <Layers className="w-4 h-4 text-[#1C2C34] dark:text-[#BCD4D4]" />
+            <span className="text-xs font-bold text-[#1C2C34] dark:text-white uppercase tracking-wider">
               Comprehensive Protection Layers
             </span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#181A20] dark:text-white">
+          <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white">
             Designed for Punjab's Ground Realities
           </h2>
-          <p className="text-base sm:text-lg text-[#6B7280] dark:text-slate-300">
+          <p className="text-base sm:text-lg text-[#5A6E78] dark:text-slate-300">
             Engineered specifically to solve real-world safety barriers: public harassment, delayed reporting, legal ambiguity, and digital privacy risks.
           </p>
         </div>
@@ -451,28 +455,28 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <motion.div
                 key={idx}
                 whileHover={{ y: -4 }}
-                className="p-6 rounded-3xl bg-white dark:bg-[#181A20] border border-slate-200 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-[#B886FD] transition-all flex flex-col justify-between"
+                className="p-6 rounded-3xl bg-white dark:bg-[#18242A] border border-[#BCD4D4]/60 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-[#BCD4D4] transition-all flex flex-col justify-between"
               >
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <div className={`w-12 h-12 rounded-2xl flex items-center justify-center bg-gradient-to-br ${pillar.color} border shadow-xs`}>
                       <Icon className="w-6 h-6" />
                     </div>
-                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#6B7280] dark:text-slate-400">
+                    <span className="text-[10px] font-extrabold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400">
                       {pillar.tag}
                     </span>
                   </div>
 
                   <div className="space-y-1">
                     <div className="flex items-baseline justify-between">
-                      <h3 className="text-lg font-bold text-[#181A20] dark:text-white">
+                      <h3 className="text-lg font-bold text-[#1C2C34] dark:text-white">
                         {pillar.title}
                       </h3>
-                      <span className="text-xs text-[#9333EA] dark:text-[#C084FC] font-serif font-bold">
+                      <span className="text-xs text-[#FC7454] dark:text-[#FC7C54] font-serif font-bold">
                         {pillar.titleUrdu}
                       </span>
                     </div>
-                    <p className="text-xs sm:text-sm text-[#6B7280] dark:text-slate-400 leading-relaxed">
+                    <p className="text-xs sm:text-sm text-[#5A6E78] dark:text-slate-400 leading-relaxed">
                       {pillar.description}
                     </p>
                   </div>
@@ -487,12 +491,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         onLaunchApp(pillar.tab);
                       }
                     }}
-                    className="text-xs font-bold text-[#9333EA] dark:text-[#C084FC] hover:text-[#7E22CE] flex items-center space-x-1 cursor-pointer"
+                    className="text-xs font-bold text-[#FC7454] dark:text-[#FC7C54] hover:text-[#FC7C54] flex items-center space-x-1 cursor-pointer"
                   >
                     <span>Open Module</span>
                     <ChevronRight className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-2 h-2 rounded-full bg-[#9333EA] animate-pulse" />
+                  <span className="w-2 h-2 rounded-full bg-[#FC7454] animate-pulse" />
                 </div>
               </motion.div>
             );
@@ -501,14 +505,174 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* ========================================================================= */}
+      {/* 5B. ZERO-CONNECTIVITY OFFLINE MODE SHOWCASE (ADVERTISED FEATURE)          */}
+      {/* ========================================================================= */}
+      <section id="offline-mode" className="py-16 sm:py-20 bg-gradient-to-b from-white to-[#ECF4F4]/50 dark:from-[#131E24] dark:to-[#0F171A] border-y border-[#BCD4D4]/60 dark:border-slate-800 relative overflow-hidden">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
+          <div className="rounded-3xl bg-white dark:bg-[#18242A] border border-[#BCD4D4] dark:border-slate-700 p-6 sm:p-10 shadow-xl relative overflow-hidden">
+            {/* Soft decorative background accent */}
+            <div className="absolute -right-20 -top-20 w-80 h-80 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+            <div className="absolute -left-20 -bottom-20 w-80 h-80 bg-[#FC7454]/10 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+              {/* Left Column: Headline & Value Proposition */}
+              <div className="lg:col-span-7 space-y-4">
+                <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 text-emerald-700 dark:text-emerald-300 shadow-xs">
+                  <WifiOff className="w-4 h-4 text-emerald-600 dark:text-emerald-400" />
+                  <span className="text-xs font-extrabold uppercase tracking-wider">
+                    {isUrdu ? 'نئی خصوصیت: 100% آف لائن موڈ' : 'New Feature: 100% Offline-First Safety'}
+                  </span>
+                </div>
+
+                <h2 className="text-2xl sm:text-4xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white leading-tight">
+                  {isUrdu ? 'انٹرنیٹ یا سگنل بند؟ تحفظ بدستور جاری۔' : 'No Data? No Signal? Zero Compromise.'}
+                </h2>
+
+                <p className="text-sm sm:text-base text-[#5A6E78] dark:text-slate-300 leading-relaxed">
+                  {isUrdu
+                    ? 'پنجاب میں موبائل ڈیٹا بندش یا سگنل نہ ہونے کی صورت میں بھی محفوظ سیف پاتھ بغیر انٹرنیٹ کے مکمل فعال رہتا ہے۔ تمام ضروری ہیلپ لائنز، قانونی مشورے اور ایس او ایس ایس ایم ایس آف لائن دستیاب ہیں۔'
+                    : 'Punjab commuters frequently face network blackouts, cellular jamming, or exhausted mobile data. Mehfooz SafePath is engineered with client-side cache fallback so your personal security never depends on an active internet connection.'}
+                </p>
+
+                {/* 4 Key Offline Advantages */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 pt-2">
+                  <div className="p-3.5 rounded-2xl bg-[#FAFDFD] dark:bg-[#131E24] border border-[#BCD4D4]/60 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-lg bg-emerald-100 dark:bg-emerald-900/60 text-emerald-700 dark:text-emerald-300 flex items-center justify-center">
+                        <PhoneCall className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#1C2C34] dark:text-white">
+                        {isUrdu ? 'آف لائن ہیلپ لائنز' : 'Instant Offline Hotlines'}
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 leading-snug">
+                      {isUrdu ? '15، 1043 اور 1122 پر فوراً براہ راست کال' : 'Direct cellular dialer for 15, 1043, 1122 without internet.'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[#FAFDFD] dark:bg-[#131E24] border border-[#BCD4D4]/60 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-lg bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#BCD4D4] flex items-center justify-center">
+                        <Scale className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#1C2C34] dark:text-white">
+                        {isUrdu ? 'آف لائن قانونی رہنمائی' : 'Cached Statutory Rights'}
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 leading-snug">
+                      {isUrdu ? 'PPWVA 2016 قوانین اور ایف آئی آر گائیڈ فون پر محفوظ' : 'PPWVA 2016 statutes and FIR filing steps pre-loaded on device.'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[#FAFDFD] dark:bg-[#131E24] border border-[#BCD4D4]/60 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-lg bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-400 flex items-center justify-center">
+                        <Radio className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#1C2C34] dark:text-white">
+                        {isUrdu ? 'آف لائن ایس ایم ایس ایس او ایس' : 'Cellular SMS Dispatch'}
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 leading-snug">
+                      {isUrdu ? 'جی پی ایس روابط کے ساتھ خودکار ہنگامی میسج' : 'Compiles exact GPS coordinates into SMS when data network fails.'}
+                    </p>
+                  </div>
+
+                  <div className="p-3.5 rounded-2xl bg-[#FAFDFD] dark:bg-[#131E24] border border-[#BCD4D4]/60 dark:border-slate-800 space-y-1">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 rounded-lg bg-amber-100 dark:bg-amber-950/60 text-amber-700 dark:text-amber-400 flex items-center justify-center">
+                        <Lock className="w-3.5 h-3.5" />
+                      </div>
+                      <h4 className="text-xs font-bold text-[#1C2C34] dark:text-white">
+                        {isUrdu ? 'مقامی انکرپٹڈ والٹ' : 'Local Encrypted Storage'}
+                      </h4>
+                    </div>
+                    <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 leading-snug">
+                      {isUrdu ? 'بغیر انٹرنیٹ آڈیو اور شواہد کی محفوظ ریکارڈنگ' : 'Record voice memos & evidence securely with local AES-256.'}
+                    </p>
+                  </div>
+                </div>
+
+                <div className="pt-2">
+                  <button
+                    onClick={() => onLaunchApp('home')}
+                    className="px-6 py-3 rounded-2xl bg-[#1C2C34] dark:bg-white text-white dark:text-[#1C2C34] text-xs sm:text-sm font-bold shadow-md hover:bg-[#263842] dark:hover:bg-slate-100 transition-all flex items-center space-x-2 cursor-pointer"
+                  >
+                    <span>{isUrdu ? 'آف لائن تحفظ کے ساتھ شروع کریں' : 'Launch Mehfooz with Offline Support'}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </button>
+                </div>
+              </div>
+
+              {/* Right Column: Visual Offline Device Indicator Card */}
+              <div className="lg:col-span-5">
+                <div className="rounded-3xl bg-[#FAFDFD] dark:bg-[#131E24] border-2 border-dashed border-[#BCD4D4] dark:border-slate-700 p-6 space-y-4">
+                  <div className="flex items-center justify-between pb-3 border-b border-[#BCD4D4]/50 dark:border-slate-800">
+                    <div className="flex items-center space-x-2">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-500 animate-pulse" />
+                      <span className="text-xs font-bold text-[#1C2C34] dark:text-white uppercase tracking-wider">
+                        Offline Cache Status
+                      </span>
+                    </div>
+                    <span className="px-2.5 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-950/80 text-emerald-800 dark:text-emerald-300 text-[10px] font-extrabold">
+                      ACTIVE & VERIFIED
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#18242A] border border-[#BCD4D4]/40 dark:border-slate-800">
+                      <div className="flex items-center space-x-2.5">
+                        <PhoneCall className="w-4 h-4 text-emerald-600" />
+                        <div>
+                          <p className="text-xs font-bold text-[#1C2C34] dark:text-white">Punjab Helplines</p>
+                          <p className="text-[10px] text-[#5A6E78] dark:text-slate-400">15, 1043, 1122, 1991</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600">Cached</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#18242A] border border-[#BCD4D4]/40 dark:border-slate-800">
+                      <div className="flex items-center space-x-2.5">
+                        <Scale className="w-4 h-4 text-[#FC7454]" />
+                        <div>
+                          <p className="text-xs font-bold text-[#1C2C34] dark:text-white">PPWVA & PECA Statutes</p>
+                          <p className="text-[10px] text-[#5A6E78] dark:text-slate-400">8 Legal Protections</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600">Cached</span>
+                    </div>
+
+                    <div className="flex items-center justify-between p-3 rounded-xl bg-white dark:bg-[#18242A] border border-[#BCD4D4]/40 dark:border-slate-800">
+                      <div className="flex items-center space-x-2.5">
+                        <MapPin className="w-4 h-4 text-amber-500" />
+                        <div>
+                          <p className="text-xs font-bold text-[#1C2C34] dark:text-white">Punjab Safe Havens</p>
+                          <p className="text-[10px] text-[#5A6E78] dark:text-slate-400">9 Districts Indexed</p>
+                        </div>
+                      </div>
+                      <span className="text-xs font-bold text-emerald-600">Cached</span>
+                    </div>
+                  </div>
+
+                  <p className="text-[11px] text-[#5A6E78] dark:text-slate-400 text-center italic pt-1">
+                    "When connectivity drops, Mehfooz automatically switches to local memory in under 5ms."
+                  </p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* ========================================================================= */}
       {/* 6. LIVE INTERACTIVE SIMULATOR (Try before launching)                      */}
       {/* ========================================================================= */}
-      <section id="simulator" className="py-20 bg-[#12141C] text-white relative overflow-hidden">
+      <section id="simulator" className="py-20 bg-[#131E24] text-white relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10">
           <div className="text-center max-w-3xl mx-auto space-y-4 mb-12">
-            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#9333EA]/20 border border-[#9333EA]/40">
-              <Zap className="w-4 h-4 text-[#C084FC]" />
-              <span className="text-xs font-bold text-[#E9D5FF] uppercase tracking-wider">
+            <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#FC7454]/20 border border-[#FC7454]/40">
+              <Zap className="w-4 h-4 text-[#FC7454]" />
+              <span className="text-xs font-bold text-[#F4F4FC] uppercase tracking-wider">
                 Live Simulator
               </span>
             </div>
@@ -532,7 +696,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   onClick={() => setSimulatorMode(m.id as any)}
                   className={`px-4 py-2 rounded-xl text-xs font-bold transition-all cursor-pointer ${
                     simulatorMode === m.id
-                      ? 'bg-[#9333EA] text-white shadow-lg shadow-[#9333EA]/30'
+                      ? 'bg-[#FC7454] text-white shadow-lg shadow-[#FC7454]/30'
                       : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
                   }`}
                 >
@@ -543,7 +707,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
 
           {/* Interactive Playground Box */}
-          <div className="p-6 sm:p-8 rounded-3xl bg-[#181B24] border border-[#2D1F47] shadow-2xl">
+          <div className="p-6 sm:p-8 rounded-3xl bg-[#18242A] border border-[#263842] shadow-2xl">
             {simulatorMode === 'routing' && (
               <div className="space-y-6">
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
@@ -559,7 +723,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     <button
                       onClick={() => setSimRouteType('safest')}
                       className={`px-3 py-1.5 rounded-lg text-xs font-bold cursor-pointer transition ${
-                        simRouteType === 'safest' ? 'bg-[#9333EA] text-white shadow-xs' : 'text-slate-400'
+                        simRouteType === 'safest' ? 'bg-[#FC7454] text-white shadow-xs' : 'text-slate-400'
                       }`}
                     >
                       Safe Corridor (Recommended)
@@ -576,10 +740,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className={`p-4 rounded-2xl border ${simRouteType === 'safest' ? 'bg-[#2D1F47]/60 border-[#9333EA]' : 'bg-slate-900 border-slate-700'}`}>
+                  <div className={`p-4 rounded-2xl border ${simRouteType === 'safest' ? 'bg-[#263842]/60 border-[#BCD4D4]' : 'bg-slate-900 border-slate-700'}`}>
                     <div className="flex items-center justify-between mb-2">
-                      <span className="text-xs font-bold text-[#C084FC]">Route 1: Safe Corridor</span>
-                      <span className="px-2 py-0.5 rounded-full bg-[#9333EA]/30 text-[#E9D5FF] text-[10px] font-bold">Grade A+ (98/100)</span>
+                      <span className="text-xs font-bold text-[#BCD4D4]">Route 1: Safe Corridor</span>
+                      <span className="px-2 py-0.5 rounded-full bg-[#BCD4D4]/20 text-[#ECF4F4] text-[10px] font-bold">Grade A+ (98/100)</span>
                     </div>
                     <p className="text-xs text-slate-200">100% Well Lit • 18 PSCA Cameras • 3 Police Posts</p>
                     <p className="text-[11px] text-slate-400 mt-2">16 mins (2.4 km) • Verified Safe Haven stops active</p>
@@ -601,7 +765,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                     </div>
                     <button
                       onClick={() => onLaunchApp('navigate')}
-                      className="mt-3 py-2 px-3 rounded-xl bg-[#9333EA] hover:bg-[#7E22CE] text-white text-xs font-bold flex items-center justify-center space-x-1 cursor-pointer transition shadow-xs"
+                      className="mt-3 py-2 px-3 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold flex items-center justify-center space-x-1 cursor-pointer transition shadow-xs"
                     >
                       <span>Open Safe Navigation</span>
                       <ChevronRight className="w-3.5 h-3.5" />
@@ -615,7 +779,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h4 className="text-base font-bold text-white">Punjab Legal RAG Statutory Query</h4>
-                  <span className="text-xs text-[#C084FC] font-semibold">PPWVA 2016 & PECA Grounded</span>
+                  <span className="text-xs text-[#BCD4D4] font-semibold">PPWVA 2016 & PECA Grounded</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 space-y-3">
                   <p className="text-xs text-slate-400">Try common queries:</p>
@@ -631,7 +795,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                         onClick={() => setSimQuery(q)}
                         className={`text-xs px-3 py-1.5 rounded-lg border transition cursor-pointer ${
                           simQuery === q
-                            ? 'bg-[#9333EA] text-white border-[#C084FC]'
+                            ? 'bg-[#FC7454] text-white border-[#FC7C54]'
                             : 'bg-slate-800 text-slate-300 border-slate-700 hover:bg-slate-700'
                         }`}
                       >
@@ -641,7 +805,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   </div>
 
                   <div className="p-3.5 rounded-xl bg-slate-950 border border-slate-800 text-xs space-y-2">
-                    <div className="flex items-center space-x-2 text-[#C084FC] font-bold">
+                    <div className="flex items-center space-x-2 text-[#BCD4D4] font-bold">
                       <Scale className="w-4 h-4" />
                       <span>Statutory Citation Result</span>
                     </div>
@@ -652,7 +816,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                       <span>Jurisdiction: Punjab, Pakistan</span>
                       <button
                         onClick={() => onLaunchApp('assistant')}
-                        className="text-[#C084FC] hover:text-[#E9D5FF] font-bold cursor-pointer"
+                        className="text-[#BCD4D4] hover:text-[#ECF4F4] font-bold cursor-pointer"
                       >
                         Launch Interactive Legal AI →
                       </button>
@@ -664,19 +828,19 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             {simulatorMode === 'vault' && (
               <div className="space-y-4 text-center py-4">
-                <div className="w-12 h-12 rounded-2xl bg-[#9333EA]/20 text-[#C084FC] mx-auto flex items-center justify-center">
+                <div className="w-12 h-12 rounded-2xl bg-[#FC7454]/20 text-[#FC7454] mx-auto flex items-center justify-center">
                   <Lock className="w-6 h-6" />
                 </div>
                 <h4 className="text-base font-bold text-white">Client-Side Zero-Knowledge Encryption</h4>
                 <p className="text-xs text-slate-400 max-w-xl mx-auto">
                   Every voice memo, photograph, and timeline record is encrypted locally with your custom 4-digit PIN before storage. No plain-text data ever leaves your device.
                 </p>
-                <div className="p-3 rounded-xl bg-slate-950 max-w-md mx-auto font-mono text-[11px] text-[#C084FC] border border-[#2D1F47]">
+                <div className="p-3 rounded-xl bg-slate-950 max-w-md mx-auto font-mono text-[11px] text-[#BCD4D4] border border-[#263842]">
                   AES-GCM-256: 8f9b2a1c0d4e... [KEY DERIVED FROM STEALTH PIN]
                 </div>
                 <button
                   onClick={() => onLaunchApp('vault')}
-                  className="py-2.5 px-5 rounded-xl bg-[#9333EA] hover:bg-[#7E22CE] text-white text-xs font-bold inline-flex items-center space-x-1.5 cursor-pointer shadow-md"
+                  className="py-2.5 px-5 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold inline-flex items-center space-x-1.5 cursor-pointer shadow-md"
                 >
                   <span>Open Encrypted Vault</span>
                   <ArrowRight className="w-3.5 h-3.5" />
@@ -721,16 +885,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* ========================================================================= */}
       <section id="safety-network" className="py-20 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
         <div className="text-center max-w-3xl mx-auto space-y-4 mb-16">
-          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#F5EEFD] dark:bg-[#2D1F47] border border-[#E9D5FF] dark:border-[#581C87] shadow-xs">
-            <HeartHandshake className="w-4 h-4 text-[#9333EA] dark:text-[#C084FC]" />
-            <span className="text-xs font-bold text-[#181A20] dark:text-white uppercase tracking-wider">
+          <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#ECF4F4] dark:bg-[#18242A] border border-[#BCD4D4] dark:border-[#263842] shadow-xs">
+            <HeartHandshake className="w-4 h-4 text-[#1C2C34] dark:text-[#BCD4D4]" />
+            <span className="text-xs font-bold text-[#1C2C34] dark:text-white uppercase tracking-wider">
               Integrated Helplines
             </span>
           </div>
-          <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#181A20] dark:text-white">
+          <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white">
             Direct Link to Punjab Crisis Services
           </h2>
-          <p className="text-base text-[#6B7280] dark:text-slate-300">
+          <p className="text-base text-[#5A6E78] dark:text-slate-300">
             One-touch emergency calling and direct escalation across Punjab government and legal aid authorities.
           </p>
         </div>
@@ -749,7 +913,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               number: '1043',
               desc: 'Dedicated harassment, legal support, and crisis counseling.',
               badge: '24/7 Toll-Free',
-              color: 'text-[#9333EA] dark:text-[#C084FC] bg-[#F5EEFD] dark:bg-[#2D1F47] border-[#E9D5FF] dark:border-[#581C87]'
+              color: 'text-[#1C2C34] dark:text-[#BCD4D4] bg-[#ECF4F4] dark:bg-[#18242A] border-[#BCD4D4] dark:border-[#263842]'
             },
             {
               name: 'Rescue 1122 Emergency',
@@ -768,30 +932,30 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           ].map((item, idx) => (
             <div
               key={idx}
-              className="p-5 rounded-3xl bg-white dark:bg-[#181A20] border border-slate-200 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-[#B886FD] transition"
+              className="p-5 rounded-3xl bg-white dark:bg-[#18242A] border border-[#BCD4D4]/60 dark:border-slate-800 shadow-xs flex flex-col justify-between hover:border-[#BCD4D4] transition"
             >
               <div>
                 <div className="flex items-center justify-between mb-2">
                   <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold border ${item.color}`}>
                     {item.badge}
                   </span>
-                  <span className="text-xl font-serif font-black text-[#181A20] dark:text-white">
+                  <span className="text-xl font-serif font-black text-[#1C2C34] dark:text-white">
                     {item.number}
                   </span>
                 </div>
-                <h4 className="text-sm font-bold text-[#181A20] dark:text-white mt-1">
+                <h4 className="text-sm font-bold text-[#1C2C34] dark:text-white mt-1">
                   {item.name}
                 </h4>
-                <p className="text-xs text-[#6B7280] dark:text-slate-400 mt-1 leading-relaxed">
+                <p className="text-xs text-[#5A6E78] dark:text-slate-400 mt-1 leading-relaxed">
                   {item.desc}
                 </p>
               </div>
 
               <a
                 href={`tel:${item.number}`}
-                className="mt-4 w-full py-2 rounded-xl bg-[#F5EEFD] dark:bg-[#1E1630] hover:bg-[#EDE9FE] dark:hover:bg-[#2D1F47] text-[#181A20] dark:text-[#E9D5FF] border border-[#E9D5FF] dark:border-[#581C87] text-xs font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                className="mt-4 w-full py-2 rounded-xl bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] border border-[#BCD4D4] dark:border-[#263842] text-xs font-bold flex items-center justify-center space-x-1.5 transition cursor-pointer"
               >
-                <PhoneCall className="w-3.5 h-3.5 text-[#9333EA] dark:text-[#C084FC]" />
+                <PhoneCall className="w-3.5 h-3.5 text-[#FC7454] dark:text-[#FC7C54]" />
                 <span>Call {item.number} Now</span>
               </a>
             </div>
@@ -802,11 +966,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       {/* ========================================================================= */}
       {/* 8. FOOTER CALL TO ACTION                                                  */}
       {/* ========================================================================= */}
-      <footer id="launch" className="border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-[#12141C] py-12 px-4 sm:px-8">
+      <footer id="launch" className="border-t border-[#BCD4D4]/60 dark:border-slate-800 bg-white dark:bg-[#131E24] py-12 px-4 sm:px-8">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
           <div className="flex flex-col items-center md:items-start space-y-2">
-            <MehfoozLogo variant="horizontal" size="md" showUrdu={true} showTagline={true} />
-            <p className="text-xs text-[#6B7280] dark:text-slate-400 max-w-sm text-center md:text-left">
+            <MehfoozLogo variant="horizontal" size="md" showUrdu={true} />
+            <p className="text-xs text-[#5A6E78] dark:text-slate-400 max-w-sm text-center md:text-left">
               Mehfooz — Privacy-first safety ecosystem empowering women across Punjab, Pakistan.
             </p>
           </div>
@@ -814,7 +978,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-wrap items-center justify-center gap-3">
             <button
               onClick={onOpenWeather}
-              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#1E2230] hover:bg-slate-200 text-xs font-bold text-[#181A20] dark:text-slate-200 transition flex items-center space-x-1.5 cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-slate-200 text-xs font-bold text-[#1C2C34] dark:text-slate-200 transition flex items-center space-x-1.5 cursor-pointer"
             >
               <CloudSun className="w-4 h-4 text-sky-500" />
               <span>Weather Disguise</span>
@@ -822,7 +986,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
             <button
               onClick={() => onLaunchApp('home')}
-              className="px-6 py-2.5 rounded-xl bg-[#9333EA] hover:bg-[#7E22CE] text-white text-xs font-bold shadow-md shadow-[#9333EA]/20 transition flex items-center space-x-1.5 cursor-pointer"
+              className="px-6 py-2.5 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold shadow-md shadow-[#FC7454]/20 transition flex items-center space-x-1.5 cursor-pointer"
             >
               <span>Launch Mehfooz App</span>
               <ArrowRight className="w-4 h-4" />
@@ -830,7 +994,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           </div>
         </div>
 
-        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-[#6B7280] dark:text-slate-400">
+        <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-[#5A6E78] dark:text-slate-400">
           <p>© 2026 Mehfooz SafePath. All rights reserved.</p>
           <p className="mt-2 sm:mt-0">Zero-Knowledge Encrypted • Non-Profit Public Safety</p>
         </div>

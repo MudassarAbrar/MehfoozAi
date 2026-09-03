@@ -15,13 +15,13 @@ export const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
     const baseClasses = 'inline-flex items-center justify-center rounded-xl font-medium transition-all focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-50 active:scale-[0.98] cursor-pointer';
 
     const variantClasses = {
-      default: 'bg-[#181A20] text-white hover:bg-slate-800 font-bold shadow-xs',
-      brand: 'bg-[#181A20] text-white hover:bg-slate-800 font-bold shadow-xs',
+      default: 'bg-[#1C2C34] text-white hover:bg-[#2A3C44] font-bold shadow-xs',
+      brand: 'bg-[#1C2C34] text-white hover:bg-[#2A3C44] font-bold shadow-xs',
       destructive: 'bg-rose-50 text-rose-700 border border-rose-200 hover:bg-rose-100 font-bold shadow-xs',
-      outline: 'border border-slate-200 bg-white hover:bg-[#F5EEFD] text-[#181A20]',
-      secondary: 'bg-slate-100 text-[#181A20] hover:bg-[#F5EEFD]',
-      ghost: 'hover:bg-[#F5EEFD] text-[#181A20]',
-      link: 'text-[#9333EA] underline-offset-4 hover:underline p-0 h-auto font-bold',
+      outline: 'border border-[#BCD4D4]/60 bg-white hover:bg-[#ECF4F4] text-[#1C2C34]',
+      secondary: 'bg-[#F4F4F4] text-[#1C2C34] hover:bg-[#ECF4F4]',
+      ghost: 'hover:bg-[#ECF4F4] text-[#1C2C34]',
+      link: 'text-[#FC7454] underline-offset-4 hover:underline p-0 h-auto font-bold',
     };
 
     const sizeClasses = {

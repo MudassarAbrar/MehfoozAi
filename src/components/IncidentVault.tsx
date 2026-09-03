@@ -25,11 +25,15 @@ import {
   X,
   AlertCircle,
   Eye,
-  EyeOff
+  EyeOff,
+  Printer
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, IncidentCategory, VaultRecord } from '../types';
 import { encryptLocalData, decryptLocalData } from '../utils/crypto';
+import { ExportPdfModal } from './ExportPdfModal';
+import { getStoredProfile } from '../utils/auth';
+
 
 interface IncidentVaultProps {
   language: AppLanguage;
@@ -41,9 +45,9 @@ interface IncidentVaultProps {
 
 const CATEGORY_MAP: Record<IncidentCategory, { label: string; labelUrdu: string; color: string }> = {
   domestic_violence: { label: 'Domestic Violence', labelUrdu: 'گھریلو تشدد', color: 'bg-rose-50 text-rose-700 border-rose-200' },
-  coercive_control: { label: 'Coercive Control / Isolation', labelUrdu: 'زبردستی کنٹرول / قید', color: 'bg-[#F5EEFD] text-[#9333EA] border-[#E9D5FF]' },
+  coercive_control: { label: 'Coercive Control / Isolation', labelUrdu: 'زبردستی کنٹرول / قید', color: 'bg-[#ECF4F4] text-[#1C2C34] border-[#BCD4D4]' },
   threats_intimidation: { label: 'Threats & Intimidation', labelUrdu: 'دھمکیاں و خوف و ہراس', color: 'bg-amber-50 text-amber-700 border-amber-200' },
-  workplace_harassment: { label: 'Workplace Harassment', labelUrdu: 'کام کی جگہ پر ہراسانی', color: 'bg-[#F5EEFD] text-[#9333EA] border-[#E9D5FF]' },
+  workplace_harassment: { label: 'Workplace Harassment', labelUrdu: 'کام کی جگہ پر ہراسانی', color: 'bg-[#ECF4F4] text-[#1C2C34] border-[#BCD4D4]' },
   stalking_harassment: { label: 'Stalking / Public Harassment', labelUrdu: 'پیچھا کرنا / پبلک ہراسانی', color: 'bg-indigo-50 text-indigo-700 border-indigo-200' },
   cyber_blackmail: { label: 'Cyber Blackmail / PECA', labelUrdu: 'سائبر بلیک میلنگ', color: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
   physical_assault: { label: 'Physical Assault', labelUrdu: 'جسمانی مار پیٹ', color: 'bg-rose-50 text-rose-700 border-rose-200' },
@@ -79,6 +83,9 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
   const [isRecordingAudio, setIsRecordingAudio] = useState(false);
   const [recordingSeconds, setRecordingSeconds] = useState(0);
   const [playingAudioId, setPlayingAudioId] = useState<string | null>(null);
+  const [isExportPdfOpen, setIsExportPdfOpen] = useState(false);
+  const [exportRecordsSelection, setExportRecordsSelection] = useState<VaultRecord[]>([]);
+
 
   const isUrdu = language === 'ur';
 
@@ -215,35 +222,50 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
   };
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-3 space-y-4 text-[#181A20]">
+    <div className="max-w-4xl mx-auto px-4 py-3 space-y-4 text-[#1C2C34]">
       {/* Vault Header Banner */}
       <div className="rounded-2xl bg-white border border-slate-200 p-5 shadow-xs">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div className="space-y-1">
             <div className="flex items-center space-x-2">
-              <div className="w-8 h-8 rounded-xl bg-[#F5EEFD] text-[#9333EA] flex items-center justify-center border border-[#E9D5FF]">
-                <Lock className="w-4 h-4" />
+              <div className="w-8 h-8 rounded-xl bg-[#ECF4F4] text-[#1C2C34] flex items-center justify-center border border-[#BCD4D4]">
+                <Lock className="w-4 h-4 text-[#FC7454]" />
               </div>
-              <h2 className="text-base font-bold text-[#181A20]">
+              <h2 className="text-base font-bold text-[#1C2C34]">
                 {isUrdu ? 'پرائیویٹ و خفیہ نوٹس والی والٹ' : 'Encrypted Private Incident Vault'}
               </h2>
-              <span className="px-2 py-0.5 rounded-full bg-[#F5EEFD] text-[#9333EA] text-[10px] font-mono border border-[#E9D5FF]">
+              <span className="px-2 py-0.5 rounded-full bg-[#ECF4F4] text-[#FC7454] text-[10px] font-mono border border-[#BCD4D4]">
                 AES-256 On-Device
               </span>
             </div>
-            <p className="text-xs text-[#6B7280] max-w-xl">
+            <p className="text-xs text-[#5A6E78] max-w-xl">
               {isUrdu 
                 ? 'تمام واقعات اور نوٹس آپ کے فون میں محفوظ اور اینکرپٹڈ ہیں۔ یہ ڈیٹا کسی سرور پر اپلوڈ نہیں ہوتا تاوقتیکہ آپ شکایت کا حصہ نہ بنائیں۔'
                 : 'Incident timelines, dates, and evidence notes stay strictly encrypted on this device. Nothing is shared with authorities unless you explicitly export to a verified complaint.'}
             </p>
           </div>
 
-          <div className="flex items-center space-x-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {records.length > 0 && (
+              <button
+                type="button"
+                onClick={() => {
+                  setExportRecordsSelection(records);
+                  setIsExportPdfOpen(true);
+                }}
+                className="px-3.5 py-2.5 rounded-xl bg-[#ECF4F4] hover:bg-[#d8ebeb] border border-[#BCD4D4] text-[#1C2C34] font-semibold text-xs flex items-center space-x-1.5 transition cursor-pointer shadow-2xs"
+                title="Export all incident records into a password-protected PDF"
+              >
+                <Printer className="w-4 h-4 text-[#FC7454]" />
+                <span>Export Vault PDF</span>
+              </button>
+            )}
+
             <button
               onClick={() => setIsAddingRecord(true)}
-              className="px-4 py-2.5 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
+              className="px-4 py-2.5 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
             >
-              <Plus className="w-4 h-4 text-[#B886FD]" />
+              <Plus className="w-4 h-4 text-[#FC7454]" />
               <span>{isUrdu ? 'نیا واقعہ درج کریں' : 'Log New Incident'}</span>
             </button>
           </div>
@@ -255,24 +277,40 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
         <motion.div 
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="p-3.5 rounded-2xl bg-[#F5EEFD] border border-[#E9D5FF] flex items-center justify-between shadow-xs"
+          className="p-3.5 rounded-2xl bg-[#ECF4F4] border border-[#BCD4D4] flex flex-wrap items-center justify-between gap-2 shadow-xs"
         >
-          <div className="flex items-center space-x-2 text-xs text-[#181A20] min-w-0">
-            <CheckSquare className="w-4 h-4 text-[#B886FD] flex-shrink-0" />
+          <div className="flex items-center space-x-2 text-xs text-[#1C2C34] min-w-0">
+            <CheckSquare className="w-4 h-4 text-[#FC7454] flex-shrink-0" />
             <span className="truncate">
               <strong>{selectedRecordIds.length}</strong> record{selectedRecordIds.length > 1 ? 's' : ''} selected
             </span>
           </div>
 
-          <button
-            onClick={handleExportSelected}
-            className="px-3.5 py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs transition whitespace-nowrap flex-shrink-0 cursor-pointer"
-          >
-            <span>{isUrdu ? 'ڈرافٹ میں شامل کریں' : 'Export to Complaint'}</span>
-            <ArrowRight className="w-3.5 h-3.5 text-[#B886FD]" />
-          </button>
+          <div className="flex items-center space-x-2">
+            <button
+              type="button"
+              onClick={() => {
+                const sel = records.filter(r => selectedRecordIds.includes(r.id));
+                setExportRecordsSelection(sel);
+                setIsExportPdfOpen(true);
+              }}
+              className="px-3 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#1C2C34] font-semibold text-xs flex items-center space-x-1.5 shadow-2xs transition whitespace-nowrap cursor-pointer"
+            >
+              <Printer className="w-3.5 h-3.5 text-[#FC7454]" />
+              <span>Export Protected PDF</span>
+            </button>
+
+            <button
+              onClick={handleExportSelected}
+              className="px-3.5 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs flex items-center space-x-1.5 shadow-xs transition whitespace-nowrap flex-shrink-0 cursor-pointer"
+            >
+              <span>{isUrdu ? 'ڈرافٹ میں شامل کریں' : 'Export to Complaint'}</span>
+              <ArrowRight className="w-3.5 h-3.5 text-[#BCD4D4]" />
+            </button>
+          </div>
         </motion.div>
       )}
+
 
       {/* Add New Record Modal / Drawer */}
       <AnimatePresence>
@@ -286,14 +324,14 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
             >
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
                 <div className="flex items-center space-x-2">
-                  <Lock className="w-4 h-4 text-[#B886FD]" />
-                  <h3 className="text-sm font-bold text-[#181A20]">
+                  <Lock className="w-4 h-4 text-[#FC7454]" />
+                  <h3 className="text-sm font-bold text-[#1C2C34]">
                     {isUrdu ? 'نیا واقعہ / پرائیویٹ نوٹ محفوظ کریں' : 'Create Encrypted Incident Record'}
                   </h3>
                 </div>
                 <button 
                   onClick={() => setIsAddingRecord(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#181A20] cursor-pointer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C2C34] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -302,7 +340,7 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
               <form onSubmit={handleSaveRecord} className="space-y-3.5 text-xs">
                 {/* Title */}
                 <div>
-                  <label className="block text-[#181A20] font-semibold mb-1">
+                  <label className="block text-[#1C2C34] font-semibold mb-1">
                     {isUrdu ? 'عنوان (مختصر):' : 'Incident Title / Summary:'}
                   </label>
                   <input
@@ -311,19 +349,19 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     value={title}
                     onChange={(e) => setTitle(e.target.value)}
                     placeholder="e.g. Verbal threats during dinner, room locked from outside"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#181A20] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#1C2C34] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                   />
                 </div>
 
                 {/* Category */}
                 <div>
-                  <label className="block text-[#181A20] font-semibold mb-1">
+                  <label className="block text-[#1C2C34] font-semibold mb-1">
                     {isUrdu ? 'واقعہ کی نوعیت:' : 'Incident Category:'}
                   </label>
                   <select
                     value={category}
                     onChange={(e) => setCategory(e.target.value as IncidentCategory)}
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-[#181A20] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-[#1C2C34] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                   >
                     {Object.entries(CATEGORY_MAP).map(([key, val]) => (
                       <option key={key} value={key}>
@@ -336,7 +374,7 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                 {/* Date & Time */}
                 <div className="grid grid-cols-2 gap-3">
                   <div>
-                    <label className="block text-[#181A20] font-semibold mb-1 flex items-center space-x-1">
+                    <label className="block text-[#1C2C34] font-semibold mb-1 flex items-center space-x-1">
                       <Calendar className="w-3 h-3 text-slate-400" />
                       <span>{isUrdu ? 'تاریخ:' : 'Incident Date:'}</span>
                     </label>
@@ -344,12 +382,12 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                       type="date"
                       value={incidentDate}
                       onChange={(e) => setIncidentDate(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#181A20] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#1C2C34] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                     />
                   </div>
 
                   <div>
-                    <label className="block text-[#181A20] font-semibold mb-1 flex items-center space-x-1">
+                    <label className="block text-[#1C2C34] font-semibold mb-1 flex items-center space-x-1">
                       <Clock className="w-3 h-3 text-slate-400" />
                       <span>{isUrdu ? 'وقت (تقریباً):' : 'Approximate Time:'}</span>
                     </label>
@@ -357,14 +395,14 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                       type="time"
                       value={incidentTime}
                       onChange={(e) => setIncidentTime(e.target.value)}
-                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#181A20] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                      className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#1C2C34] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                     />
                   </div>
                 </div>
 
                 {/* Location */}
                 <div>
-                  <label className="block text-[#181A20] font-semibold mb-1 flex items-center space-x-1">
+                  <label className="block text-[#1C2C34] font-semibold mb-1 flex items-center space-x-1">
                     <MapPin className="w-3 h-3 text-slate-400" />
                     <span>{isUrdu ? 'مقام (شہر / گھر / دفتر):' : 'Location (e.g. Lahore residence, office):'}</span>
                   </label>
@@ -373,13 +411,13 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     value={location}
                     onChange={(e) => setLocation(e.target.value)}
                     placeholder="e.g. Model Town Lahore, shared residence"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#181A20] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#1C2C34] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                   />
                 </div>
 
                 {/* Private Detailed Note */}
                 <div>
-                  <label className="block text-[#181A20] font-semibold mb-1">
+                  <label className="block text-[#1C2C34] font-semibold mb-1">
                     {isUrdu ? 'واقعہ کی تفصیل (مکمل محفوظ):' : 'Private Notes & Exact Words Spoken:'}
                   </label>
                   <textarea
@@ -388,13 +426,13 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     value={note}
                     onChange={(e) => setNote(e.target.value)}
                     placeholder="Write what happened in your own words. Include quotes, threats, physical actions, or restrictions..."
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#181A20] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#1C2C34] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                   />
                 </div>
 
                 {/* Witnesses */}
                 <div>
-                  <label className="block text-[#181A20] font-semibold mb-1">
+                  <label className="block text-[#1C2C34] font-semibold mb-1">
                     {isUrdu ? 'گواہان / موجود افراد (اختیاری):' : 'Witnesses or People Present (Optional):'}
                   </label>
                   <input
@@ -402,7 +440,7 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     value={witnesses}
                     onChange={(e) => setWitnesses(e.target.value)}
                     placeholder="e.g. Neighbor, colleague, relative"
-                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#181A20] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#B886FD] focus:ring-2 focus:ring-[#B886FD]/20"
+                    className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3 py-2 text-[#1C2C34] placeholder:text-[#9CA3AF] focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                   />
                 </div>
 
@@ -414,8 +452,8 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     onClick={handlePhotoUploadSim}
                     className={`px-3 py-2 rounded-xl border flex items-center space-x-1.5 transition shadow-xs cursor-pointer ${
                       hasPhoto 
-                        ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA]' 
-                        : 'bg-white border-slate-200 text-[#181A20] hover:bg-slate-50'
+                        ? 'bg-[#ECF4F4] border-[#BCD4D4] text-[#FC7454]' 
+                        : 'bg-white border-slate-200 text-[#1C2C34] hover:bg-slate-50'
                     }`}
                   >
                     <ImageIcon className="w-3.5 h-3.5" />
@@ -428,13 +466,13 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                     onClick={handleToggleAudioRecord}
                     className={`px-3 py-2 rounded-xl border flex items-center space-x-1.5 transition shadow-xs cursor-pointer ${
                       isRecordingAudio 
-                        ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA] animate-pulse' 
+                        ? 'bg-[#ECF4F4] border-[#BCD4D4] text-[#FC7454] animate-pulse' 
                         : audioDuration 
                           ? 'bg-emerald-50 border-emerald-200 text-emerald-700' 
-                          : 'bg-white border-slate-200 text-[#181A20] hover:bg-slate-50'
+                          : 'bg-white border-slate-200 text-[#1C2C34] hover:bg-slate-50'
                     }`}
                   >
-                    {isRecordingAudio ? <Square className="w-3.5 h-3.5 text-[#181A20]" /> : <Mic className="w-3.5 h-3.5" />}
+                    {isRecordingAudio ? <Square className="w-3.5 h-3.5 text-[#1C2C34]" /> : <Mic className="w-3.5 h-3.5" />}
                     <span>
                       {isRecordingAudio 
                         ? `Recording (${recordingSeconds}s)...` 
@@ -450,16 +488,16 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsAddingRecord(false)}
-                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#181A20] font-medium cursor-pointer"
+                    className="px-4 py-2 rounded-xl bg-white hover:bg-slate-50 border border-slate-200 text-[#1C2C34] font-medium cursor-pointer"
                   >
                     Cancel
                   </button>
 
                   <button
                     type="submit"
-                    className="px-5 py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                    className="px-5 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold flex items-center space-x-1.5 shadow-xs cursor-pointer"
                   >
-                    <Lock className="w-3.5 h-3.5 text-[#B886FD]" />
+                    <Lock className="w-3.5 h-3.5 text-[#FC7454]" />
                     <span>Save & Encrypt Record</span>
                   </button>
                 </div>
@@ -494,7 +532,7 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
               <div
                 key={rec.id}
                 className={`rounded-2xl bg-white border transition-all p-5 shadow-xs ${
-                  isSelected ? 'border-[#B886FD] ring-2 ring-[#B886FD]/30' : 'border-slate-200 hover:border-slate-300'
+                  isSelected ? 'border-[#FC7454] ring-2 ring-[#FC7454]/30' : 'border-slate-200 hover:border-slate-300'
                 }`}
               >
                 <div className="flex items-start justify-between gap-3">
@@ -502,10 +540,10 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                   <div className="flex items-start space-x-3">
                     <button
                       onClick={() => toggleSelectRecord(rec.id)}
-                      className="mt-1 text-slate-400 hover:text-[#B886FD] transition cursor-pointer"
+                      className="mt-1 text-slate-400 hover:text-[#FC7454] transition cursor-pointer"
                     >
                       {isSelected ? (
-                        <CheckSquare className="w-5 h-5 text-[#9333EA]" />
+                        <CheckSquare className="w-5 h-5 text-[#FC7454]" />
                       ) : (
                         <SquareOutline className="w-5 h-5 text-slate-400" />
                       )}
@@ -517,22 +555,22 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                           {isUrdu ? catBadge.labelUrdu : catBadge.label}
                         </span>
 
-                        <span className="text-[11px] text-[#6B7280] flex items-center space-x-1">
+                        <span className="text-[11px] text-[#5A6E78] flex items-center space-x-1">
                           <Calendar className="w-3 h-3 text-slate-400" />
                           <span>{rec.incidentDate}</span>
                         </span>
 
-                        <span className="text-[11px] text-[#6B7280] flex items-center space-x-1">
+                        <span className="text-[11px] text-[#5A6E78] flex items-center space-x-1">
                           <Clock className="w-3 h-3 text-slate-400" />
                           <span>{rec.incidentTime}</span>
                         </span>
 
-                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] font-mono">
+                        <span className="text-[10px] px-1.5 py-0.5 rounded bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4] font-mono">
                           AES-256
                         </span>
                       </div>
 
-                      <h3 className="text-sm font-bold text-[#181A20]">{rec.title}</h3>
+                      <h3 className="text-sm font-bold text-[#1C2C34]">{rec.title}</h3>
                     </div>
                   </div>
 
@@ -549,29 +587,29 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
                 </div>
 
                 {/* Note Excerpt */}
-                <p className="mt-3 text-xs text-[#181A20] leading-relaxed line-clamp-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
+                <p className="mt-3 text-xs text-[#1C2C34] leading-relaxed line-clamp-3 bg-slate-50 p-3.5 rounded-xl border border-slate-100">
                   {rec.note}
                 </p>
 
                 {/* Meta details & Media Tags */}
-                <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-[#6B7280] gap-2 border-t border-slate-100 pt-3">
+                <div className="mt-3 flex flex-wrap items-center justify-between text-[11px] text-[#5A6E78] gap-2 border-t border-slate-100 pt-3">
                   <div className="flex items-center space-x-3">
                     {rec.location && (
                       <span className="flex items-center space-x-1">
-                        <MapPin className="w-3 h-3 text-[#B886FD]" />
+                        <MapPin className="w-3 h-3 text-[#FC7454]" />
                         <span>{rec.location}</span>
                       </span>
                     )}
 
                     {rec.hasPhoto && (
-                      <span className="flex items-center space-x-1 text-[#181A20]">
+                      <span className="flex items-center space-x-1 text-[#1C2C34]">
                         <ImageIcon className="w-3 h-3" />
                         <span>Encrypted Photo</span>
                       </span>
                     )}
 
                     {rec.audioDuration && (
-                      <span className="flex items-center space-x-1 text-[#181A20]">
+                      <span className="flex items-center space-x-1 text-[#1C2C34]">
                         <Mic className="w-3 h-3" />
                         <span>Voice Memo ({rec.audioDuration}s)</span>
                       </span>
@@ -580,10 +618,10 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
 
                   <button
                     onClick={() => onExportToComplaint([rec])}
-                    className="text-xs text-[#181A20] hover:text-[#9333EA] font-bold flex items-center space-x-1 cursor-pointer"
+                    className="text-xs text-[#1C2C34] hover:text-[#FC7454] font-bold flex items-center space-x-1 cursor-pointer"
                   >
                     <span>{isUrdu ? 'شکایت میں تبدیل کریں' : 'Draft Request from this'}</span>
-                    <ArrowRight className="w-3 h-3 text-[#B886FD]" />
+                    <ArrowRight className="w-3 h-3 text-[#FC7454]" />
                   </button>
                 </div>
               </div>
@@ -591,6 +629,19 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
           })
         )}
       </div>
+      {/* Export Vault Records to Protected PDF Modal */}
+      {isExportPdfOpen && (
+        <ExportPdfModal
+          isOpen={isExportPdfOpen}
+          onClose={() => setIsExportPdfOpen(false)}
+          language={language}
+          incidentRecords={exportRecordsSelection.length > 0 ? exportRecordsSelection : records}
+          defaultUserPin={getStoredProfile()?.stealthPin || '1520'}
+          defaultUserName={getStoredProfile()?.fullName || 'Ayesha Rehman'}
+          onLogAudit={onLogAudit}
+        />
+      )}
     </div>
   );
 };
+

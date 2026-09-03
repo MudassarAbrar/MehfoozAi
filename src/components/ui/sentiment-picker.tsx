@@ -50,7 +50,7 @@ export const SENTIMENT_OPTIONS: SentimentOption[] = [
     labelUrdu: 'عام / مناسب',
     icon: Meh,
     colorClass: 'text-slate-600',
-    activeBg: 'bg-slate-100 border-slate-300 text-[#181A20]',
+    activeBg: 'bg-slate-100 border-slate-300 text-[#1C2C34]',
   },
   {
     id: 'safe',
@@ -65,8 +65,8 @@ export const SENTIMENT_OPTIONS: SentimentOption[] = [
     label: 'Very Safe',
     labelUrdu: 'انتہائی محفوظ',
     icon: Sparkles,
-    colorClass: 'text-[#9333EA]',
-    activeBg: 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA]',
+    colorClass: 'text-[#FC7454]',
+    activeBg: 'bg-[#ECF4F4] border-[#BCD4D4] text-[#1C2C34]',
   },
 ];
 
@@ -95,8 +95,8 @@ export const SentimentPicker: React.FC<SentimentPickerProps> = ({
             onClick={() => onChange(opt.id)}
             className={`p-2.5 rounded-2xl border flex flex-col items-center justify-center transition-all cursor-pointer ${
               isSelected
-                ? `${opt.activeBg} ring-2 ring-offset-1 ring-[#B886FD] shadow-xs font-bold`
-                : 'bg-slate-50 border-slate-200 text-[#6B7280] hover:bg-[#F5EEFD]/60'
+                ? `${opt.activeBg} ring-2 ring-offset-1 ring-[#FC7454] shadow-xs font-bold`
+                : 'bg-[#F4F4F4] border-[#BCD4D4]/50 text-[#5A6E78] hover:bg-[#ECF4F4]/60'
             }`}
           >
             <div className={`w-7 h-7 rounded-xl flex items-center justify-center mb-1 ${

@@ -9,10 +9,10 @@ import { motion } from 'motion/react';
 export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ className = '' }) => {
   return (
     <div className={`relative overflow-hidden ${className}`}>
-      {/* Floating Ambient Lilac / Purple Blobs */}
-      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#B886FD]/20 dark:bg-[#9333EA]/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
-      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#C084FC]/20 dark:bg-[#581C87]/20 rounded-full blur-3xl pointer-events-none" />
-      <div className="absolute top-1/2 right-10 w-72 h-72 bg-[#F5EEFD]/40 dark:bg-[#2D1F47]/20 rounded-full blur-3xl pointer-events-none" />
+      {/* Floating Ambient Blobs */}
+      <div className="absolute top-1/4 left-1/4 w-80 h-80 bg-[#BCD4D4]/25 dark:bg-[#A4C4C4]/15 rounded-full blur-3xl animate-pulse pointer-events-none" />
+      <div className="absolute bottom-1/3 right-1/4 w-96 h-96 bg-[#FC7454]/15 dark:bg-[#FC7C54]/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 right-10 w-72 h-72 bg-[#ECF4F4]/50 dark:bg-[#1C2C34]/20 rounded-full blur-3xl pointer-events-none" />
 
       {/* Modern Layered Vector Geometric Art */}
       <svg
@@ -23,20 +23,20 @@ export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ clas
       >
         <defs>
           <linearGradient id="absGradLilac1" x1="100" y1="100" x2="700" y2="500" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#C084FC" stopOpacity="0.7" />
-            <stop offset="50%" stopColor="#9333EA" stopOpacity="0.35" />
-            <stop offset="100%" stopColor="#581C87" stopOpacity="0.08" />
+            <stop offset="0%" stopColor="#BCD4D4" stopOpacity="0.75" />
+            <stop offset="50%" stopColor="#A4C4C4" stopOpacity="0.4" />
+            <stop offset="100%" stopColor="#C4D4DC" stopOpacity="0.1" />
           </linearGradient>
 
           <linearGradient id="absGradLilac2" x1="700" y1="150" x2="200" y2="550" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#B886FD" stopOpacity="0.6" />
-            <stop offset="60%" stopColor="#7E22CE" stopOpacity="0.25" />
-            <stop offset="100%" stopColor="#3B0764" stopOpacity="0.05" />
+            <stop offset="0%" stopColor="#FC7454" stopOpacity="0.6" />
+            <stop offset="60%" stopColor="#FC7C54" stopOpacity="0.3" />
+            <stop offset="100%" stopColor="#A4C4C4" stopOpacity="0.08" />
           </linearGradient>
 
           <linearGradient id="absGradSoft" x1="400" y1="200" x2="500" y2="400" gradientUnits="userSpaceOnUse">
-            <stop offset="0%" stopColor="#FAF5FF" stopOpacity="0.9" />
-            <stop offset="100%" stopColor="#EDE9FE" stopOpacity="0.2" />
+            <stop offset="0%" stopColor="#F4F4FC" stopOpacity="0.95" />
+            <stop offset="100%" stopColor="#ECF4F4" stopOpacity="0.3" />
           </linearGradient>
 
           <filter id="absGlowLilac" x="-20%" y="-20%" width="140%" height="140%">
@@ -85,8 +85,8 @@ export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ clas
           />
           <polygon
             points="400,150 490,200 490,300 400,355 310,300 310,200"
-            fill="rgba(147,51,234,0.06)"
-            stroke="#9333EA"
+            fill="rgba(188,212,212,0.1)"
+            stroke="#A4C4C4"
             strokeWidth="2"
           />
         </motion.g>
@@ -106,7 +106,7 @@ export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ clas
           cx="540"
           cy="260"
           r="22"
-          fill="#C084FC"
+          fill="#FC7454"
           filter="url(#absGlowLilac)"
           animate={{ y: [10, -14, 10], scale: [1.05, 0.9, 1.05] }}
           transition={{ duration: 7, repeat: Infinity, ease: "easeInOut" }}
@@ -119,7 +119,7 @@ export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ clas
           rx="240"
           ry="70"
           fill="none"
-          stroke="rgba(192,132,252,0.3)"
+          stroke="rgba(188,212,212,0.4)"
           strokeWidth="1.5"
           strokeDasharray="4 8"
           transform="rotate(-12 400 260)"
@@ -127,11 +127,11 @@ export const AbstractSafetyShieldArt: React.FC<{ className?: string }> = ({ clas
 
         {/* Floating Micro Nodes */}
         {[
-          { cx: 160, cy: 340, r: 6, fill: '#9333EA' },
-          { cx: 620, cy: 190, r: 8, fill: '#C084FC' },
-          { cx: 340, cy: 430, r: 5, fill: '#B886FD' },
-          { cx: 480, cy: 100, r: 7, fill: '#A855F7' },
-          { cx: 680, cy: 390, r: 9, fill: '#7E22CE' }
+          { cx: 160, cy: 340, r: 6, fill: '#FC7454' },
+          { cx: 620, cy: 190, r: 8, fill: '#A4C4C4' },
+          { cx: 340, cy: 430, r: 5, fill: '#BCD4D4' },
+          { cx: 480, cy: 100, r: 7, fill: '#FC7C54' },
+          { cx: 680, cy: 390, r: 9, fill: '#C4DCDC' }
         ].map((node, i) => (
           <motion.circle
             key={i}

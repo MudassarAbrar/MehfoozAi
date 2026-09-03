@@ -18,7 +18,7 @@ export const Avatar: React.FC<AvatarProps> = ({ size = 'md', className = '', chi
   };
   return (
     <div
-      className={`relative inline-flex items-center justify-center overflow-hidden rounded-2xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] font-semibold select-none ${sizeClasses[size]} ${className}`}
+      className={`relative inline-flex items-center justify-center overflow-hidden rounded-2xl bg-[#ECF4F4] text-[#1C2C34] border border-[#BCD4D4] font-semibold select-none ${sizeClasses[size]} ${className}`}
       {...props}
     >
       {children}
@@ -42,7 +42,7 @@ export interface ProgressProps extends React.HTMLAttributes<HTMLDivElement> {
 export const Progress: React.FC<ProgressProps> = ({
   value = 0,
   max = 100,
-  indicatorColor = 'bg-[#B886FD]',
+  indicatorColor = 'bg-[#FC7454]',
   className = '',
   ...props
 }) => {
@@ -72,7 +72,7 @@ export const Alert: React.FC<AlertProps> = ({
   ...props
 }) => {
   const variantClasses = {
-    default: 'bg-slate-50 border-slate-200 text-[#181A20]',
+    default: 'bg-slate-50 border-slate-200 text-[#1C2C34]',
     destructive: 'bg-rose-50 border-rose-200 text-rose-700',
     warning: 'bg-amber-50 border-amber-200 text-amber-700',
     success: 'bg-emerald-50 border-emerald-200 text-emerald-700',

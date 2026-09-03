@@ -22,7 +22,7 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
   size = 'md',
   className = '',
   showUrdu = true,
-  showTagline = true,
+  showTagline = false,
   animated = false,
   strokeColor,
 }) => {
@@ -34,14 +34,18 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
     lg: 'w-14 h-14',
     xl: 'w-20 h-20',
     '2xl': 'w-28 h-28',
-    hero: 'w-32 h-32 sm:w-44 sm:h-44',
+    hero: 'w-36 h-36 sm:w-48 sm:h-48',
   }[size];
 
-  // The Pure Vector Line Art Logo matching user's uploaded illustration
-  // Features: Top arching protective hand with articulated fingers + oval shield outline + flowing woman profile silhouette + hair waves
+  // Exact Line Art Vector Illustration from reference artwork:
+  // 1. Protective hand arching over top with articulated fingers & thumb sheltering from above (warm coral)
+  // 2. Woman's profile facing right (forehead, delicate nose, lips, chin, neck) (warm coral)
+  // 3. Flowing hair strands swooping in graceful calligraphy S-curves (deep teal & medium teal)
   const LineArtVector = ({ isHeroAnimated = false }: { isHeroAnimated?: boolean }) => {
-    // Default purple stroke matching the app palette (#7C3AED to #9333EA / #C084FC)
-    const strokeClass = strokeColor || 'stroke-[#7C3AED] dark:stroke-[#C084FC]';
+    // Colors matching the palette: Soft Coral (#FC7454 / #FC7C54) and Soft Teal (#A4C4C4 / #BCD4D4)
+    const coralStroke = strokeColor || 'stroke-[#FC7454] dark:stroke-[#FC7C54]';
+    const darkTealStroke = strokeColor || 'stroke-[#A4C4C4] dark:stroke-[#BCD4D4]';
+    const mediumTealStroke = strokeColor || 'stroke-[#BCD4D4] dark:stroke-[#C4DCDC]';
 
     return (
       <div
@@ -49,23 +53,23 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
           animated ? 'transition-transform duration-300 hover:scale-105' : ''
         }`}
       >
-        {/* Soft Ambient Lilac/Lavender Glow */}
-        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#B886FD]/25 via-[#C084FC]/20 to-[#9333EA]/15 blur-xl group-hover:blur-2xl transition-all duration-300 opacity-80 pointer-events-none" />
+        {/* Subtle ambient aura */}
+        <div className="absolute inset-0 rounded-full bg-gradient-to-tr from-[#FC7454]/15 via-[#BCD4D4]/10 to-[#A4C4C4]/10 blur-xl opacity-70 pointer-events-none" />
 
         <svg
-          viewBox="0 0 240 240"
+          viewBox="0 0 320 300"
           fill="none"
           xmlns="http://www.w3.org/2000/svg"
-          className="w-full h-full relative z-10 drop-shadow-sm transition-transform duration-300"
+          className="w-full h-full relative z-10 transition-transform duration-300"
         >
           {/* ========================================================================= */}
-          {/* 1. TOP PROTECTIVE ARCHING HAND (Single-Line Contour Art)                  */}
+          {/* 1. TOP PROTECTIVE HAND (Warm Coral Line Art)                              */}
           {/* ========================================================================= */}
-          {/* Outer Arch of Hand / Arm */}
+          {/* Top Wrist Arch sweeping up & over knuckles into index finger */}
           <motion.path
-            d="M 42,76 C 42,42, 70,22, 120,22 C 168,22, 196,44, 198,78 C 196,86, 186,88, 178,80 C 172,72, 168,54, 156,46 C 146,38, 124,36, 106,42 C 86,48, 70,62, 58,78 C 50,88, 42,86, 42,76 Z"
-            className={strokeClass}
-            strokeWidth="4"
+            d="M 62,112 C 72,82 108,40 162,30 C 198,24 238,30 268,48 C 288,60 302,75 308,88 C 310,93 307,96 301,93 C 288,83 270,70 248,62"
+            className={coralStroke}
+            strokeWidth="3.2"
             strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
@@ -74,155 +78,134 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
             transition={{ duration: 1.4, ease: 'easeInOut' }}
           />
 
-          {/* Hand Finger 1 (Index Finger Contour) */}
+          {/* Lower Wrist Line */}
           <motion.path
-            d="M 174,54 C 182,62, 186,72, 184,80"
-            className={strokeClass}
-            strokeWidth="3.5"
+            d="M 76,150 C 90,122 118,98 148,84"
+            className={coralStroke}
+            strokeWidth="3"
             strokeLinecap="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 0.8, delay: 0.4, ease: 'easeOut' }}
+            transition={{ duration: 1.0, delay: 0.2, ease: 'easeInOut' }}
           />
 
-          {/* Hand Finger 2 (Middle Finger Contour) */}
+          {/* Thumb Curving Underneath */}
           <motion.path
-            d="M 160,60 C 168,68, 172,76, 172,84"
-            className={strokeClass}
-            strokeWidth="3.5"
+            d="M 148,84 C 168,74 194,68 216,70 C 223,71 224,75 219,77 C 208,82 190,88 172,94"
+            className={coralStroke}
+            strokeWidth="2.8"
             strokeLinecap="round"
+            strokeLinejoin="round"
+            fill="none"
+            initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
+            animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
+            transition={{ duration: 0.9, delay: 0.4, ease: 'easeOut' }}
+          />
+
+          {/* Thumb Fingernail Crease */}
+          <motion.path
+            d="M 211,69 C 215,71 217,74 214,76"
+            className={coralStroke}
+            strokeWidth="2.2"
+            strokeLinecap="round"
+            fill="none"
+            initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
+            animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
+            transition={{ duration: 0.5, delay: 0.6, ease: 'easeOut' }}
+          />
+
+          {/* Index Finger Sheltering Tip */}
+          <motion.path
+            d="M 248,62 C 268,71 290,86 304,102 C 308,107 305,110 299,107 C 287,98 271,85 256,78"
+            className={coralStroke}
+            strokeWidth="2.8"
+            strokeLinecap="round"
+            strokeLinejoin="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
             transition={{ duration: 0.8, delay: 0.5, ease: 'easeOut' }}
           />
 
-          {/* Hand Finger 3 (Ring Finger Contour) */}
+          {/* Middle Finger Sheltering Tip */}
           <motion.path
-            d="M 146,64 C 152,72, 156,80, 156,88"
-            className={strokeClass}
-            strokeWidth="3.5"
+            d="M 256,78 C 271,87 289,102 299,115 C 303,119 300,122 295,119 C 284,111 269,98 259,88"
+            className={coralStroke}
+            strokeWidth="2.8"
             strokeLinecap="round"
+            strokeLinejoin="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
             transition={{ duration: 0.8, delay: 0.6, ease: 'easeOut' }}
           />
 
-          {/* Hand Thumb / Palm inner curve */}
+          {/* Ring / Drooping Finger Tip */}
           <motion.path
-            d="M 130,68 C 136,76, 138,82, 140,90"
-            className={strokeClass}
-            strokeWidth="3.5"
+            d="M 260,90 C 272,99 284,111 290,120 C 293,124 290,126 286,123 C 277,117 267,106 260,97"
+            className={coralStroke}
+            strokeWidth="2.5"
             strokeLinecap="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 0.8, delay: 0.7, ease: 'easeOut' }}
+            transition={{ duration: 0.7, delay: 0.7, ease: 'easeOut' }}
           />
 
           {/* ========================================================================= */}
-          {/* 2. LOWER SHIELD / CIRCULAR ENCLOSURE OUTLINE                              */}
+          {/* 2. FLOWING HAIR STRANDS (Deep & Medium Teal Line Art)                      */}
           {/* ========================================================================= */}
-          {/* Left Shield Curve with top inward dip */}
+          {/* Outer Flowing Teal Hair Strand */}
           <motion.path
-            d="M 40,84 C 36,132, 54,184, 114,218"
-            className={strokeClass}
-            strokeWidth="4"
+            d="M 210,72 C 196,110 165,155 136,198 C 112,238 100,276 102,306 C 104,318 110,326 122,330"
+            className={darkTealStroke}
+            strokeWidth="3.4"
             strokeLinecap="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1.2, delay: 0.2, ease: 'easeInOut' }}
+            transition={{ duration: 1.6, delay: 0.3, ease: 'easeInOut' }}
           />
 
-          {/* Right Shield Curve with bottom sweep */}
+          {/* Inner Teal Hair Strand */}
           <motion.path
-            d="M 200,84 C 204,132, 186,184, 114,218 C 104,218, 96,212, 94,204 C 92,192, 102,180, 116,174"
-            className={strokeClass}
-            strokeWidth="4"
+            d="M 204,114 C 188,152 160,196 136,240 C 120,270 115,295 118,314"
+            className={mediumTealStroke}
+            strokeWidth="2.8"
             strokeLinecap="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1.4, delay: 0.3, ease: 'easeInOut' }}
+            transition={{ duration: 1.4, delay: 0.5, ease: 'easeInOut' }}
           />
 
-          {/* Top Shield Inward Dip Crest (Where the protective hand rests) */}
+          {/* Front Framing Hair Strand (Coral) */}
           <motion.path
-            d="M 40,84 C 54,92, 80,96, 120,76 C 160,96, 186,92, 200,84"
-            className={strokeClass}
-            strokeWidth="3.5"
+            d="M 218,100 C 206,140 182,185 158,230 C 144,258 136,282 136,302"
+            className={coralStroke}
+            strokeWidth="2.8"
             strokeLinecap="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1, delay: 0.4, ease: 'easeInOut' }}
+            transition={{ duration: 1.3, delay: 0.6, ease: 'easeInOut' }}
           />
 
           {/* ========================================================================= */}
-          {/* 3. CENTRAL WOMAN PROFILE SILHOUETTE & FLOWING HAIR (Continuous Line Art)  */}
+          {/* 3. WOMAN'S FACIAL PROFILE & NECK (Warm Coral Line Art)                    */}
           {/* ========================================================================= */}
-          {/* Outer Flowing Hair Sweep (From top apex down the left and swooping right) */}
+          {/* Profile: Forehead, Nose, Lips, Chin, Jawline, Throat & Neck Curl */}
           <motion.path
-            d="M 120,76 C 114,94, 98,118, 86,142 C 76,162, 78,184, 90,204 C 96,214, 102,216, 106,210 C 112,202, 110,188, 106,176 C 98,154, 108,132, 124,112 C 132,102, 136,90, 136,78"
-            className={strokeClass}
-            strokeWidth="4"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            fill="none"
-            initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
-            animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1.6, delay: 0.5, ease: 'easeInOut' }}
-          />
-
-          {/* Inner Flowing Hair Strand Accent */}
-          <motion.path
-            d="M 120,96 C 108,114, 94,136, 88,158 C 84,172, 86,188, 94,198"
-            className={strokeClass}
+            d="M 218,92 C 225,108 232,122 234,134 C 235,142 233,148 232,152 C 234,160 242,172 254,184 C 257,187 257,190 253,192 C 246,196 242,200 244,204 C 248,206 251,208 251,210 C 248,211 244,212 245,214 C 248,216 249,219 247,222 C 244,226 242,229 243,232 C 246,237 248,243 246,248 C 243,255 235,260 226,262 C 208,266 188,268 174,284 C 160,300 164,320 180,335"
+            className={coralStroke}
             strokeWidth="3"
             strokeLinecap="round"
-            fill="none"
-            initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
-            animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1.2, delay: 0.7, ease: 'easeOut' }}
-          />
-
-          {/* Woman's Facial Profile (Forehead, Elegant Nose, Lips, Chin, Neck Line) */}
-          <motion.path
-            d="M 136,78 C 142,94, 146,108, 146,116 C 146,120, 148,124, 150,126 C 152,128, 156,131, 160,135 C 156,137, 152,138, 150,140 C 152,142, 154,144, 155,146 C 150,147, 147,149, 146,151 C 148,154, 149,158, 150,161 C 146,165, 141,168, 137,174 C 131,182, 130,192, 131,202"
-            className={strokeClass}
-            strokeWidth="4"
-            strokeLinecap="round"
             strokeLinejoin="round"
             fill="none"
             initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
             animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 1.5, delay: 0.6, ease: 'easeInOut' }}
-          />
-
-          {/* Neck curve extending gracefully into the bottom loop */}
-          <motion.path
-            d="M 131,180 C 124,190, 114,194, 102,192"
-            className={strokeClass}
-            strokeWidth="3.5"
-            strokeLinecap="round"
-            fill="none"
-            initial={isHeroAnimated ? { pathLength: 0, opacity: 0 } : false}
-            animate={isHeroAnimated ? { pathLength: 1, opacity: 1 } : false}
-            transition={{ duration: 0.8, delay: 0.8, ease: 'easeOut' }}
-          />
-
-          {/* Sparkle of Safety / Truth at apex */}
-          <motion.circle
-            cx="120"
-            cy="76"
-            r="3"
-            className="fill-[#7C3AED] dark:fill-[#C084FC]"
-            initial={isHeroAnimated ? { scale: 0, opacity: 0 } : false}
-            animate={isHeroAnimated ? { scale: [0, 1.4, 1], opacity: 1 } : false}
-            transition={{ duration: 0.6, delay: 1.4, ease: 'easeOut' }}
+            transition={{ duration: 1.8, delay: 0.7, ease: 'easeInOut' }}
           />
         </svg>
       </div>
@@ -238,15 +221,15 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
   if (variant === 'badge') {
     return (
       <div
-        className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-[#F5EEFD] dark:bg-[#1E1630] border border-[#E9D5FF] dark:border-[#581C87] shadow-xs ${className}`}
+        className={`inline-flex items-center space-x-2 px-3 py-1.5 rounded-full bg-[#ECF4F4] dark:bg-[#182329] border border-[#BCD4D4] dark:border-[#2A3C44] shadow-xs ${className}`}
       >
         <LineArtVector />
         <div className="flex items-center space-x-1.5">
-          <span className="text-xs font-serif font-black tracking-wide text-[#181A20] dark:text-white">
+          <span className="text-xs font-serif font-black tracking-wide text-[#1C2C34] dark:text-[#F4F4FC]">
             Mehfooz
           </span>
           {showUrdu && (
-            <span className="text-[11px] font-bold text-[#9333EA] dark:text-[#C084FC] font-serif">
+            <span className="text-[11px] font-bold text-[#FC7454] dark:text-[#FC7C54] font-serif">
               محفوظ
             </span>
           )}
@@ -255,66 +238,45 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
     );
   }
 
-  // 3. Stacked / Vertical (Matching user's logo badge layout)
+  // 3. Stacked / Vertical (Clean & Uncluttered)
   if (variant === 'stacked') {
     return (
-      <div className={`flex flex-col items-center text-center space-y-2.5 ${className}`}>
+      <div className={`flex flex-col items-center text-center space-y-2 ${className}`}>
         <LineArtVector />
-        <div className="space-y-1">
-          <div className="flex items-center justify-center space-x-2">
-            <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-[#181A20] dark:text-white">
-              Mehfooz
-            </h2>
-            {showUrdu && (
-              <span className="text-lg font-serif font-bold text-[#9333EA] dark:text-[#C084FC]">
-                محفوظ
-              </span>
-            )}
-          </div>
-          {showTagline && (
-            <p className="text-[10px] sm:text-[11px] font-bold tracking-[0.22em] text-[#6B7280] dark:text-slate-400 uppercase">
-              INFORM • SUPPORT • PROTECT
-            </p>
+        <div className="flex items-center justify-center space-x-2">
+          <h2 className="text-2xl sm:text-3xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-[#F4F4FC]">
+            Mehfooz
+          </h2>
+          {showUrdu && (
+            <span className="text-lg font-serif font-bold text-[#FC7454] dark:text-[#FC7C54]">
+              محفوظ
+            </span>
           )}
         </div>
       </div>
     );
   }
 
-  // 4. Hero Animated Variant (Draws in with stroke length + glowing aura)
+  // 4. Hero Animated Variant (Draws in with stroke length + clean brand name)
   if (variant === 'animated-hero' || variant === 'hero') {
     return (
-      <div className={`flex flex-col items-center text-center space-y-4 ${className}`}>
+      <div className={`flex flex-col items-center text-center space-y-3 ${className}`}>
         <div className="relative">
-          {/* Animated Halo Rings */}
-          <div className="absolute -inset-8 rounded-full bg-gradient-to-r from-[#B886FD]/30 via-[#C084FC]/25 to-[#9333EA]/20 blur-3xl animate-pulse" />
           <LineArtVector isHeroAnimated={true} />
         </div>
         <motion.div
-          initial={{ opacity: 0, y: 15 }}
+          initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.8, delay: 0.9 }}
-          className="space-y-2"
+          transition={{ duration: 0.8, delay: 1.0 }}
+          className="flex items-center justify-center space-x-3"
         >
-          <div className="flex items-center justify-center space-x-3">
-            <h1 className="text-4xl sm:text-5xl lg:text-6xl font-serif font-black tracking-tight text-[#181A20] dark:text-white">
-              Mehfooz
-            </h1>
-            {showUrdu && (
-              <span className="text-2xl sm:text-3xl font-serif font-bold px-3.5 py-1 rounded-2xl bg-[#F5EEFD] dark:bg-[#2D1F47] text-[#9333EA] dark:text-[#C084FC] border border-[#E9D5FF] dark:border-[#581C87] shadow-xs">
-                محفوظ
-              </span>
-            )}
-          </div>
-          {showTagline && (
-            <motion.p
-              initial={{ opacity: 0, letterSpacing: '0.15em' }}
-              animate={{ opacity: 1, letterSpacing: '0.28em' }}
-              transition={{ duration: 1, delay: 1.1 }}
-              className="text-xs sm:text-sm font-extrabold text-[#7C3AED] dark:text-[#C084FC] uppercase tracking-[0.28em]"
-            >
-              INFORM • SUPPORT • PROTECT
-            </motion.p>
+          <h1 className="text-3xl sm:text-4xl lg:text-5xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-[#F4F4FC]">
+            Mehfooz
+          </h1>
+          {showUrdu && (
+            <span className="text-xl sm:text-2xl font-serif font-bold px-3 py-0.5 rounded-xl bg-[#ECF4F4] dark:bg-[#1A282E] text-[#FC7454] dark:text-[#FC7C54] border border-[#BCD4D4] dark:border-[#2A3C44] shadow-xs">
+              محفوظ
+            </span>
           )}
         </motion.div>
       </div>
@@ -326,20 +288,13 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
     return (
       <div className={`flex items-center space-x-3 ${className}`}>
         <LineArtVector />
-        <div className="flex flex-col">
-          <div className="flex items-baseline space-x-2">
-            <span className="text-xl font-serif font-black tracking-tight text-[#181A20] dark:text-white leading-none">
-              Mehfooz
-            </span>
-            {showUrdu && (
-              <span className="text-sm font-serif font-bold text-[#9333EA] dark:text-[#C084FC] leading-none">
-                محفوظ
-              </span>
-            )}
-          </div>
-          {showTagline && (
-            <span className="text-[9px] font-bold tracking-[0.2em] text-[#6B7280] dark:text-slate-400 uppercase mt-1">
-              INFORM • SUPPORT • PROTECT
+        <div className="flex items-baseline space-x-2">
+          <span className="text-xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-[#F4F4FC] leading-none">
+            Mehfooz
+          </span>
+          {showUrdu && (
+            <span className="text-sm font-serif font-bold text-[#FC7454] dark:text-[#FC7C54] leading-none">
+              محفوظ
             </span>
           )}
         </div>
@@ -347,27 +302,21 @@ export const MehfoozLogo: React.FC<MehfoozLogoProps> = ({
     );
   }
 
-  // Default 'horizontal'
+  // Default 'horizontal' - Clean & spacious, no headline underneath
   return (
     <div className={`flex items-center space-x-2.5 ${className}`}>
       <LineArtVector />
-      <div className="flex flex-col">
-        <div className="flex items-baseline space-x-1.5">
-          <span className="text-lg font-serif font-black tracking-tight text-[#181A20] dark:text-white leading-tight">
-            Mehfooz
-          </span>
-          {showUrdu && (
-            <span className="text-xs font-serif font-bold text-[#9333EA] dark:text-[#C084FC]">
-              محفوظ
-            </span>
-          )}
-        </div>
-        {showTagline && (
-          <span className="text-[8.5px] font-bold tracking-[0.16em] text-[#6B7280] dark:text-slate-400 uppercase">
-            INFORM • SUPPORT • PROTECT
+      <div className="flex items-baseline space-x-1.5">
+        <span className="text-lg font-serif font-black tracking-tight text-[#1C2C34] dark:text-[#F4F4FC] leading-tight">
+          Mehfooz
+        </span>
+        {showUrdu && (
+          <span className="text-xs font-serif font-bold text-[#FC7454] dark:text-[#FC7C54]">
+            محفوظ
           </span>
         )}
       </div>
     </div>
   );
 };
+

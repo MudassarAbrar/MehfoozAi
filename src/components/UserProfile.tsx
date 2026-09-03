@@ -157,17 +157,17 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
 
   if (!user) {
     return (
-      <div className="max-w-xl mx-auto px-4 py-6 space-y-4 text-[#181A20]">
+      <div className="max-w-xl mx-auto px-4 py-6 space-y-4 text-[#1C2C34]">
         <div className="rounded-[28px] bg-white border border-slate-200 p-8 text-center space-y-4 shadow-xs">
-          <div className="w-16 h-16 rounded-2xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] mx-auto flex items-center justify-center">
+          <div className="w-16 h-16 rounded-2xl bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4] mx-auto flex items-center justify-center">
             <User className="w-8 h-8" />
           </div>
 
           <div className="space-y-1">
-            <h2 className="text-base font-bold text-[#181A20]">
+            <h2 className="text-base font-bold text-[#1C2C34]">
               {isUrdu ? 'آپ گیسٹ موڈ میں ہیں' : 'Guest Mode Active'}
             </h2>
-            <p className="text-xs text-[#6B7280] max-w-sm mx-auto font-medium">
+            <p className="text-xs text-[#5A6E78] max-w-sm mx-auto font-medium">
               {isUrdu
                 ? 'اپنے محفوظ مقامات، ہنگامی رابطوں اور سیٹنگز کو محفوظ رکھنے کے لیے لاگ ان کریں۔'
                 : 'Sign in to sync your saved places, trusted emergency contacts, and personalized safe routes.'}
@@ -177,14 +177,14 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
           <div className="flex flex-col gap-2 pt-2">
             <button
               onClick={onOpenAuthModal}
-              className="w-full py-3.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+              className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-xs transition cursor-pointer"
             >
               {isUrdu ? 'لاگ ان یا سائن اپ کریں' : 'Sign In / Register Profile'}
             </button>
             {onOpenOnboarding && (
               <button
                 onClick={onOpenOnboarding}
-                className="w-full py-3.5 rounded-2xl bg-[#F8F9FD] hover:bg-[#F5EEFD] text-[#181A20] font-bold text-xs border border-slate-200 transition cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-[#F8F9FD] hover:bg-[#ECF4F4] text-[#1C2C34] font-bold text-xs border border-slate-200 transition cursor-pointer"
               >
                 View Safety Onboarding Guide
               </button>
@@ -196,28 +196,28 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
   }
 
   return (
-    <div className="max-w-xl mx-auto px-4 py-4 space-y-4 text-[#181A20]">
+    <div className="max-w-xl mx-auto px-4 py-4 space-y-4 text-[#1C2C34]">
       {/* Profile Header Card */}
       <div className="rounded-[28px] bg-white border border-slate-200 p-5 shadow-xs">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-12 h-12 rounded-2xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] flex items-center justify-center font-black text-base shadow-xs">
+            <div className="w-12 h-12 rounded-2xl bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4] flex items-center justify-center font-black text-base shadow-xs">
               {fullName.charAt(0).toUpperCase()}
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-sm font-bold text-[#181A20]">
+                <h2 className="text-sm font-bold text-[#1C2C34]">
                   {fullName}
                 </h2>
                 <span className="px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700 border border-emerald-200 text-[10px] font-bold">
                   Verified
                 </span>
               </div>
-              <p className="text-xs text-[#6B7280] flex items-center space-x-1.5 mt-0.5">
+              <p className="text-xs text-[#5A6E78] flex items-center space-x-1.5 mt-0.5">
                 <Mail className="w-3.5 h-3.5" />
                 <span>{user.email}</span>
                 <span>•</span>
-                <MapPin className="w-3.5 h-3.5 text-[#9333EA]" />
+                <MapPin className="w-3.5 h-3.5 text-[#FC7454]" />
                 <span>{district}</span>
               </p>
             </div>
@@ -225,7 +225,7 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
 
           <button
             onClick={onLogout}
-            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#181A20] font-semibold text-xs flex items-center space-x-1 transition cursor-pointer"
+            className="px-3 py-1.5 rounded-xl bg-slate-100 hover:bg-slate-200 text-[#1C2C34] font-semibold text-xs flex items-center space-x-1 transition cursor-pointer"
           >
             <LogOut className="w-3.5 h-3.5" />
             <span>{isUrdu ? 'لاگ آؤٹ' : 'Sign Out'}</span>
@@ -237,22 +237,22 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
       {onOpenOnboarding && (
         <div 
           onClick={onOpenOnboarding}
-          className="rounded-2xl bg-[#F5EEFD] border border-[#E9D5FF] p-3.5 flex items-center justify-between cursor-pointer hover:bg-[#E9D5FF]/40 transition"
+          className="rounded-2xl bg-[#ECF4F4] border border-[#BCD4D4] p-3.5 flex items-center justify-between cursor-pointer hover:bg-[#BCD4D4]/30 transition"
         >
           <div className="flex items-center space-x-2.5">
-            <div className="w-8 h-8 rounded-xl bg-[#9333EA] text-white flex items-center justify-center">
+            <div className="w-8 h-8 rounded-xl bg-[#FC7454] text-white flex items-center justify-center">
               <Sparkles className="w-4 h-4" />
             </div>
             <div>
-              <h4 className="text-xs font-bold text-[#181A20]">
+              <h4 className="text-xs font-bold text-[#1C2C34]">
                 Replay Safety Onboarding Guide
               </h4>
-              <p className="text-[10px] text-[#6B7280]">
+              <p className="text-[10px] text-[#5A6E78]">
                 Review safety preferences, network & privacy controls
               </p>
             </div>
           </div>
-          <ChevronRight className="w-4 h-4 text-[#9333EA]" />
+          <ChevronRight className="w-4 h-4 text-[#FC7454]" />
         </div>
       )}
 
@@ -274,14 +274,14 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
       <form onSubmit={handleSaveProfile} className="space-y-4">
         {/* Section 1: Personal Details */}
         <div className="rounded-3xl bg-white border border-slate-200 p-5 space-y-3.5 shadow-xs">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] flex items-center space-x-1.5">
-            <User className="w-3.5 h-3.5 text-[#9333EA]" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A6E78] flex items-center space-x-1.5">
+            <User className="w-3.5 h-3.5 text-[#FC7454]" />
             <span>Personal Information</span>
           </h3>
 
           <div className="space-y-3 text-xs">
             <div>
-              <label className="block text-[#181A20] font-semibold mb-1">
+              <label className="block text-[#1C2C34] font-semibold mb-1">
                 Full Name:
               </label>
               <input
@@ -289,36 +289,36 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
                 required
                 value={fullName}
                 onChange={(e) => setFullName(e.target.value)}
-                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-2.5">
               <div>
-                <label className="block text-[#181A20] font-semibold mb-1">
+                <label className="block text-[#1C2C34] font-semibold mb-1">
                   Safe Nickname:
                 </label>
                 <input
                   type="text"
                   value={safeNickname}
                   onChange={(e) => setSafeNickname(e.target.value)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
                 />
               </div>
 
               <div>
-                <label className="block text-[#181A20] font-semibold mb-1">
+                <label className="block text-[#1C2C34] font-semibold mb-1">
                   Primary District:
                 </label>
                 <select
                   value={district}
                   onChange={(e) => setDistrict(e.target.value as PunjabDistrict)}
-                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                  className="w-full px-3 py-2.5 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
                 >
                   {PUNJAB_DISTRICTS.map((d) => (
-                    <option key={d} value={d}>
-                      {d}
-                    </option>
+                     <option key={d} value={d}>
+                       {d}
+                     </option>
                   ))}
                 </select>
               </div>
@@ -329,11 +329,11 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
         {/* Section 2: Emergency Network Contacts */}
         <div className="rounded-3xl bg-white border border-slate-200 p-5 space-y-3.5 shadow-xs">
           <div className="flex items-center justify-between">
-            <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] flex items-center space-x-1.5">
-              <Phone className="w-3.5 h-3.5 text-[#9333EA]" />
+            <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A6E78] flex items-center space-x-1.5">
+              <Phone className="w-3.5 h-3.5 text-[#FC7454]" />
               <span>Emergency Contacts Network</span>
             </h3>
-            <span className="text-[10px] text-[#6B7280] font-semibold">{contacts.length} added</span>
+            <span className="text-[10px] text-[#5A6E78] font-semibold">{contacts.length} added</span>
           </div>
 
           <div className="space-y-2">
@@ -343,12 +343,12 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
                 className="p-3 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between"
               >
                 <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 rounded-xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] flex items-center justify-center font-bold text-xs">
+                  <div className="w-8 h-8 rounded-xl bg-[#ECF4F4] text-[#1C2C34] border border-[#BCD4D4] flex items-center justify-center font-bold text-xs">
                     {contact.name.charAt(0)}
                   </div>
                   <div>
-                    <h4 className="text-xs font-bold text-[#181A20]">{contact.name}</h4>
-                    <p className="text-[10px] text-[#6B7280]">{contact.relation} • {contact.phone}</p>
+                    <h4 className="text-xs font-bold text-[#1C2C34]">{contact.name}</h4>
+                    <p className="text-[10px] text-[#5A6E78]">{contact.relation} • {contact.phone}</p>
                   </div>
                 </div>
                 <button
@@ -363,8 +363,8 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
           </div>
 
           {/* Add New Contact Row */}
-          <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-[#E9D5FF] space-y-2">
-            <span className="text-[11px] font-bold text-[#181A20]">
+          <div className="p-3 rounded-2xl bg-slate-50 border border-dashed border-[#BCD4D4] space-y-2">
+            <span className="text-[11px] font-bold text-[#1C2C34]">
               + Add Trusted Contact
             </span>
             <div className="grid grid-cols-2 gap-2 text-xs">
@@ -373,21 +373,21 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
                 placeholder="Name (e.g. Mom)"
                 value={newContactName}
                 onChange={(e) => setNewContactName(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[#181A20]"
+                className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[#1C2C34]"
               />
               <input
                 type="tel"
                 placeholder="Phone (+92...)"
                 value={newContactPhone}
                 onChange={(e) => setNewContactPhone(e.target.value)}
-                className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[#181A20]"
+                className="px-2.5 py-1.5 rounded-lg bg-white border border-slate-200 text-[#1C2C34]"
               />
             </div>
             <button
               type="button"
               onClick={handleAddContact}
               disabled={!newContactName.trim() || !newContactPhone.trim()}
-              className="w-full py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 disabled:opacity-50 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+              className="w-full py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] disabled:opacity-50 text-white text-xs font-bold transition shadow-xs cursor-pointer"
             >
               Add Contact to Safety Network
             </button>
@@ -396,8 +396,8 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
 
         {/* Section 3: Stealth PIN & Appearance */}
         <div className="rounded-3xl bg-white border border-slate-200 p-5 space-y-3.5 shadow-xs">
-          <h3 className="text-xs font-bold uppercase tracking-wider text-[#6B7280] flex items-center space-x-1.5">
-            <Sliders className="w-3.5 h-3.5 text-[#9333EA]" />
+          <h3 className="text-xs font-bold uppercase tracking-wider text-[#5A6E78] flex items-center space-x-1.5">
+            <Sliders className="w-3.5 h-3.5 text-[#FC7454]" />
             <span>Security & Cover Settings</span>
           </h3>
 
@@ -405,18 +405,18 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
             {/* Stealth PIN */}
             <div className="p-3.5 rounded-2xl bg-slate-50 flex items-center justify-between">
               <div>
-                <h4 className="text-xs font-bold text-[#181A20] flex items-center space-x-1.5">
-                  <Key className="w-3.5 h-3.5 text-[#9333EA]" />
+                <h4 className="text-xs font-bold text-[#1C2C34] flex items-center space-x-1.5">
+                  <Key className="w-3.5 h-3.5 text-[#FC7454]" />
                   <span>Stealth Weather PIN</span>
                 </h4>
-                <p className="text-[10px] text-[#6B7280]">PIN to reveal app from weather cover</p>
+                <p className="text-[10px] text-[#5A6E78]">PIN to reveal app from weather cover</p>
               </div>
               <input
                 type="text"
                 maxLength={6}
                 value={stealthPin}
                 onChange={(e) => setStealthPin(e.target.value.replace(/[^0-9]/g, ''))}
-                className="w-20 font-mono font-bold text-center px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs text-[#181A20] focus:border-[#9333EA] focus:outline-none"
+                className="w-20 font-mono font-bold text-center px-2 py-1 bg-white border border-slate-200 rounded-lg text-xs text-[#1C2C34] focus:border-[#FC7454] focus:outline-none"
               />
             </div>
           </div>
@@ -426,9 +426,9 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
         <div className="space-y-2 pt-1">
           <button
             type="submit"
-            className="w-full py-3.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition flex items-center justify-center space-x-2 cursor-pointer"
+            className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-xs transition flex items-center justify-center space-x-2 cursor-pointer"
           >
-            <Save className="w-4 h-4 text-[#B886FD]" />
+            <Save className="w-4 h-4 text-[#FC7454]" />
             <span>Save Profile & Preferences</span>
           </button>
 
@@ -455,7 +455,7 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
                 <button
                   type="button"
                   onClick={() => setConfirmPurge(false)}
-                  className="px-3 py-2 rounded-xl bg-slate-200 text-[#181A20] text-xs font-semibold cursor-pointer"
+                  className="px-3 py-2 rounded-xl bg-slate-200 text-[#1C2C34] text-xs font-semibold cursor-pointer"
                 >
                   Cancel
                 </button>

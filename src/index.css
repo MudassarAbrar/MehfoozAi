@@ -2,49 +2,65 @@
 
 @custom-variant dark (&:where(.dark, .dark *));
 
+@theme {
+  --color-bg-primary: #FCFCFC;
+  --color-bg-secondary: #F4F4F4;
+  --color-bg-cool: #F4F4FC;
+  --color-bg-mint: #ECF4F4;
+  --color-teal-main: #BCD4D4;
+  --color-teal-blue: #C4D4DC;
+  --color-teal-medium: #A4C4C4;
+  --color-teal-light: #C4DCDC;
+  --color-charcoal-dark: #1C2C34;
+  --color-coral-primary: #FC7454;
+  --color-coral-secondary: #FC7C54;
+}
+
 @layer base {
   :root {
-    --color-canvas: #F8F9FD;
-    --color-canvas-soft: #F0F2FA;
-    --color-primary: #B886FD;
-    --color-primary-dark: #9333EA;
-    --color-soft-lilac: #F5EEFD;
-    --color-lavender: #EDE9FE;
-    --color-charcoal: #181A20;
-    --color-charcoal-light: #2A2E39;
-    --color-cream: #FFFFFF;
-    --color-text-primary: #181A20;
-    --color-text-secondary: #6B7280;
-    --color-bg-primary: #FFFFFF;
-    --color-border: #E5E7EB;
+    --color-canvas: #FCFCFC;
+    --color-canvas-soft: #F4F4F4;
+    --color-primary: #FC7454;
+    --color-primary-dark: #FC7C54;
+    --color-soft-mint: #ECF4F4;
+    --color-teal-main: #BCD4D4;
+    --color-teal-medium: #A4C4C4;
+    --color-charcoal: #1C2C34;
+    --color-charcoal-light: #2A3C44;
+    --color-cream: #FCFCFC;
+    --color-text-primary: #1C2C34;
+    --color-text-secondary: #5C707A;
+    --color-bg-primary: #FCFCFC;
+    --color-border: #BCD4D4;
   }
 
   .dark {
-    --color-canvas: #0F1117;
-    --color-canvas-soft: #161822;
-    --color-primary: #C084FC;
-    --color-primary-dark: #A855F7;
-    --color-soft-lilac: #26193E;
-    --color-lavender: #31214E;
-    --color-charcoal: #F9FAFB;
-    --color-charcoal-light: #E5E7EB;
-    --color-cream: #181B24;
-    --color-text-primary: #F9FAFB;
-    --color-text-secondary: #9CA3AF;
-    --color-bg-primary: #181B24;
-    --color-border: #2D3243;
+    --color-canvas: #121A1E;
+    --color-canvas-soft: #182329;
+    --color-primary: #FC7454;
+    --color-primary-dark: #FC7C54;
+    --color-soft-mint: #152226;
+    --color-teal-main: #5C8888;
+    --color-teal-medium: #6E9B9B;
+    --color-charcoal: #F4F4FC;
+    --color-charcoal-light: #C4D4DC;
+    --color-cream: #182329;
+    --color-text-primary: #F4F4FC;
+    --color-text-secondary: #A4C4C4;
+    --color-bg-primary: #121A1E;
+    --color-border: #2A3C44;
   }
 
   body {
     font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-    background-color: #F8F9FD;
-    color: #181A20;
+    background-color: #FCFCFC;
+    color: #1C2C34;
     @apply transition-colors duration-200;
   }
 
   .dark body, body.dark {
-    background-color: #0F1117;
-    color: #F9FAFB;
+    background-color: #121A1E;
+    color: #F4F4FC;
   }
 
   .font-urdu {
@@ -57,30 +73,30 @@
   }
 }
 
-/* Lilac & Clean Off-White Palette Helpers */
-.bg-canvas-lilac {
-  background-color: #F8F9FD;
+/* Palette Helpers */
+.bg-canvas-lilac, .bg-canvas-palette {
+  background-color: #FCFCFC;
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(245, 238, 253, 0.7) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(237, 233, 254, 0.5) 0%, transparent 50%);
+    radial-gradient(circle at 15% 15%, rgba(236, 244, 244, 0.85) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(244, 244, 252, 0.75) 0%, transparent 50%);
 }
 
-.dark .bg-canvas-lilac {
-  background-color: #0F1117;
+.dark .bg-canvas-lilac, .dark .bg-canvas-palette {
+  background-color: #121A1E;
   background-image: 
-    radial-gradient(circle at 15% 15%, rgba(147, 51, 234, 0.12) 0%, transparent 45%),
-    radial-gradient(circle at 85% 85%, rgba(192, 132, 252, 0.08) 0%, transparent 50%);
+    radial-gradient(circle at 15% 15%, rgba(252, 116, 84, 0.08) 0%, transparent 45%),
+    radial-gradient(circle at 85% 85%, rgba(188, 212, 212, 0.06) 0%, transparent 50%);
 }
 
-.bg-lilac-primary { background-color: #B886FD; }
-.bg-lilac-dark { background-color: #9333EA; }
-.bg-lilac-soft { background-color: #F5EEFD; }
-.bg-lavender-tint { background-color: #EDE9FE; }
-.text-lilac-primary { color: #A855F7; }
-.text-lilac-dark { color: #7E22CE; }
+.bg-lilac-primary { background-color: #FC7454; }
+.bg-lilac-dark { background-color: #FC7C54; }
+.bg-lilac-soft { background-color: #ECF4F4; }
+.bg-lavender-tint { background-color: #C4DCDC; }
+.text-lilac-primary { color: #FC7454; }
+.text-lilac-dark { color: #1C2C34; }
 
-.bg-charcoal-pill { background-color: #181A20; }
-.text-charcoal-pill { color: #181A20; }
+.bg-charcoal-pill { background-color: #1C2C34; }
+.text-charcoal-pill { color: #1C2C34; }
 
 /* Custom scrollbars for clean UI */
 ::-webkit-scrollbar {
@@ -91,11 +107,11 @@
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: rgba(184, 134, 253, 0.35);
+  background: rgba(188, 212, 212, 0.6);
   border-radius: 9999px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: rgba(168, 85, 247, 0.6);
+  background: rgba(164, 196, 196, 0.9);
 }
 
 /* Sound Wave Animation */

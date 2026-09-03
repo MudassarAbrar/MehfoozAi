@@ -129,16 +129,16 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         initial={{ scale: 0.96, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         exit={{ scale: 0.96, opacity: 0 }}
-        className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-5 text-[#181A20] my-8"
+        className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-xl space-y-5 text-[#1C2C34] my-8"
       >
         {/* Modal Header */}
         <div className="flex items-start justify-between border-b border-slate-100 pb-3.5">
           <div className="flex items-center space-x-2.5">
-            <div className="w-10 h-10 rounded-xl bg-[#F5EEFD] text-[#9333EA] flex items-center justify-center border border-[#E9D5FF]">
-              {mode === 'login' ? <LogIn className="w-5 h-5" /> : <UserPlus className="w-5 h-5" />}
+            <div className="w-10 h-10 rounded-xl bg-[#ECF4F4] text-[#1C2C34] flex items-center justify-center border border-[#BCD4D4]">
+              {mode === 'login' ? <LogIn className="w-5 h-5 text-[#FC7454]" /> : <UserPlus className="w-5 h-5 text-[#FC7454]" />}
             </div>
             <div>
-              <h3 className="text-base font-bold text-[#181A20]">
+              <h3 className="text-base font-bold text-[#1C2C34]">
                 {mode === 'login' 
                   ? (isUrdu ? 'لاگ ان کریں' : 'Sign In to Mehfooz') 
                   : (isUrdu ? 'نیا اکاؤنٹ بنائیں' : 'Create Secure Profile')}
@@ -151,7 +151,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
 
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-[#181A20] hover:bg-slate-100 transition cursor-pointer"
+            className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C2C34] hover:bg-slate-100 transition cursor-pointer"
           >
             <X className="w-4 h-4" />
           </button>
@@ -164,8 +164,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             onClick={() => { setMode('login'); setErrorMessage(null); }}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
               mode === 'login'
-                ? 'bg-white text-[#181A20] font-bold shadow-xs border border-slate-200'
-                : 'text-[#6B7280] hover:text-[#181A20]'
+                ? 'bg-white text-[#1C2C34] font-bold shadow-xs border border-slate-200'
+                : 'text-[#6B7280] hover:text-[#1C2C34]'
             }`}
           >
             {isUrdu ? 'لاگ ان' : 'Sign In'}
@@ -175,8 +175,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             onClick={() => { setMode('signup'); setErrorMessage(null); }}
             className={`flex-1 py-1.5 rounded-lg transition-all cursor-pointer ${
               mode === 'signup'
-                ? 'bg-white text-[#181A20] font-bold shadow-xs border border-slate-200'
-                : 'text-[#6B7280] hover:text-[#181A20]'
+                ? 'bg-white text-[#1C2C34] font-bold shadow-xs border border-slate-200'
+                : 'text-[#6B7280] hover:text-[#1C2C34]'
             }`}
           >
             {isUrdu ? 'رجسٹریشن' : 'Create Account'}
@@ -188,9 +188,9 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="button"
             onClick={handleDemoFill}
-            className="w-full py-2 px-3 rounded-xl bg-[#F5EEFD] hover:bg-[#E9D5FF]/40 border border-[#E9D5FF] text-[#181A20] text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
+            className="w-full py-2 px-3 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/30 border border-[#BCD4D4] text-[#1C2C34] text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#9333EA]" />
+            <Sparkles className="w-3.5 h-3.5 text-[#FC7454]" />
             <span>Use Demo Verified Account (ayesha.rehman@gmail.com)</span>
           </button>
         )}
@@ -208,7 +208,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'signup' && (
             <>
               <div>
-                <label className="block text-[#181A20] font-medium mb-1">
+                <label className="block text-[#1C2C34] font-medium mb-1">
                   {isUrdu ? 'پورا نام / محفوظ نام:' : 'Full Name / Safe Pseudonym:'}
                 </label>
                 <div className="relative">
@@ -219,13 +219,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     placeholder="e.g. Ayesha Rehman"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[#181A20] font-medium mb-1">
+                <label className="block text-[#1C2C34] font-medium mb-1">
                   {isUrdu ? 'پنجاب کا ضلع:' : 'Punjab District:'}
                 </label>
                 <div className="relative">
@@ -233,7 +233,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                   <select
                     value={district}
                     onChange={(e) => setDistrict(e.target.value as PunjabDistrict)}
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
                   >
                     {PUNJAB_DISTRICTS.map((d) => (
                       <option key={d} value={d}>
@@ -247,7 +247,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           <div>
-            <label className="block text-[#181A20] font-medium mb-1">
+            <label className="block text-[#1C2C34] font-medium mb-1">
               {isUrdu ? 'ای میل ایڈریس:' : 'Email Address:'}
             </label>
             <div className="relative">
@@ -258,13 +258,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="name@example.com"
-                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
               />
             </div>
           </div>
 
           <div>
-            <label className="block text-[#181A20] font-medium mb-1">
+            <label className="block text-[#1C2C34] font-medium mb-1">
               {isUrdu ? 'پاس ورڈ:' : 'Password:'}
             </label>
             <div className="relative">
@@ -276,12 +276,12 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 placeholder="••••••••"
-                className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                className="w-full pl-9 pr-10 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
               />
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-2.5 text-slate-400 hover:text-[#181A20] cursor-pointer"
+                className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1C2C34] cursor-pointer"
               >
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
@@ -291,7 +291,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           {mode === 'signup' && (
             <>
               <div>
-                <label className="block text-[#181A20] font-medium mb-1">
+                <label className="block text-[#1C2C34] font-medium mb-1">
                   {isUrdu ? 'محفوظ فون / واٹس ایپ (اختیاری):' : 'Safe Phone / WhatsApp (Optional):'}
                 </label>
                 <div className="relative">
@@ -301,13 +301,13 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={phone}
                     onChange={(e) => setPhone(e.target.value)}
                     placeholder="+92 300 0000000"
-                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                    className="w-full pl-9 pr-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
                   />
                 </div>
               </div>
 
               <div>
-                <label className="block text-[#181A20] font-medium mb-1">
+                <label className="block text-[#1C2C34] font-medium mb-1">
                   {isUrdu ? 'قابل اعتماد ہنگامی رابطہ کار (نام و فون):' : 'Trusted Emergency Contact (Name & Phone):'}
                 </label>
                 <div className="grid grid-cols-2 gap-2">
@@ -316,14 +316,14 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                     value={emergencyContactName}
                     onChange={(e) => setEmergencyContactName(e.target.value)}
                     placeholder="Contact Name"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
                   />
                   <input
                     type="tel"
                     value={emergencyContactPhone}
                     onChange={(e) => setEmergencyContactPhone(e.target.value)}
                     placeholder="Phone Number"
-                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#181A20] placeholder:text-slate-400 focus:outline-none focus:border-[#9333EA]"
+                    className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
                   />
                 </div>
               </div>
@@ -331,8 +331,8 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           )}
 
           {/* Privacy Note */}
-          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 flex items-start space-x-2 text-[11px] text-[#181A20]">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+          <div className="p-3 rounded-xl bg-[#ECF4F4] border border-[#BCD4D4] flex items-start space-x-2 text-[11px] text-[#1C2C34]">
+            <ShieldCheck className="w-4 h-4 text-[#A4C4C4] flex-shrink-0 mt-0.5" />
             <span>
               {isUrdu
                 ? 'آپ کا ڈیٹا ویب کرپٹو (Web Crypto API) کے ذریعے اینڈ ٹو اینڈ اینکرپٹ رہتا ہے۔'
@@ -344,18 +344,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           <button
             type="submit"
             disabled={loading}
-            className="w-full py-2.5 px-4 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition disabled:opacity-50 cursor-pointer"
+            className="w-full py-2.5 px-4 rounded-xl bg-[#1C2C34] hover:bg-[#1C2C34]/90 text-white font-bold flex items-center justify-center space-x-2 shadow-xs transition disabled:opacity-50 cursor-pointer"
           >
             {loading ? (
               <span className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent" />
             ) : mode === 'login' ? (
               <>
-                <LogIn className="w-4 h-4 text-[#B886FD]" />
+                <LogIn className="w-4 h-4 text-[#FC7454]" />
                 <span>{isUrdu ? 'لاگ ان کریں' : 'Sign In'}</span>
               </>
             ) : (
               <>
-                <UserPlus className="w-4 h-4 text-[#B886FD]" />
+                <UserPlus className="w-4 h-4 text-[#FC7454]" />
                 <span>{isUrdu ? 'اکاؤنٹ بنائیں' : 'Create Account'}</span>
               </>
             )}

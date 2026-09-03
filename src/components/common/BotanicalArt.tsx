@@ -18,50 +18,50 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
       className={className}
     >
       <defs>
-        {/* Soft Lilac Ambient Circle */}
-        <radialGradient id="lilacGlow" cx="50%" cy="50%" r="50%">
-          <stop offset="0%" stopColor="#C084FC" stopOpacity="0.6" />
-          <stop offset="100%" stopColor="#E9D5FF" stopOpacity="0" />
+        {/* Soft Teal Ambient Circle */}
+        <radialGradient id="tealGlow" cx="50%" cy="50%" r="50%">
+          <stop offset="0%" stopColor="#A4C4C4" stopOpacity="0.6" />
+          <stop offset="100%" stopColor="#BCD4D4" stopOpacity="0" />
         </radialGradient>
       </defs>
 
       {/* Top Left Floating Sun/Circle */}
-      <circle cx="130" cy="110" r="55" fill="#DDD6FE" />
+      <circle cx="130" cy="110" r="55" fill="#C4DCDC" />
       {/* Top Right Floating Accent Dot */}
-      <circle cx="310" cy="150" r="14" fill="#C084FC" />
+      <circle cx="310" cy="150" r="14" fill="#FC7454" />
 
       {/* Background Soft Organic Backdrop */}
       <path
         d="M60 220C60 160 140 130 200 130C280 130 350 180 350 260C350 340 260 370 190 370C110 370 60 300 60 220Z"
-        fill="#F5EEFD"
+        fill="#ECF4F4"
       />
 
       {/* Foliage Elements */}
       {/* Left Palm Leaf Fronds */}
       <g transform="translate(40, 140) rotate(-25)">
-        <path d="M10 150 Q 80 80 160 20" stroke="#7E22CE" strokeWidth="4" strokeLinecap="round" />
+        <path d="M10 150 Q 80 80 160 20" stroke="#1C2C34" strokeWidth="4" strokeLinecap="round" />
         {/* Palm Leaflets */}
-        <path d="M30 130 Q 5 110 0 90 Q 25 110 40 120 Z" fill="#9333EA" />
-        <path d="M50 110 Q 20 85 10 65 Q 40 85 60 100 Z" fill="#A855F7" />
-        <path d="M70 90 Q 35 60 25 40 Q 60 60 80 80 Z" fill="#C084FC" />
-        <path d="M90 70 Q 55 40 45 20 Q 80 40 100 60 Z" fill="#7E22CE" />
-        <path d="M110 50 Q 75 20 65 0 Q 100 20 120 40 Z" fill="#9333EA" />
-        <path d="M130 30 Q 105 10 95 -10 Q 120 10 140 25 Z" fill="#A855F7" />
+        <path d="M30 130 Q 5 110 0 90 Q 25 110 40 120 Z" fill="#A4C4C4" />
+        <path d="M50 110 Q 20 85 10 65 Q 40 85 60 100 Z" fill="#BCD4D4" />
+        <path d="M70 90 Q 35 60 25 40 Q 60 60 80 80 Z" fill="#C4DCDC" />
+        <path d="M90 70 Q 55 40 45 20 Q 80 40 100 60 Z" fill="#A4C4C4" />
+        <path d="M110 50 Q 75 20 65 0 Q 100 20 120 40 Z" fill="#BCD4D4" />
+        <path d="M130 30 Q 105 10 95 -10 Q 120 10 140 25 Z" fill="#C4DCDC" />
       </g>
 
       {/* Right Side Tropical Palm Leaves */}
       <g transform="translate(220, 160) rotate(35)">
-        <path d="M10 150 Q 80 80 160 20" stroke="#7E22CE" strokeWidth="4" strokeLinecap="round" />
-        <path d="M30 130 Q 10 105 5 85 Q 30 105 45 120 Z" fill="#9333EA" />
-        <path d="M50 110 Q 25 80 15 60 Q 45 80 65 100 Z" fill="#A855F7" />
-        <path d="M70 90 Q 40 55 30 35 Q 65 55 85 80 Z" fill="#C084FC" />
-        <path d="M90 70 Q 60 35 50 15 Q 85 35 105 60 Z" fill="#A855F7" />
+        <path d="M10 150 Q 80 80 160 20" stroke="#1C2C34" strokeWidth="4" strokeLinecap="round" />
+        <path d="M30 130 Q 10 105 5 85 Q 30 105 45 120 Z" fill="#A4C4C4" />
+        <path d="M50 110 Q 25 80 15 60 Q 45 80 65 100 Z" fill="#BCD4D4" />
+        <path d="M70 90 Q 40 55 30 35 Q 65 55 85 80 Z" fill="#C4DCDC" />
+        <path d="M90 70 Q 60 35 50 15 Q 85 35 105 60 Z" fill="#A4C4C4" />
       </g>
 
       {/* Cutout Silhouette Behind Right Shoulder */}
       <path
         d="M290 190 C330 190 350 230 340 270 C330 300 290 310 270 300 C270 290 280 275 285 260 C270 265 260 255 265 240 C250 245 245 235 250 220 C240 220 235 210 240 200 C260 190 275 190 290 190 Z"
-        fill="#EDE9FE"
+        fill="#F4F4FC"
       />
 
       {/* Sitting Woman Figure */}
@@ -69,7 +69,7 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
         {/* Long Flowing Dark Hair (Back) */}
         <path
           d="M70 40 C30 50 20 100 25 145 C30 180 55 200 70 190 C60 150 50 110 70 70 Z"
-          fill="#181A20"
+          fill="#1C2C34"
         />
         
         {/* Head & Neck */}
@@ -78,7 +78,7 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
         {/* Hair Bun / Flowing Locks (Front) */}
         <path
           d="M70 30 C50 30 45 50 50 75 C55 100 65 110 75 110 C85 110 90 90 90 65 C90 40 85 30 70 30 Z"
-          fill="#181A20"
+          fill="#1C2C34"
         />
 
         {/* Arms In Anjali Mudra / Prayer Posture */}
@@ -99,28 +99,28 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
         {/* Torso / Top */}
         <path
           d="M58 85 L86 85 L84 120 L60 120 Z"
-          fill="#FAF5FF"
+          fill="#FCFCFC"
         />
         {/* Waist Accent */}
         <path
           d="M62 120 L82 120 L80 130 L64 130 Z"
-          fill="#DDD6FE"
+          fill="#BCD4D4"
         />
 
         {/* Crossed Legs in Lotus / Meditation Posture */}
         {/* Left Leg */}
         <path
           d="M64 130 C30 135 10 160 15 180 C20 195 50 200 70 190 C60 170 60 150 64 130 Z"
-          fill="#6B21A8"
+          fill="#FC7454"
         />
         {/* Right Leg */}
         <path
           d="M80 130 C114 135 134 160 129 180 C124 195 94 200 74 190 C84 170 84 150 80 130 Z"
-          fill="#6B21A8"
+          fill="#FC7454"
         />
 
         {/* Subtle Pattern Dots on Pants */}
-        <g fill="#A855F7">
+        <g fill="#FC7C54">
           <circle cx="35" cy="165" r="2" />
           <circle cx="45" cy="175" r="2" />
           <circle cx="28" cy="180" r="1.5" />
@@ -132,10 +132,10 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
 
       {/* Foreground Foliage Stems Framed Around Base */}
       <g transform="translate(100, 240)">
-        <path d="M0 60 Q 60 20 120 0" stroke="#581C87" strokeWidth="3" strokeLinecap="round" />
-        <path d="M20 50 Q 5 35 0 20 Q 25 35 35 45 Z" fill="#7E22CE" />
-        <path d="M50 35 Q 35 15 30 0 Q 55 20 65 30 Z" fill="#9333EA" />
-        <path d="M80 20 Q 65 0 60 -15 Q 85 5 95 15 Z" fill="#6B21A8" />
+        <path d="M0 60 Q 60 20 120 0" stroke="#1C2C34" strokeWidth="3" strokeLinecap="round" />
+        <path d="M20 50 Q 5 35 0 20 Q 25 35 35 45 Z" fill="#A4C4C4" />
+        <path d="M50 35 Q 35 15 30 0 Q 55 20 65 30 Z" fill="#BCD4D4" />
+        <path d="M80 20 Q 65 0 60 -15 Q 85 5 95 15 Z" fill="#C4DCDC" />
       </g>
     </svg>
   );
@@ -147,15 +147,15 @@ export const SereneWomanIllustration: React.FC<{ className?: string }> = ({ clas
 export const ProfileSilhouetteArt: React.FC<{ className?: string }> = ({ className = 'w-full h-full' }) => {
   return (
     <svg viewBox="0 0 200 180" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
-      {/* Lilac Backdrop Shape */}
+      {/* Teal Backdrop Shape */}
       <path
         d="M20 30 C60 0 160 10 180 50 C200 90 190 150 150 170 C100 190 30 170 10 130 C-10 90 -10 60 20 30 Z"
-        fill="#DDD6FE"
+        fill="#BCD4D4"
       />
       {/* Woman's Face / Modest Wrap Silhouette */}
       <path
         d="M120 50 C100 50 85 65 85 85 C85 105 100 120 115 125 L115 145 C90 140 70 120 70 90 C70 60 90 40 120 40 C150 40 170 60 170 90 C170 120 150 145 125 150 L125 130 C140 125 155 105 155 85 C155 65 140 50 120 50 Z"
-        fill="#F5EEFD"
+        fill="#ECF4F4"
       />
       <circle cx="110" cy="85" r="16" fill="#F4D0C2" />
     </svg>
@@ -167,7 +167,7 @@ export const ProfileSilhouetteArt: React.FC<{ className?: string }> = ({ classNa
  */
 export const PalmFrondsArt: React.FC<{ className?: string; color?: string }> = ({
   className = 'w-16 h-16',
-  color = '#7E22CE'
+  color = '#A4C4C4'
 }) => {
   return (
     <svg viewBox="0 0 120 120" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>
@@ -186,7 +186,7 @@ export const PalmFrondsArt: React.FC<{ className?: string; color?: string }> = (
  */
 export const MonsteraLeafArt: React.FC<{ className?: string; color?: string }> = ({
   className = 'w-16 h-16',
-  color = '#9333EA'
+  color = '#FC7454'
 }) => {
   return (
     <svg viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg" className={className}>

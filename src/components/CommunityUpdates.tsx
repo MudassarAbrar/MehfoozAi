@@ -158,28 +158,28 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
   };
 
   return (
-    <div className="max-w-xl mx-auto px-3 sm:px-4 py-4 space-y-4 text-[#181A20]">
+    <div className="max-w-xl mx-auto px-3 sm:px-4 py-4 space-y-4 text-[#1C2C34]">
       {/* 1. Header Banner */}
       <div className="rounded-[28px] bg-white border border-slate-200/80 p-5 shadow-xs space-y-2">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-2xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] flex items-center justify-center shadow-xs">
-              <Users className="w-5 h-5" />
+            <div className="w-10 h-10 rounded-2xl bg-[#ECF4F4] text-[#1C2C34] border border-[#BCD4D4] flex items-center justify-center shadow-xs">
+              <Users className="w-5 h-5 text-[#FC7454]" />
             </div>
             <div>
-              <h2 className="text-base font-bold text-[#181A20]">
+              <h2 className="text-base font-bold text-[#1C2C34]">
                 {isUrdu ? 'کمیونٹی اپ ڈیٹس' : 'Community Safety Feed'}
               </h2>
-              <p className="text-xs text-[#6B7280] font-medium">
-                {isUrdu ? 'آپ کے علاقے کی خواتین کے حقیقی مشاہدات و تجربات' : 'Real-time safety insights from verified women in Punjab'}
+              <p className="text-[11px] text-[#6B7280] font-medium leading-tight mt-0.5">
+                {isUrdu ? 'تصدیق شدہ کمیونٹی مشاہدات' : 'Verified local safety insights'}
               </p>
             </div>
           </div>
           <button
             onClick={() => setIsShareModalOpen(true)}
-            className="px-4 py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white text-xs font-bold shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
+            className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#1C2C34]/90 text-white text-xs font-bold shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap cursor-pointer"
           >
-            <Plus className="w-3.5 h-3.5 text-[#B886FD]" />
+            <Plus className="w-3.5 h-3.5 text-[#FC7454]" />
             <span>{isUrdu ? 'تجربہ شیئر کریں' : 'Share Update'}</span>
           </button>
         </div>
@@ -188,7 +188,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
       {/* 2. Top Summary Metric Pills */}
       <div className="grid grid-cols-3 gap-2.5">
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 text-center shadow-xs">
-          <span className="text-xl font-black text-[#9333EA] block">127</span>
+          <span className="text-xl font-black text-[#FC7454] block">127</span>
           <span className="text-[11px] text-[#6B7280] font-semibold">Active Today</span>
         </div>
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 text-center shadow-xs">
@@ -196,7 +196,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
           <span className="text-[11px] text-[#6B7280] font-semibold">Updates</span>
         </div>
         <div className="p-3.5 rounded-2xl bg-white border border-slate-200 text-center shadow-xs">
-          <span className="text-xl font-black text-[#181A20] block">38</span>
+          <span className="text-xl font-black text-[#1C2C34] block">38</span>
           <span className="text-[11px] text-[#6B7280] font-semibold">Verified</span>
         </div>
       </div>
@@ -207,8 +207,8 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
           onClick={() => setActiveFilter('all')}
           className={`px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilter === 'all'
-              ? 'bg-[#181A20] text-white shadow-xs'
-              : 'bg-white text-[#6B7280] hover:bg-slate-50 border border-slate-200'
+              ? 'bg-[#1C2C34] text-white shadow-xs'
+              : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
           All Updates
@@ -217,8 +217,8 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
           onClick={() => setActiveFilter('last_hour')}
           className={`px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilter === 'last_hour'
-              ? 'bg-[#181A20] text-white shadow-xs'
-              : 'bg-white text-[#6B7280] hover:bg-slate-50 border border-slate-200'
+              ? 'bg-[#1C2C34] text-white shadow-xs'
+              : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
           Last Hour
@@ -227,8 +227,8 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
           onClick={() => setActiveFilter('neighborhood')}
           className={`px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
             activeFilter === 'neighborhood'
-              ? 'bg-[#181A20] text-white shadow-xs'
-              : 'bg-white text-[#6B7280] hover:bg-slate-50 border border-slate-200'
+              ? 'bg-[#1C2C34] text-white shadow-xs'
+              : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
           My Neighborhood
@@ -245,12 +245,12 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
             {/* Header */}
             <div className="flex items-center justify-between">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-full bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] flex items-center justify-center font-bold text-xs">
-                  <ShieldCheck className="w-4 h-4" />
+                <div className="w-8 h-8 rounded-full bg-[#ECF4F4] text-[#1C2C34] border border-[#BCD4D4] flex items-center justify-center font-bold text-xs">
+                  <ShieldCheck className="w-4 h-4 text-[#A4C4C4]" />
                 </div>
                 <div>
                   <div className="flex items-center space-x-1.5">
-                    <span className="text-xs font-bold text-[#181A20]">
+                    <span className="text-xs font-bold text-[#1C2C34]">
                       {item.authorName}
                     </span>
                     <StarRating rating={item.starRating} size="sm" />
@@ -260,13 +260,13 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               </div>
 
               <span className="text-xs font-medium text-[#6B7280] flex items-center space-x-1">
-                <MapPin className="w-3.5 h-3.5 text-[#9333EA]" />
+                <MapPin className="w-3.5 h-3.5 text-[#FC7454]" />
                 <span>{item.locationName}</span>
               </span>
             </div>
 
             {/* Content text */}
-            <p className="text-xs text-[#181A20] leading-relaxed">
+            <p className="text-xs text-[#1C2C34] leading-relaxed">
               {isUrdu && item.textUrdu ? item.textUrdu : item.text}
             </p>
 
@@ -275,7 +275,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               {item.tags.map((tag, idx) => (
                 <span
                   key={idx}
-                  className="px-2.5 py-0.5 rounded-md bg-[#F5EEFD] text-[#9333EA] text-[10px] font-semibold border border-[#E9D5FF]"
+                  className="px-2.5 py-0.5 rounded-md bg-[#ECF4F4] text-[#1C2C34] text-[10px] font-semibold border border-[#BCD4D4]"
                 >
                   {tag}
                 </span>
@@ -296,13 +296,13 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
                   className={`flex items-center space-x-1 px-2.5 py-1 rounded-lg transition cursor-pointer ${
                     item.isHelpfulByUser
                       ? 'bg-emerald-50 text-emerald-700 font-bold border border-emerald-200'
-                      : 'hover:bg-[#F5EEFD] text-[#6B7280]'
+                      : 'hover:bg-[#ECF4F4] text-[#6B7280]'
                   }`}
                 >
                   <ThumbsUp className="w-3.5 h-3.5" />
                   <span>Helpful ({item.helpfulCount})</span>
                 </button>
-                <button className="p-1 rounded-lg text-[#6B7280] hover:text-[#181A20] cursor-pointer">
+                <button className="p-1 rounded-lg text-[#6B7280] hover:text-[#1C2C34] cursor-pointer">
                   <Share2 className="w-3.5 h-3.5" />
                 </button>
               </div>
@@ -319,16 +319,16 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               initial={{ scale: 0.95, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
-              className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[#181A20]"
+              className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-5 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[#1C2C34]"
             >
               {/* Header */}
               <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-                <h3 className="text-sm font-bold text-[#181A20]">
+                <h3 className="text-sm font-bold text-[#1C2C34]">
                   {isUrdu ? 'اپنا مشاہدہ شیئر کریں' : 'Share Your Experience'}
                 </h3>
                 <button
                   onClick={() => setIsShareModalOpen(false)}
-                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#181A20] cursor-pointer"
+                  className="p-1.5 rounded-lg text-slate-400 hover:text-[#1C2C34] cursor-pointer"
                 >
                   <X className="w-4 h-4" />
                 </button>
@@ -336,26 +336,26 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
 
               {/* Location Input */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-[#181A20]">
+                <label className="text-[11px] font-bold text-[#1C2C34]">
                   Location
                 </label>
                 <div className="relative">
-                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-3 text-[#9333EA]" />
+                  <MapPin className="w-3.5 h-3.5 absolute left-3 top-3 text-[#FC7454]" />
                   <input
                     type="text"
                     value={formLocation}
                     onChange={(e) => setFormLocation(e.target.value)}
-                    className="w-full bg-[#F8F9FA] border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                    className="w-full bg-[#F8F9FA] border border-slate-200 rounded-xl py-2 pl-9 pr-3 text-xs text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
                   />
                 </div>
-                <span className="text-[10px] text-[#6B7280]">
+                <span className="text-[10px] text-[#5A6E78]">
                   Auto-detected. You can edit if needed.
                 </span>
               </div>
 
               {/* How did you feel? Experience rating */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[#181A20]">
+                <label className="text-[11px] font-bold text-[#1C2C34]">
                   How did you feel? *
                 </label>
                 <SentimentPicker
@@ -367,7 +367,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
 
               {/* Quick Tags */}
               <div className="space-y-1.5">
-                <label className="text-[11px] font-bold text-[#181A20]">
+                <label className="text-[11px] font-bold text-[#1C2C34]">
                   Quick tags (select all that apply)
                 </label>
                 <div className="flex flex-wrap gap-1.5">
@@ -380,8 +380,8 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
                         onClick={() => handleToggleTag(tag)}
                         className={`px-3 py-1.5 rounded-xl text-xs font-bold border transition cursor-pointer ${
                           isSelected
-                            ? 'bg-[#181A20] text-white border-[#181A20] shadow-xs'
-                            : 'bg-slate-50 border-slate-200 text-[#6B7280] hover:bg-[#F5EEFD]'
+                            ? 'bg-[#1C2C34] text-white border-[#1C2C34] shadow-xs'
+                            : 'bg-slate-50 border-slate-200 text-[#5A6E78] hover:bg-[#ECF4F4]'
                         }`}
                       >
                         {tag}
@@ -393,7 +393,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
 
               {/* Narrative textarea */}
               <div className="space-y-1">
-                <label className="text-[11px] font-bold text-[#181A20]">
+                <label className="text-[11px] font-bold text-[#1C2C34]">
                   Add details (optional)
                 </label>
                 <textarea
@@ -401,7 +401,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
                   value={formDetails}
                   onChange={(e) => setFormDetails(e.target.value)}
                   placeholder="Share more about lighting, tea stalls, crowds, or safe zones..."
-                  className="w-full bg-[#F8F9FA] border border-slate-200 rounded-xl p-3 text-xs text-[#181A20] focus:outline-none focus:border-[#9333EA]"
+                  className="w-full bg-[#F8F9FA] border border-slate-200 rounded-xl p-3 text-xs text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
                 />
               </div>
 
@@ -409,7 +409,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               <button
                 type="button"
                 onClick={handlePostUpdate}
-                className="w-full py-3.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs shadow-xs transition cursor-pointer"
+                className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-xs transition cursor-pointer"
               >
                 {isUrdu ? 'اپ ڈیٹ شیئر کریں' : 'Share Update'}
               </button>

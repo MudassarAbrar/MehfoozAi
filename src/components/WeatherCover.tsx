@@ -919,7 +919,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
                       pinInput.length > idx
                         ? pinError
                           ? 'bg-rose-500 border-rose-400'
-                          : 'bg-[#B886FD] border-[#B886FD] scale-110'
+                          : 'bg-[#FC7454] border-[#FC7454] scale-110'
                         : 'border-slate-600 bg-slate-800'
                     }`}
                   />
@@ -941,7 +941,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
                         handlePinDigit(key);
                       }
                     }}
-                    className="h-12 rounded-2xl bg-slate-800/90 hover:bg-slate-700 active:bg-[#B886FD] active:text-[#181A20] text-sm font-semibold text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
+                    className="h-12 rounded-2xl bg-slate-800/90 hover:bg-slate-700 active:bg-[#FC7454] active:text-[#1C2C34] text-sm font-semibold text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
                   >
                     {key}
                   </button>

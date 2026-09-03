@@ -132,7 +132,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
   };
 
   return (
-    <div className="max-w-xl mx-auto px-3.5 sm:px-6 py-4 space-y-4 text-[#181A20] dark:text-[#F9FAFB]">
+    <div className="max-w-xl mx-auto px-3.5 sm:px-6 py-4 space-y-4 text-[#1C2C34] dark:text-[#F9FAFB]">
       {/* Celebration Notification */}
       {showSafeCelebration && (
         <motion.div 
@@ -152,30 +152,30 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
         <div className="rounded-3xl bg-white dark:bg-[#181B24] p-5 sm:p-6 shadow-xs border border-slate-200 dark:border-slate-800 space-y-5 transition-colors">
           {/* Header */}
           <div className="space-y-1">
-            <span className="text-[11px] font-black tracking-[0.2em] text-[#9333EA] dark:text-[#C084FC] uppercase block">
+            <span className="text-[11px] font-black tracking-[0.2em] text-[#FC7454] dark:text-[#FC7454] uppercase block">
               {isUrdu ? 'حفاظتی ٹائمر' : 'PROTECTION PROTOCOL'}
             </span>
-            <h2 className="text-lg sm:text-xl font-black tracking-[0.12em] text-[#181A20] dark:text-white uppercase">
+            <h2 className="text-lg sm:text-xl font-black tracking-[0.12em] text-[#1C2C34] dark:text-white uppercase">
               {isUrdu ? 'خاموش چیک ان سیشن' : 'SILENT ARRIVAL CHECK-IN'}
             </h2>
-            <p className="text-xs text-[#6B7280] dark:text-slate-400 font-medium">
+            <p className="text-xs text-[#5A6E78] dark:text-slate-400 font-medium">
               {isUrdu ? 'اگر آپ وقت پر نہ پہنچیں تو فوری الرٹ بھیج دیا جائے گا' : 'Automated emergency dispatch if destination is not confirmed'}
             </p>
           </div>
 
           {/* Destination */}
           <div className="space-y-1.5">
-            <label className="text-[11px] font-black tracking-wider text-[#181A20] dark:text-slate-300 uppercase">
+            <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase">
               {isUrdu ? 'منزل کا انتخاب' : 'WHERE ARE YOU HEADED?'}
             </label>
             <div className="relative">
-              <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-[#9333EA] dark:text-[#C084FC]" />
+              <MapPin className="w-4 h-4 absolute left-3.5 top-3.5 text-[#FC7454] dark:text-[#FC7454]" />
               <input
                 type="text"
                 value={destination}
                 onChange={(e) => setDestination(e.target.value)}
                 placeholder="Enter destination (e.g. MM Alam, University, Home)"
-                className="w-full bg-[#F8F9FD] dark:bg-[#12141C] border border-slate-200 dark:border-slate-700 rounded-2xl py-3 pl-10 pr-4 text-xs font-semibold text-[#181A20] dark:text-white focus:outline-none focus:border-[#9333EA] dark:focus:border-[#C084FC]"
+                className="w-full bg-[#F8F9FD] dark:bg-[#12141C] border border-slate-200 dark:border-slate-700 rounded-2xl py-3 pl-10 pr-4 text-xs font-semibold text-[#1C2C34] dark:text-white focus:outline-none focus:border-[#FC7454] dark:focus:border-[#FC7454]"
               />
             </div>
           </div>
@@ -183,10 +183,10 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           {/* Duration Selector */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
-              <label className="text-[11px] font-black tracking-wider text-[#181A20] dark:text-slate-300 uppercase">
+              <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase">
                 {isUrdu ? 'متوقع وقت' : 'EXPECTED TRANSIT TIME'}
               </label>
-              <span className="text-xs font-black text-[#9333EA] dark:text-[#C084FC] bg-[#F5EEFD] dark:bg-[#2D1F47] border border-[#E9D5FF] dark:border-[#581C87] px-2.5 py-0.5 rounded-full">
+              <span className="text-xs font-black text-[#FC7454] bg-[#ECF4F4] dark:bg-[#1C2C34] border border-[#BCD4D4] dark:border-slate-700 px-2.5 py-0.5 rounded-full">
                 {durationMinutes} min
               </span>
             </div>
@@ -199,8 +199,8 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                   onClick={() => setDurationMinutes(m)}
                   className={`flex-1 py-2 rounded-xl text-xs font-black transition cursor-pointer ${
                     durationMinutes === m
-                      ? 'bg-[#181A20] dark:bg-[#C084FC] text-white dark:text-[#0F1117] shadow-xs'
-                      : 'bg-[#F8F9FD] dark:bg-[#12141C] text-[#6B7280] dark:text-slate-400 hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] hover:text-[#181A20] dark:hover:text-white border border-slate-200 dark:border-slate-700'
+                      ? 'bg-[#1C2C34] dark:bg-[#1C2C34] text-white shadow-xs'
+                      : 'bg-[#F8F9FD] dark:bg-[#12141C] text-[#5A6E78] dark:text-slate-400 hover:bg-[#ECF4F4] dark:hover:bg-[#1C2C34]/50 hover:text-[#1C2C34] dark:hover:text-white border border-slate-200 dark:border-slate-700'
                   }`}
                 >
                   {m}m
@@ -211,8 +211,8 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
 
           {/* Contacts */}
           <div className="space-y-2 pt-1">
-            <label className="text-[11px] font-black tracking-wider text-[#181A20] dark:text-slate-300 uppercase flex items-center space-x-1.5">
-              <Users className="w-3.5 h-3.5 text-[#9333EA] dark:text-[#C084FC]" />
+            <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase flex items-center space-x-1.5">
+              <Users className="w-3.5 h-3.5 text-[#FC7454] dark:text-[#FC7454]" />
               <span>{isUrdu ? 'گارڈین رابطے' : 'WHO SHOULD WE NOTIFY?'}</span>
             </label>
 
@@ -225,26 +225,26 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                     onClick={() => handleToggleContact(contact.id)}
                     className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
                       isChecked
-                        ? 'bg-[#F5EEFD] dark:bg-[#2D1F47] border-[#E9D5FF] dark:border-[#581C87] text-[#181A20] dark:text-white'
-                        : 'bg-[#F8F9FD] dark:bg-[#12141C] border-slate-200 dark:border-slate-700 text-[#6B7280] dark:text-slate-400'
+                        ? 'bg-[#ECF4F4] dark:bg-[#1C2C34] border-[#BCD4D4] dark:border-slate-700 text-[#1C2C34] dark:text-white'
+                        : 'bg-[#F8F9FD] dark:bg-[#12141C] border-slate-200 dark:border-slate-700 text-[#5A6E78] dark:text-slate-400'
                     }`}
                   >
                     <div className="flex items-center space-x-3">
                       <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs ${
-                        isChecked ? 'bg-[#181A20] dark:bg-[#C084FC] text-white dark:text-[#0F1117]' : 'border border-slate-300 dark:border-slate-600'
+                        isChecked ? 'bg-[#1C2C34] text-white' : 'border border-slate-300 dark:border-slate-600'
                       }`}>
-                        {isChecked && <Check className="w-3 h-3 text-white dark:text-[#0F1117]" />}
+                        {isChecked && <Check className="w-3 h-3 text-white" />}
                       </div>
                       <div>
-                        <h4 className="text-xs font-black text-[#181A20] dark:text-white">
+                        <h4 className="text-xs font-black text-[#1C2C34] dark:text-white">
                           {contact.name}
                         </h4>
-                        <span className="text-[10px] text-[#6B7280] dark:text-slate-400">
+                        <span className="text-[10px] text-[#5A6E78] dark:text-slate-400">
                           {contact.relation} • {contact.phone}
                         </span>
                       </div>
                     </div>
-                    <span className="text-[10px] font-extrabold text-[#9333EA] dark:text-[#C084FC]">
+                    <span className="text-[10px] font-extrabold text-[#FC7454] dark:text-[#FC7454]">
                       {isChecked ? 'SELECTED' : '+ ADD'}
                     </span>
                   </div>
@@ -257,7 +257,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           <button
             onClick={handleStartCheckIn}
             disabled={!destination.trim() || selectedContactIds.length === 0}
-            className="w-full py-4 rounded-2xl bg-[#181A20] dark:bg-[#C084FC] hover:bg-slate-800 dark:hover:bg-[#D8B4FE] disabled:opacity-50 text-white dark:text-[#0F1117] font-black text-xs tracking-[0.2em] uppercase shadow-md transition-all active:scale-98 cursor-pointer"
+            className="w-full py-4 rounded-2xl bg-[#1C2C34] hover:bg-[#1C2C34]/90 disabled:opacity-50 text-white font-black text-xs tracking-[0.2em] uppercase shadow-md transition-all active:scale-98 cursor-pointer"
           >
             {isUrdu ? 'سیشن شروع کریں' : 'START SESSION'}
           </button>
@@ -273,11 +273,11 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           <div className="flex items-center justify-between px-1">
             <button
               onClick={() => setActiveSession(null)}
-              className="p-2 hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] rounded-full transition cursor-pointer text-[#181A20] dark:text-slate-200"
+              className="p-2 hover:bg-[#ECF4F4] dark:hover:bg-slate-800 rounded-full transition cursor-pointer text-[#1C2C34] dark:text-slate-200"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="w-16 h-1.5 bg-[#B886FD] dark:bg-[#C084FC] rounded-full" />
+            <div className="w-16 h-1.5 bg-[#BCD4D4] rounded-full" />
             <button
               onClick={onOpenCrisis}
               className="px-3 py-1 rounded-full bg-rose-50 dark:bg-rose-950/60 border border-rose-200 dark:border-rose-800 text-rose-700 dark:text-rose-400 text-[10px] font-black tracking-wider uppercase cursor-pointer"
@@ -288,7 +288,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
 
           {/* Session Header & Circular Controls */}
           <div className="text-center space-y-4 py-2">
-            <h3 className="text-xs font-black tracking-[0.2em] text-[#181A20] dark:text-white uppercase">
+            <h3 className="text-xs font-black tracking-[0.2em] text-[#1C2C34] dark:text-white uppercase">
               SESSION {activeSessionIndex}
             </h3>
 
@@ -297,21 +297,21 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
               {/* Stop Button */}
               <button
                 onClick={() => setIsPlaying(false)}
-                className="w-10 h-10 rounded-full bg-[#F5EEFD] dark:bg-[#2D1F47] hover:bg-[#E9D5FF] dark:hover:bg-[#3B1D54] flex items-center justify-center text-[#9333EA] dark:text-[#C084FC] transition shadow-xs active:scale-95 cursor-pointer"
+                className="w-10 h-10 rounded-full bg-[#ECF4F4] hover:bg-[#BCD4D4]/50 border border-[#BCD4D4] flex items-center justify-center text-[#FC7454] transition shadow-xs active:scale-95 cursor-pointer"
                 title="Stop Timer"
               >
-                <Square className="w-3.5 h-3.5 fill-[#9333EA] dark:fill-[#C084FC]" />
+                <Square className="w-3.5 h-3.5 fill-[#FC7454]" />
               </button>
 
               {/* Main Large Charcoal Pause/Play */}
               <button
                 onClick={() => setIsPlaying(!isPlaying)}
-                className="w-16 h-16 rounded-full bg-[#181A20] dark:bg-[#C084FC] hover:bg-slate-800 dark:hover:bg-[#D8B4FE] flex items-center justify-center text-white dark:text-[#0F1117] transition shadow-lg active:scale-95 cursor-pointer"
+                className="w-16 h-16 rounded-full bg-[#1C2C34] hover:bg-[#1C2C34]/90 flex items-center justify-center text-white transition shadow-lg active:scale-95 cursor-pointer"
               >
                 {isPlaying ? (
-                  <Pause className="w-6 h-6 fill-white dark:fill-[#0F1117]" />
+                  <Pause className="w-6 h-6 fill-white" />
                 ) : (
-                  <Play className="w-6 h-6 fill-white dark:fill-[#0F1117] ml-0.5" />
+                  <Play className="w-6 h-6 fill-white ml-0.5" />
                 )}
               </button>
 
@@ -321,15 +321,15 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                   setIsPlaying(true);
                   setRemainingMinutes(activeSession.expectedMinutes);
                 }}
-                className="w-10 h-10 rounded-full bg-[#F5EEFD] dark:bg-[#2D1F47] hover:bg-[#E9D5FF] dark:hover:bg-[#3B1D54] flex items-center justify-center text-[#9333EA] dark:text-[#C084FC] transition shadow-xs active:scale-95 cursor-pointer"
+                className="w-10 h-10 rounded-full bg-[#ECF4F4] hover:bg-[#BCD4D4]/50 border border-[#BCD4D4] flex items-center justify-center text-[#FC7454] transition shadow-xs active:scale-95 cursor-pointer"
                 title="Reset Timer"
               >
-                <RotateCcw className="w-4 h-4 text-[#9333EA] dark:text-[#C084FC]" />
+                <RotateCcw className="w-4 h-4 text-[#FC7454]" />
               </button>
             </div>
 
             {/* Status Text */}
-            <h4 className="text-xs font-black tracking-[0.2em] text-[#181A20] dark:text-slate-200 uppercase pt-1">
+            <h4 className="text-xs font-black tracking-[0.2em] text-[#1C2C34] dark:text-slate-200 uppercase pt-1">
               FEEL CALM • {remainingMinutes} MIN LEFT
             </h4>
 
@@ -339,7 +339,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                 <span
                   key={i}
                   style={{ height: isPlaying ? `${h}px` : '4px' }}
-                  className="w-0.5 bg-[#9333EA] dark:bg-[#C084FC] rounded-full transition-all duration-300"
+                  className="w-0.5 bg-[#FC7454] rounded-full transition-all duration-300"
                 />
               ))}
             </div>
@@ -347,19 +347,19 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
 
           {/* Active Session Pills */}
           <div className="space-y-3 pt-2">
-            {/* Active Pill (Solid Lavender / Lilac) */}
-            <div className="w-full p-4 rounded-2xl bg-[#F5EEFD] dark:bg-[#2D1F47] border border-[#E9D5FF] dark:border-[#581C87] flex items-center justify-between shadow-xs">
+            {/* Active Pill (Soft Teal / Charcoal) */}
+            <div className="w-full p-4 rounded-2xl bg-[#ECF4F4] dark:bg-[#1C2C34] border border-[#BCD4D4] dark:border-slate-700 flex items-center justify-between shadow-xs">
               <div>
-                <span className="text-xs font-black tracking-[0.18em] text-[#9333EA] dark:text-[#C084FC] uppercase block">
+                <span className="text-xs font-black tracking-[0.18em] text-[#FC7454] uppercase block">
                   SESSION {activeSessionIndex}
                 </span>
-                <p className="text-[11px] text-[#181A20] dark:text-slate-100 font-semibold mt-0.5">
+                <p className="text-[11px] text-[#1C2C34] dark:text-slate-100 font-semibold mt-0.5">
                   {activeSession.destination}
                 </p>
               </div>
               <button 
                 onClick={handleConfirmSafe}
-                className="px-3 py-1.5 rounded-full bg-[#181A20] dark:bg-[#C084FC] text-white dark:text-[#0F1117] text-[10px] font-black tracking-wider uppercase hover:scale-105 transition cursor-pointer"
+                className="px-3 py-1.5 rounded-full bg-[#1C2C34] text-white text-[10px] font-black tracking-wider uppercase hover:scale-105 transition cursor-pointer"
               >
                 I'M SAFE
               </button>
@@ -374,12 +374,12 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                   setRemainingMinutes(num);
                   setIsPlaying(true);
                 }}
-                className="w-full p-3.5 rounded-2xl bg-[#F8F9FD] dark:bg-[#12141C] hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] border border-slate-100 dark:border-slate-800 flex items-center justify-between transition cursor-pointer group"
+                className="w-full p-3.5 rounded-2xl bg-[#F8F9FD] dark:bg-[#12141C] hover:bg-[#ECF4F4] dark:hover:bg-slate-800 border border-slate-100 dark:border-slate-800 flex items-center justify-between transition cursor-pointer group"
               >
-                <span className="text-xs font-bold tracking-[0.18em] text-[#6B7280] dark:text-slate-400 group-hover:text-[#181A20] dark:group-hover:text-white uppercase">
+                <span className="text-xs font-bold tracking-[0.18em] text-[#5A6E78] dark:text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white uppercase">
                   SESSION {num}
                 </span>
-                <button className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 group-hover:bg-[#181A20] dark:group-hover:bg-[#C084FC] text-slate-600 dark:text-slate-300 group-hover:text-white dark:group-hover:text-[#0F1117] flex items-center justify-center transition-colors">
+                <button className="w-7 h-7 rounded-full bg-slate-200 dark:bg-slate-700 group-hover:bg-[#1C2C34] text-slate-600 dark:text-slate-300 group-hover:text-white flex items-center justify-center transition-colors">
                   <Play className="w-3 h-3 fill-current ml-0.5" />
                 </button>
               </div>
@@ -390,17 +390,17 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           <div className="space-y-2 pt-2">
             <button
               onClick={handleConfirmSafe}
-              className="w-full py-3.5 rounded-2xl bg-[#181A20] dark:bg-[#C084FC] hover:bg-slate-800 dark:hover:bg-[#D8B4FE] text-white dark:text-[#0F1117] font-black text-xs tracking-[0.15em] uppercase transition shadow-xs cursor-pointer flex items-center justify-center space-x-2"
+              className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#1C2C34]/90 text-white font-black text-xs tracking-[0.15em] uppercase transition shadow-xs cursor-pointer flex items-center justify-center space-x-2"
             >
-              <CheckCircle2 className="w-4 h-4 text-[#B886FD] dark:text-[#0F1117]" />
+              <CheckCircle2 className="w-4 h-4 text-[#FC7454]" />
               <span>{isUrdu ? 'میں محفوظ ہوں (چیک ان مکمل)' : "I'M SAFE (CONFIRM ARRIVAL)"}</span>
             </button>
 
             <button
               onClick={() => handleExtendTime(15)}
-              className="w-full py-2.5 rounded-2xl bg-white dark:bg-[#181B24] border border-slate-200 dark:border-slate-700 text-[#181A20] dark:text-slate-200 font-extrabold text-xs tracking-wider uppercase transition hover:bg-[#F5EEFD] dark:hover:bg-[#26193E] cursor-pointer flex items-center justify-center space-x-1.5"
+              className="w-full py-2.5 rounded-2xl bg-white dark:bg-[#181B24] border border-slate-200 dark:border-slate-700 text-[#1C2C34] dark:text-slate-200 font-extrabold text-xs tracking-wider uppercase transition hover:bg-[#ECF4F4] dark:hover:bg-slate-800 cursor-pointer flex items-center justify-center space-x-1.5"
             >
-              <Plus className="w-3.5 h-3.5 text-[#9333EA] dark:text-[#C084FC]" />
+              <Plus className="w-3.5 h-3.5 text-[#FC7454]" />
               <span>{isUrdu ? '+ 15 منٹ بڑھائیں' : '+ EXTEND 15 MIN'}</span>
             </button>
           </div>

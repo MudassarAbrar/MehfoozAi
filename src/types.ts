@@ -61,6 +61,8 @@ export interface LegalQueryResponse {
   sourceReferences: LegalSourceCitation[];
   confidence: number;
   disclaimerRequired: boolean;
+  modelUsed?: string;
+  isAiGenerated?: boolean;
   actionConfirmation?: ChatActionConfirmation;
   suggestedActions: {
     label: string;
@@ -139,6 +141,19 @@ export interface RoutingDepartmentInfo {
   guidelines: string;
 }
 
+export type SupportChannelType = 
+  | 'police_support'
+  | 'workplace_ombudsperson'
+  | 'fia_cybercrime'
+  | 'protection_committee'
+  | 'pcsw_helpline'
+  | 'legal_aid'
+  | 'shelter'
+  | 'fospah'
+  | 'social_welfare'
+  | 'counselling'
+  | 'other';
+
 export interface ComplaintDraft {
   id: string;
   createdAt: string;
@@ -153,7 +168,21 @@ export interface ComplaintDraft {
   district: PunjabDistrict;
   locationDetails?: string;
   isSituationOngoing: boolean;
-  requestedSupport: 'legal_aid' | 'police_support' | 'workplace_ombudsperson' | 'counselling' | 'shelter' | 'emergency';
+  requestedSupport: SupportChannelType | string;
+  customChannelName?: string;
+  customChannelContact?: string;
+  aiRecommendationDetails?: {
+    recommendedChannel: string;
+    recommendedChannelTitle: string;
+    recommendedChannelTitleUrdu?: string;
+    urgencyLevel: 'immediate' | 'high' | 'standard';
+    rationale: string;
+    rationaleUrdu?: string;
+    applicableLaw: string;
+    authorityPowers: string;
+    suggestedNextStep?: string;
+    recommendedAt: string;
+  };
   safeContactMethod?: string;
   safeContactNotes?: string;
   attachedVaultRecordIds: string[];
@@ -334,6 +363,10 @@ export interface ActiveAlertItem {
   isResolved?: boolean;
   reporterName?: string;
   safetyGuidance?: string;
+  tag?: string;
+  tagUrdu?: string;
+  tagline?: string;
+  taglineUrdu?: string;
 }
 
 export interface UserProfile {

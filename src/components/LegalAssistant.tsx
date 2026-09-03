@@ -61,34 +61,30 @@ interface Message {
   responsePayload?: LegalQueryResponse;
 }
 
-const PRESET_SCENARIOS = [
+const QUICK_PROMPTS = [
   {
     id: 'coercive',
-    title: 'Ghar mein qaid aur phone cheenna (Coercive Control)',
-    titleEn: 'Locked inside room & phone confiscated by in-laws',
-    titleUrdu: 'کمرے میں بندش اور فون چھیننا (گھریلو تشدد)',
-    query: 'My husband and in-laws took my phone, locked me in the room, and forbid me from leaving the house. What are my legal protections under Punjab law?'
+    labelEn: 'Domestic abuse',
+    labelUrdu: 'گھریلو تشدد',
+    query: 'What legal protections exist under Punjab law for domestic abuse and confinement?'
   },
   {
     id: 'workplace',
-    title: 'Daftar mein harassment aur dhamki (Workplace Act)',
-    titleEn: 'Workplace harassment & termination threats by manager',
-    titleUrdu: 'دفتر میں ہراسانی اور ملازمت سے برطرفی کی دھمکی',
-    query: 'My supervisor at the office is making unwanted advances and threatening to cancel my contract if I refuse. How can I file a complaint with the Punjab Ombudsperson?'
+    labelEn: 'Workplace harassment',
+    labelUrdu: 'دفتر میں ہراسانی',
+    query: 'How do I file a workplace harassment complaint with the Punjab Ombudsperson?'
   },
   {
     id: 'cyber',
-    title: 'Tasveeron se blackmail (PECA Cybercrime)',
-    titleEn: 'Blackmail with private photos on WhatsApp / Social Media',
-    titleUrdu: 'تصاویر و واٹس ایپ کے ذریعے بلیک میلنگ (سائبر کرائم)',
-    query: 'Someone is blackmailing me on WhatsApp, threatening to share edited private photos unless I pay them. Which law applies in Pakistan?'
+    labelEn: 'Online blackmail (PECA)',
+    labelUrdu: 'آن لائن بلیک میلنگ',
+    query: 'Someone is blackmailing me on WhatsApp. Which laws apply and what steps should I take?'
   },
   {
     id: 'protection',
-    title: 'Hifazati Hukam Nama (Protection Order PPWVA 2016)',
-    titleEn: 'How to obtain a Protection Order & Residence Order in Lahore?',
-    titleUrdu: 'لاہور میں پروٹیکشن اور رہائشی آرڈر کیسے حاصل کریں؟',
-    query: 'What is the procedure to get a Protection Order under PPWVA 2016 in Punjab so the respondent cannot approach my residence?'
+    labelEn: 'Protection orders',
+    labelUrdu: 'حفاظتی آرڈرز',
+    query: 'What is the procedure to obtain a Protection Order under PPWVA 2016 in Punjab?'
   }
 ];
 
@@ -140,8 +136,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [autoVoiceReadout, setAutoVoiceReadout] = useState(false);
   
-  // 1. Prebuilt questions dismissal state
-  const [showPresets, setShowPresets] = useState<boolean>(true);
+  // 1. Menu and input attachment state
+  const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
+  const attachMenuRef = useRef<HTMLDivElement>(null);
 
   // 2. Location feature state
   const [activeLocation, setActiveLocation] = useState<string | null>(null);
@@ -162,7 +159,21 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, loading, showPresets, attachedPhotos]);
+  }, [messages, loading, attachedPhotos]);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (attachMenuRef.current && !attachMenuRef.current.contains(event.target as Node)) {
+        setIsAttachMenuOpen(false);
+      }
+    };
+    if (isAttachMenuOpen) {
+      document.addEventListener('mousedown', handleClickOutside);
+    }
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [isAttachMenuOpen]);
 
   // Handle Speech Recognition
   const handleToggleVoiceRecording = () => {
@@ -286,9 +297,6 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     const query = textToSend || inputText;
     if ((!query.trim() && attachedPhotos.length === 0) || loading) return;
 
-    // Immediately dismiss pre-built questions so they don't stay on screen
-    setShowPresets(false);
-
     const userMessageId = `user-${Date.now()}`;
     const photosToAttach = [...attachedPhotos];
     const currentLoc = activeLocation;
@@ -404,22 +412,17 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-130px)] max-w-4xl mx-auto px-4 py-3 text-[#181A20] bg-white/80 backdrop-blur-xs rounded-[28px] border border-white/80 shadow-sm">
+    <div className="flex flex-col h-[calc(100vh-130px)] max-w-4xl mx-auto px-4 py-3 text-[#1C2C34] bg-white/90 backdrop-blur-xs rounded-[28px] border border-[#BCD4D4]/50 shadow-sm">
       {/* 1. Header Toolbar with English / Urdu Toggle and Voice Mode */}
       <div className="flex flex-wrap items-center justify-between py-2 border-b border-slate-200 gap-2 text-xs">
         <div className="flex items-center space-x-2">
-          <div className="w-7 h-7 rounded-lg bg-[#F5EEFD] text-[#9333EA] flex items-center justify-center shadow-xs border border-[#E9D5FF]">
+          <div className="w-7 h-7 rounded-lg bg-[#ECF4F4] text-[#FC7454] flex items-center justify-center shadow-xs border border-[#BCD4D4]">
             <Scale className="w-4 h-4" />
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <span className="font-extrabold text-sm text-[#181A20]">
-                {isUrdu ? 'پنجاب قانونی معلوماتی معاون' : 'Punjab Legal Information Assistant'}
-              </span>
-              <span className="px-2 py-0.5 rounded-full bg-[#F5EEFD] text-[#9333EA] font-bold text-[10px] border border-[#E9D5FF]">
-                PPWVA 2016 • RAG
-              </span>
-            </div>
+            <span className="font-extrabold text-sm text-[#1C2C34]">
+              {isUrdu ? 'قانونی AI' : 'Legal AI'}
+            </span>
           </div>
         </div>
 
@@ -431,8 +434,8 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               onClick={() => handleLanguageToggle('en')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold transition flex items-center space-x-1 cursor-pointer ${
                 !isUrdu 
-                  ? 'bg-white text-[#181A20] shadow-xs' 
-                  : 'text-[#6B7280] hover:text-[#181A20]'
+                  ? 'bg-white text-[#1C2C34] shadow-xs' 
+                  : 'text-[#5A6E78] hover:text-[#1C2C34]'
               }`}
             >
               <span>🇬🇧</span>
@@ -442,8 +445,8 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               onClick={() => handleLanguageToggle('ur')}
               className={`px-2.5 py-1 rounded-lg text-xs font-bold font-urdu transition flex items-center space-x-1 cursor-pointer ${
                 isUrdu 
-                  ? 'bg-[#181A20] text-white shadow-xs' 
-                  : 'text-[#6B7280] hover:text-[#181A20]'
+                  ? 'bg-[#1C2C34] text-white shadow-xs' 
+                  : 'text-[#5A6E78] hover:text-[#1C2C34]'
               }`}
             >
               <span>🇵🇰</span>
@@ -456,12 +459,12 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             onClick={() => setAutoVoiceReadout(!autoVoiceReadout)}
             className={`p-1.5 px-2 rounded-xl text-xs font-bold border transition flex items-center space-x-1.5 cursor-pointer ${
               autoVoiceReadout
-                ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA]'
-                : 'bg-white border-slate-200 text-[#6B7280] hover:bg-slate-50'
+                ? 'bg-[#ECF4F4] border-[#BCD4D4] text-[#FC7454]'
+                : 'bg-white border-slate-200 text-[#5A6E78] hover:bg-slate-50'
             }`}
             title="Auto voice readout for answers"
           >
-            <Volume2 className={`w-3.5 h-3.5 ${autoVoiceReadout ? 'text-[#9333EA]' : ''}`} />
+            <Volume2 className={`w-3.5 h-3.5 ${autoVoiceReadout ? 'text-[#FC7454]' : ''}`} />
             <span className="hidden sm:inline">{isUrdu ? 'آواز موڈ' : 'Voice Mode'}</span>
           </button>
         </div>
@@ -474,13 +477,13 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             key={msg.id}
             className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
           >
-            <div className="flex items-center space-x-2 text-[11px] text-[#9CA3AF] mb-1 px-1">
+            <div className="flex items-center space-x-2 text-[11px] text-[#5A6E78] mb-1 px-1">
               <span>{msg.sender === 'user' ? (isUrdu ? 'آپ' : 'You') : (isUrdu ? 'محفوظ لیگل اسسٹنٹ' : 'Mehfooz Legal Assistant')}</span>
               <span>•</span>
               <span>{msg.timestamp}</span>
               {msg.location && (
-                <span className="flex items-center space-x-0.5 text-[#181A20] font-semibold bg-[#F5EEFD] px-1.5 py-0.2 rounded-md border border-[#E9D5FF]">
-                  <MapPin className="w-3 h-3 text-[#B886FD]" />
+                <span className="flex items-center space-x-0.5 text-[#1C2C34] font-semibold bg-[#ECF4F4] px-1.5 py-0.2 rounded-md border border-[#BCD4D4]">
+                  <MapPin className="w-3 h-3 text-[#FC7454]" />
                   <span>{msg.location}</span>
                 </span>
               )}
@@ -489,15 +492,15 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             <div
               className={`max-w-2xl rounded-3xl p-4 sm:p-5 shadow-xs ${
                 msg.sender === 'user'
-                  ? 'bg-[#181A20] text-white rounded-br-xs'
-                  : 'bg-white border border-slate-200 text-[#181A20] rounded-bl-xs'
+                  ? 'bg-[#1C2C34] text-white rounded-br-xs'
+                  : 'bg-white border border-[#BCD4D4]/60 text-[#1C2C34] rounded-bl-xs'
               }`}
             >
               {/* If user attached photos */}
               {msg.photos && msg.photos.length > 0 && (
                 <div className="mb-3">
-                  <div className="flex items-center space-x-1.5 text-xs text-[#181A20] mb-1.5 font-bold">
-                    <Lock className="w-3.5 h-3.5 text-[#B886FD]" />
+                  <div className="flex items-center space-x-1.5 text-xs text-[#1C2C34] mb-1.5 font-bold">
+                    <Lock className="w-3.5 h-3.5 text-[#FC7454]" />
                     <span>{isUrdu ? 'محفوظ فوٹو ثبوت (پرائیویٹ والٹ میں محفوظ)' : 'Encrypted Evidence Photo (Saved in Safety Vault)'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2">
@@ -523,20 +526,29 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                 <div className="mt-4 pt-4 border-t border-slate-100 space-y-3.5">
                   {/* Confidence and readout badge */}
                   <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
-                    <span className="flex items-center space-x-1.5 text-[#9333EA] font-bold bg-[#F5EEFD] px-3 py-1.5 rounded-xl border border-[#E9D5FF]">
-                      <ShieldCheck className="w-4 h-4 text-[#9333EA]" />
-                      <span>{Math.round(msg.responsePayload.confidence * 100)}% Grounded in Punjab Statutes</span>
-                    </span>
+                    <div className="flex items-center gap-1.5 flex-wrap">
+                      <span className="flex items-center space-x-1.5 text-[#1C2C34] font-bold bg-[#ECF4F4] px-3 py-1.5 rounded-xl border border-[#BCD4D4]">
+                        <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
+                        <span>{Math.round(msg.responsePayload.confidence * 100)}% Grounded in Punjab Statutes</span>
+                      </span>
+
+                      {msg.responsePayload.modelUsed && (
+                        <span className="flex items-center space-x-1 text-teal-800 font-semibold bg-teal-50 px-2.5 py-1.5 rounded-xl border border-teal-200">
+                          <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                          <span>{msg.responsePayload.modelUsed}</span>
+                        </span>
+                      )}
+                    </div>
 
                     <button
                       onClick={() => handleSpeak(msg.id, msg.text)}
-                      className="p-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#181A20] border border-slate-200 transition text-xs font-bold flex items-center space-x-1.5 shadow-xs cursor-pointer"
+                      className="p-1.5 px-3 rounded-xl bg-slate-50 hover:bg-slate-100 text-[#1C2C34] border border-slate-200 transition text-xs font-bold flex items-center space-x-1.5 shadow-xs cursor-pointer"
                       title="Audio readout"
                     >
                       {speakingId === msg.id ? (
-                        <VolumeX className="w-4 h-4 text-[#B886FD]" />
+                        <VolumeX className="w-4 h-4 text-[#FC7454]" />
                       ) : (
-                        <Volume2 className="w-4 h-4 text-[#181A20]" />
+                        <Volume2 className="w-4 h-4 text-[#1C2C34]" />
                       )}
                       <span>{speakingId === msg.id ? (isUrdu ? 'روکیں' : 'Stop') : (isUrdu ? 'سنیں' : 'Read Aloud')}</span>
                     </button>
@@ -545,14 +557,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                   {/* Key Legal Concepts */}
                   {msg.responsePayload.legalConcepts?.length > 0 && (
                     <div className="space-y-1.5">
-                      <span className="text-xs font-extrabold text-[#6B7280] uppercase tracking-wider">
+                      <span className="text-xs font-extrabold text-[#5A6E78] uppercase tracking-wider">
                         {isUrdu ? 'متعلقہ قانونی شقیں و حقوق:' : 'Identified Legal Remedies & Rights:'}
                       </span>
                       <div className="flex flex-wrap gap-1.5">
                         {msg.responsePayload.legalConcepts.map((concept, idx) => (
                           <span
                             key={idx}
-                            className="px-3 py-1 rounded-xl bg-[#F5EEFD] text-[#9333EA] text-xs border border-[#E9D5FF] font-bold"
+                            className="px-3 py-1 rounded-xl bg-[#ECF4F4] text-[#1C2C34] text-xs border border-[#BCD4D4] font-bold"
                           >
                             {concept}
                           </span>
@@ -566,13 +578,13 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                     <motion.div
                       initial={{ opacity: 0, y: 4 }}
                       animate={{ opacity: 1, y: 0 }}
-                      className="p-3.5 rounded-2xl bg-[#F8F9FD] border border-[#E9D5FF] text-xs space-y-2.5 shadow-xs"
+                      className="p-3.5 rounded-2xl bg-[#F4F4FC] border border-[#C4D4DC] text-xs space-y-2.5 shadow-xs"
                     >
-                      <div className="flex items-center space-x-2 text-[#181A20] font-bold">
-                        <Sparkles className="w-4 h-4 text-[#B886FD]" />
+                      <div className="flex items-center space-x-2 text-[#1C2C34] font-bold">
+                        <Sparkles className="w-4 h-4 text-[#FC7454]" />
                         <span>{isUrdu ? 'کارروائی کی توثیق (Confirmation Required)' : 'Action Confirmation'}</span>
                       </div>
-                      <p className="text-[#4B5563] font-medium">
+                      <p className="text-[#5A6E78] font-medium">
                         {msg.responsePayload.actionConfirmation.prompt}
                       </p>
 
@@ -581,9 +593,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                           <a
                             href={`tel:${msg.responsePayload.actionConfirmation.targetPhone || ''}`}
                             onClick={() => onLogAudit?.('chat_action_executed', `Initiated call to ${msg.responsePayload?.actionConfirmation?.targetName}`)}
-                            className="px-4 py-2 rounded-xl bg-[#F5EEFD] hover:bg-[#EDE9FE] text-[#9333EA] font-bold flex items-center space-x-1.5 shadow-xs transition border border-[#E9D5FF] cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/30 text-[#1C2C34] font-bold flex items-center space-x-1.5 shadow-xs transition border border-[#BCD4D4] cursor-pointer"
                           >
-                            <PhoneCall className="w-3.5 h-3.5" />
+                            <PhoneCall className="w-3.5 h-3.5 text-[#FC7454]" />
                             <span>{msg.responsePayload.actionConfirmation.buttonLabel}</span>
                           </a>
                         )}
@@ -595,9 +607,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                               onOpenComplaintWithData?.(summary, 'domestic_violence');
                               onLogAudit?.('chat_action_executed', `Routed to complaint builder for ${msg.responsePayload?.actionConfirmation?.targetName}`);
                             }}
-                            className="px-4 py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
                           >
-                            <FileText className="w-3.5 h-3.5 text-[#B886FD]" />
+                            <FileText className="w-3.5 h-3.5 text-[#BCD4D4]" />
                             <span>{msg.responsePayload.actionConfirmation.buttonLabel}</span>
                           </button>
                         )}
@@ -608,9 +620,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                               alert(isUrdu ? 'آپ کی موجودہ محفوظ لوکیشن ہنگامی رابطوں کو بھیج دی گئی ہے۔' : `Live location dispatched to ${msg.responsePayload?.actionConfirmation?.targetName || 'Emergency Contacts'}`);
                               onLogAudit?.('chat_action_executed', `Shared live location with contacts`);
                             }}
-                            className="px-4 py-2 rounded-xl bg-[#F5EEFD] hover:bg-[#EDE9FE] text-[#9333EA] font-bold flex items-center space-x-1.5 shadow-xs transition border border-[#E9D5FF] cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/30 text-[#1C2C34] font-bold flex items-center space-x-1.5 shadow-xs transition border border-[#BCD4D4] cursor-pointer"
                           >
-                            <MapPin className="w-3.5 h-3.5" />
+                            <MapPin className="w-3.5 h-3.5 text-[#FC7454]" />
                             <span>{msg.responsePayload.actionConfirmation.buttonLabel}</span>
                           </button>
                         )}
@@ -618,7 +630,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                         {msg.responsePayload.actionConfirmation.actionType === 'sos' && (
                           <button
                             onClick={() => onOpenCrisis?.()}
-                            className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
+                            className="px-4 py-2 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white font-bold flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
                           >
                             <ShieldAlert className="w-3.5 h-3.5" />
                             <span>{msg.responsePayload.actionConfirmation.buttonLabel}</span>
@@ -633,14 +645,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                     <div className="pt-1">
                       <button
                         onClick={() => setExpandedCitation(expandedCitation === msg.id ? null : msg.id)}
-                        className="flex items-center space-x-1.5 text-xs font-bold text-[#6B7280] hover:text-[#181A20] transition-colors py-1 group cursor-pointer"
+                        className="flex items-center space-x-1.5 text-xs font-bold text-[#5A6E78] hover:text-[#1C2C34] transition-colors py-1 group cursor-pointer"
                       >
-                        <BookOpen className="w-3.5 h-3.5 text-[#B886FD]" />
+                        <BookOpen className="w-3.5 h-3.5 text-[#FC7454]" />
                         <span>{isUrdu ? `حوالہ جات (${msg.responsePayload.sourceReferences.length}) ▾` : `References (${msg.responsePayload.sourceReferences.length}) ▾`}</span>
                         {expandedCitation === msg.id ? (
-                          <ChevronUp className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#181A20]" />
+                          <ChevronUp className="w-3.5 h-3.5 text-[#5A6E78] group-hover:text-[#1C2C34]" />
                         ) : (
-                          <ChevronDown className="w-3.5 h-3.5 text-[#9CA3AF] group-hover:text-[#181A20]" />
+                          <ChevronDown className="w-3.5 h-3.5 text-[#5A6E78] group-hover:text-[#1C2C34]" />
                         )}
                       </button>
 
@@ -650,7 +662,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                             initial={{ opacity: 0, height: 0 }}
                             animate={{ opacity: 1, height: 'auto' }}
                             exit={{ opacity: 0, height: 0 }}
-                            className="mt-2 space-y-1.5 pl-5 border-l-2 border-[#E9D5FF] overflow-hidden"
+                            className="mt-2 space-y-1.5 pl-5 border-l-2 border-[#BCD4D4] overflow-hidden"
                           >
                             {msg.responsePayload.sourceReferences.map((citation: LegalSourceCitation, cIdx: number) => (
                               <div key={cIdx} className="py-1">
@@ -658,10 +670,10 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                                   href={citation.url || '#'}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="text-xs font-bold text-[#181A20] hover:text-[#9333EA] hover:underline flex items-center space-x-1.5 transition-colors"
+                                  className="text-xs font-bold text-[#1C2C34] hover:text-[#FC7454] hover:underline flex items-center space-x-1.5 transition-colors"
                                 >
                                   <span>{citation.document} — {citation.section}: {citation.sectionTitle}</span>
-                                  <ExternalLink className="w-3 h-3 text-[#9CA3AF] hover:text-[#9333EA] flex-shrink-0" />
+                                  <ExternalLink className="w-3 h-3 text-[#5A6E78] hover:text-[#FC7454] flex-shrink-0" />
                                 </a>
                               </div>
                             ))}
@@ -679,9 +691,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                         const summary = msg.responsePayload?.answerSummary || msg.text;
                         onOpenVaultWithDraft?.(title, summary);
                       }}
-                      className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-[#181A20] flex items-center justify-center space-x-2 transition shadow-xs cursor-pointer"
+                      className="px-3.5 py-2.5 rounded-2xl bg-white hover:bg-slate-50 border border-slate-200 text-xs font-bold text-[#1C2C34] flex items-center justify-center space-x-2 transition shadow-xs cursor-pointer"
                     >
-                      <Bookmark className="w-4 h-4 text-[#B886FD]" />
+                      <Bookmark className="w-4 h-4 text-[#FC7454]" />
                       <span>{isUrdu ? 'پرائیویٹ نوٹ میں محفوظ کریں' : 'Save to Private Notes'}</span>
                     </button>
 
@@ -692,9 +704,9 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                         const photos = msg.photos || [];
                         onOpenComplaintWithData?.(summary, cat, photos);
                       }}
-                      className="px-3.5 py-2.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-xs font-bold text-white flex items-center justify-center space-x-2 shadow-xs transition cursor-pointer"
+                      className="px-3.5 py-2.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-xs font-bold text-white flex items-center justify-center space-x-2 shadow-xs transition cursor-pointer"
                     >
-                      <FileText className="w-4 h-4 text-[#B886FD]" />
+                      <FileText className="w-4 h-4 text-[#BCD4D4]" />
                       <span>{isUrdu ? 'درخواست کا ڈرافٹ تیار کریں' : 'Prepare Complaint Draft'}</span>
                     </button>
                   </div>
@@ -705,8 +717,8 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         ))}
 
         {loading && (
-          <div className="flex items-center space-x-2.5 text-[#181A20] text-xs sm:text-sm font-bold p-3.5 rounded-2xl bg-white border border-slate-200 w-fit shadow-xs">
-            <RefreshCw className="w-4 h-4 animate-spin text-[#B886FD]" />
+          <div className="flex items-center space-x-2.5 text-[#1C2C34] text-xs sm:text-sm font-bold p-3.5 rounded-2xl bg-white border border-[#BCD4D4] w-fit shadow-xs">
+            <RefreshCw className="w-4 h-4 animate-spin text-[#FC7454]" />
             <span>{isUrdu ? 'پنجاب کے قوانین میں تلاش اور تصدیق کی تیاری...' : 'Synthesizing source-grounded legal analysis for Punjab...'}</span>
           </div>
         )}
@@ -714,47 +726,24 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         <div ref={messagesEndRef} />
       </div>
 
-      {/* 3. PRESET SCENARIO CHIPS */}
-      <div className="py-2 border-t border-slate-200">
-        <div className="flex items-center justify-between mb-2">
-          <button
-            onClick={() => setShowPresets(!showPresets)}
-            className="flex items-center space-x-1.5 text-xs font-bold text-[#6B7280] hover:text-[#181A20] cursor-pointer"
-          >
-            <HelpCircle className="w-3.5 h-3.5 text-[#B886FD]" />
-            <span>
-              {isUrdu 
-                ? (showPresets ? 'اکثر پوچھے جانے والے سوالات چھپائیں' : 'اکثر پوچھے جانے والے سوالات دکھائیں')
-                : (showPresets ? 'Hide Common Punjab Scenarios' : '💡 Show Common Punjab Legal Scenarios')}
-            </span>
-          </button>
-        </div>
-
-        <AnimatePresence>
-          {showPresets && (
-            <motion.div
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: 'auto' }}
-              exit={{ opacity: 0, height: 0 }}
-              className="grid grid-cols-1 sm:grid-cols-2 gap-2 mb-2"
+      {/* 3. Quick Prompts (ChatGPT style) */}
+      <div className="py-1.5 border-t border-slate-200/80">
+        <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar py-0.5">
+          <span className="text-[11px] font-semibold text-[#5A6E78] shrink-0 flex items-center gap-1">
+            <Sparkles className="w-3 h-3 text-[#FC7454]" />
+            <span>{isUrdu ? 'فوری سوالات:' : 'Quick prompts:'}</span>
+          </span>
+          {QUICK_PROMPTS.map((prompt) => (
+            <button
+              key={prompt.id}
+              type="button"
+              onClick={() => handleSend(prompt.query)}
+              className="px-2.5 py-1 rounded-full bg-slate-50 hover:bg-[#ECF4F4] border border-slate-200 hover:border-[#BCD4D4] text-[11px] font-medium text-[#1C2C34] transition shrink-0 shadow-2xs hover:shadow-xs cursor-pointer active:scale-95 flex items-center space-x-1"
             >
-              {PRESET_SCENARIOS.map((scenario) => (
-                <button
-                  key={scenario.id}
-                  onClick={() => handleSend(scenario.query)}
-                  className="text-left p-3 rounded-2xl bg-white hover:bg-[#F5EEFD] border border-slate-200 hover:border-[#E9D5FF] text-xs text-[#181A20] transition flex items-start space-x-2.5 shadow-xs group cursor-pointer"
-                >
-                  <div className="w-5 h-5 rounded-full bg-[#F5EEFD] text-[#9333EA] flex items-center justify-center flex-shrink-0 mt-0.5">
-                    <HelpCircle className="w-3.5 h-3.5" />
-                  </div>
-                  <span className="font-semibold line-clamp-2 leading-relaxed">
-                    {isUrdu ? scenario.titleUrdu : scenario.titleEn}
-                  </span>
-                </button>
-              ))}
-            </motion.div>
-          )}
-        </AnimatePresence>
+              <span>{isUrdu ? prompt.labelUrdu : prompt.labelEn}</span>
+            </button>
+          ))}
+        </div>
       </div>
 
       {/* 4. Active Location & Photo Preview Chips Bar */}
@@ -762,8 +751,8 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         <div className="pb-2 flex flex-wrap items-center gap-2">
           {/* Active Location Badge */}
           {activeLocation && (
-            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#F5EEFD] border border-[#E9D5FF] text-xs font-bold text-[#181A20] shadow-xs">
-              <MapPin className="w-3.5 h-3.5 text-[#B886FD]" />
+            <div className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#ECF4F4] border border-[#BCD4D4] text-xs font-bold text-[#1C2C34] shadow-xs">
+              <MapPin className="w-3.5 h-3.5 text-[#FC7454]" />
               <span>{isUrdu ? 'مقام:' : 'Location:'} {activeLocation}</span>
               <button
                 onClick={() => setActiveLocation(null)}
@@ -779,7 +768,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           {attachedPhotos.map((photo, idx) => (
             <div key={idx} className="relative group flex items-center space-x-1 px-2 py-1 rounded-xl bg-slate-100 border border-slate-200">
               <img src={photo} alt="Thumbnail" className="w-6 h-6 object-cover rounded-lg" />
-              <span className="text-[11px] font-bold text-[#181A20]">{isUrdu ? 'تصویر ثبوت' : 'Evidence Photo'}</span>
+              <span className="text-[11px] font-bold text-[#1C2C34]">{isUrdu ? 'تصویر ثبوت' : 'Evidence Photo'}</span>
               <button
                 onClick={() => removeAttachedPhoto(idx)}
                 className="text-slate-400 hover:text-red-500 p-0.5 ml-1 cursor-pointer"
@@ -792,7 +781,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
           {/* Active Voice Recording Indicator */}
           {isVoiceRecording && (
-            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#F5EEFD] border border-[#E9D5FF] text-xs font-bold text-[#9333EA] animate-pulse">
+            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#ECF4F4] border border-[#BCD4D4] text-xs font-bold text-[#FC7454] animate-pulse">
               <Mic className="w-3.5 h-3.5" />
               <span>{isUrdu ? 'بولیں، آواز ریکارڈ ہو رہی ہے...' : 'Listening... (Speak your question)'}</span>
               <button
@@ -806,14 +795,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         </div>
       )}
 
-      {/* 5. Input Form with Location, Voice, and Photo Buttons */}
-      <div className="pt-1">
+      {/* 5. Compact Unified Chat Bar */}
+      <div className="pt-1 relative">
         <form
           onSubmit={(e) => {
             e.preventDefault();
             handleSend();
           }}
-          className="relative flex items-center space-x-1.5"
+          className="relative"
         >
           {/* Hidden File Input for Photos */}
           <input
@@ -825,81 +814,101 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             className="hidden"
           />
 
-          {/* Input Action 1: Add Photo */}
-          <button
-            type="button"
-            onClick={() => fileInputRef.current?.click()}
-            className={`p-3 rounded-2xl border transition flex items-center justify-center cursor-pointer ${
-              attachedPhotos.length > 0
-                ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA]'
-                : 'bg-white border-slate-200 text-[#6B7280] hover:text-[#181A20] hover:bg-slate-50'
-            }`}
-            title="Attach evidence photo (Saved encrypted in Safety Vault)"
-          >
-            <Paperclip className="w-4 h-4" />
-          </button>
+          {/* Unified Input Container */}
+          <div className="w-full bg-slate-50 border border-slate-200 focus-within:border-[#FC7454] focus-within:ring-2 focus-within:ring-[#FC7454]/20 rounded-2xl flex items-center px-1.5 py-1.5 shadow-2xs transition gap-1 relative">
+            
+            {/* Combined Attachment & Location Menu Button */}
+            <div className="relative" ref={attachMenuRef}>
+              <button
+                type="button"
+                onClick={() => setIsAttachMenuOpen(!isAttachMenuOpen)}
+                className={`w-8 h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
+                  attachedPhotos.length > 0 || activeLocation
+                    ? 'bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4]'
+                    : 'text-[#5A6E78] hover:text-[#1C2C34] hover:bg-slate-200/60'
+                }`}
+                title={isUrdu ? 'منسلک کریں' : 'Attach photo or location'}
+              >
+                <Paperclip className="w-4 h-4" />
+              </button>
 
-          {/* Input Action 2: Add Location */}
-          <button
-            type="button"
-            onClick={() => setIsLocationModalOpen(true)}
-            className={`p-3 rounded-2xl border transition flex items-center justify-center cursor-pointer ${
-              activeLocation
-                ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA]'
-                : 'bg-white border-slate-200 text-[#6B7280] hover:text-[#181A20] hover:bg-slate-50'
-            }`}
-            title="Tag incident location / Punjab district"
-          >
-            <MapPin className="w-4 h-4" />
-          </button>
+              {/* Popover Menu for Attachments & Location */}
+              {isAttachMenuOpen && (
+                <div className="absolute bottom-full mb-2 left-0 bg-white rounded-2xl border border-[#BCD4D4] shadow-lg p-1.5 flex flex-col min-w-[160px] z-30">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAttachMenuOpen(false);
+                      fileInputRef.current?.click();
+                    }}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#1C2C34] hover:bg-[#ECF4F4] cursor-pointer text-left"
+                  >
+                    <Paperclip className="w-4 h-4 text-[#FC7454]" />
+                    <span>{isUrdu ? 'تصویر ثبوت' : 'Attach Photo'}</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAttachMenuOpen(false);
+                      setIsLocationModalOpen(true);
+                    }}
+                    className="flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-semibold text-[#1C2C34] hover:bg-[#ECF4F4] cursor-pointer text-left"
+                  >
+                    <MapPin className="w-4 h-4 text-[#FC7454]" />
+                    <span>{isUrdu ? 'مقام منتخب کریں' : 'Tag Location'}</span>
+                  </button>
+                </div>
+              )}
+            </div>
 
-          {/* Input Action 3: Voice Mode */}
-          <button
-            type="button"
-            onClick={handleToggleVoiceRecording}
-            className={`p-3 rounded-2xl border transition flex items-center justify-center cursor-pointer ${
-              isVoiceRecording
-                ? 'bg-[#F5EEFD] border-[#E9D5FF] text-[#9333EA] animate-pulse shadow-xs'
-                : 'bg-white border-slate-200 text-[#6B7280] hover:text-[#181A20] hover:bg-slate-50'
-            }`}
-            title={isVoiceRecording ? 'Stop Recording' : 'Voice Input (Urdu & English)'}
-          >
-            {isVoiceRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4 text-[#181A20]" />}
-          </button>
+            {/* Voice Mode Button inside chat bar */}
+            <button
+              type="button"
+              onClick={handleToggleVoiceRecording}
+              className={`w-8 h-8 rounded-xl flex items-center justify-center transition cursor-pointer ${
+                isVoiceRecording
+                  ? 'bg-[#FC7454] text-white animate-pulse shadow-xs'
+                  : 'text-[#5A6E78] hover:text-[#1C2C34] hover:bg-slate-200/60'
+              }`}
+              title={isVoiceRecording ? (isUrdu ? 'ریکارڈنگ روکیں' : 'Stop Recording') : (isUrdu ? 'بولیں' : 'Voice Input')}
+            >
+              {isVoiceRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+            </button>
 
-          {/* Main Text Input Field */}
-          <div className="relative flex-1">
+            {/* Text Input */}
             <input
               type="text"
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
                 isUrdu
-                  ? 'اپنا سوال اردو یا انگلش میں لکھیں یا بولیں...'
-                  : 'Describe your situation in English, Urdu, or Roman Urdu...'
+                  ? 'اپنا سوال لکھیں یا بولیں...'
+                  : 'Ask about legal rights or protection...'
               }
-              className={`w-full bg-slate-50 border border-slate-200 focus:border-[#B886FD] rounded-2xl py-3 pl-4 pr-12 text-sm sm:text-base text-[#181A20] placeholder:text-[#9CA3AF] focus:outline-none focus:ring-2 focus:ring-[#B886FD]/20 shadow-xs transition ${
+              className={`flex-1 bg-transparent border-0 focus:outline-none px-2 py-1 text-sm sm:text-base text-[#1C2C34] placeholder:text-slate-400 ${
                 isUrdu ? 'font-urdu' : 'font-medium'
               }`}
             />
 
+            {/* Send Button */}
             <button
               type="submit"
               disabled={(!inputText.trim() && attachedPhotos.length === 0) || loading}
-              className="absolute right-1.5 top-1.5 bottom-1.5 px-3.5 rounded-xl bg-[#181A20] hover:bg-slate-800 disabled:opacity-40 text-white transition shadow-xs flex items-center justify-center font-bold cursor-pointer"
+              className="w-8 h-8 rounded-xl bg-[#1C2C34] hover:bg-[#263842] disabled:opacity-30 text-white transition shadow-2xs flex items-center justify-center cursor-pointer shrink-0"
+              title={isUrdu ? 'بھیجیں' : 'Send'}
             >
-              <Send className="w-4 h-4 text-[#B886FD]" />
+              <Send className="w-3.5 h-3.5 text-[#BCD4D4]" />
             </button>
           </div>
         </form>
 
-        {/* Privacy & Safety Subtitle */}
-        <div className="flex items-center justify-center space-x-2 mt-2 text-[10px] sm:text-xs text-[#9CA3AF]">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#181A20]" />
+        {/* Short, precise safety subtitle */}
+        <div className="flex items-center justify-center space-x-1.5 mt-2 text-[10px] sm:text-xs text-[#5A6E78]">
+          <ShieldCheck className="w-3.5 h-3.5 text-[#1C2C34]" />
           <span>
             {isUrdu 
-              ? 'تصاویر اور آواز پرائیویٹ سیفٹی والٹ میں محفوظ رہتی ہیں اور بیرونی ماڈل سے شیئر نہیں ہوتیں۔' 
-              : 'Photos are stored encrypted in your private local Safety Vault and never shared with external models.'}
+              ? 'مکمل نجی اور انکرپٹڈ۔ کوئی ڈیٹا شیئر نہیں کیا جاتا۔' 
+              : 'Private & encrypted. Never shared externally.'}
           </span>
         </div>
       </div>
@@ -912,16 +921,16 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="bg-white border border-slate-200 rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 text-[#181A20]"
+              className="bg-white border border-[#BCD4D4] rounded-3xl p-5 max-w-md w-full shadow-2xl space-y-4 text-[#1C2C34]"
             >
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-2">
-                  <div className="w-8 h-8 rounded-xl bg-[#F5EEFD] text-[#9333EA] flex items-center justify-center">
+                  <div className="w-8 h-8 rounded-xl bg-[#ECF4F4] text-[#FC7454] flex items-center justify-center border border-[#BCD4D4]">
                     <MapPin className="w-4 h-4" />
                   </div>
                   <div>
                     <h3 className="text-sm font-extrabold">{isUrdu ? 'مقام منتخب کریں' : 'Tag Incident Location'}</h3>
-                    <p className="text-xs text-[#6B7280]">{isUrdu ? 'پنجاب کا ضلع یا علاقہ منتخب کریں' : 'Choose your Punjab district or area'}</p>
+                    <p className="text-xs text-[#5A6E78]">{isUrdu ? 'پنجاب کا ضلع یا علاقہ منتخب کریں' : 'Choose your Punjab district or area'}</p>
                   </div>
                 </div>
                 <button
@@ -936,15 +945,15 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               <button
                 onClick={handleDetectGPS}
                 disabled={isDetectingGps}
-                className="w-full p-3 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-xs transition disabled:opacity-50 cursor-pointer"
+                className="w-full p-3 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold flex items-center justify-center space-x-2 shadow-xs transition disabled:opacity-50 cursor-pointer"
               >
-                <Radio className={`w-4 h-4 text-[#B886FD] ${isDetectingGps ? 'animate-pulse' : ''}`} />
+                <Radio className={`w-4 h-4 text-[#BCD4D4] ${isDetectingGps ? 'animate-pulse' : ''}`} />
                 <span>{isDetectingGps ? (isUrdu ? 'مقام تلاش ہو رہا ہے...' : 'Detecting GPS Location...') : (isUrdu ? 'موجودہ جی پی ایس مقام حاصل کریں' : 'Use Current Live GPS Location')}</span>
               </button>
 
               {/* Quick Popular Locations */}
               <div className="space-y-1.5">
-                <span className="text-[11px] font-bold text-[#9CA3AF] uppercase tracking-wider">
+                <span className="text-[11px] font-bold text-[#5A6E78] uppercase tracking-wider">
                   {isUrdu ? 'مشہور اضلاع و مقامات:' : 'Popular Punjab Locations:'}
                 </span>
                 <div className="grid grid-cols-2 gap-1.5 max-h-40 overflow-y-auto pr-1">
@@ -955,7 +964,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                         setActiveLocation(loc);
                         setIsLocationModalOpen(false);
                       }}
-                      className="p-2 rounded-xl text-left text-xs font-semibold bg-slate-50 hover:bg-[#F5EEFD] text-[#181A20] border border-slate-200 truncate transition cursor-pointer"
+                      className="p-2 rounded-xl text-left text-xs font-semibold bg-slate-50 hover:bg-[#ECF4F4] text-[#1C2C34] border border-slate-200 truncate transition cursor-pointer"
                     >
                       {loc}
                     </button>
@@ -970,7 +979,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                   value={customLocationInput}
                   onChange={(e) => setCustomLocationInput(e.target.value)}
                   placeholder={isUrdu ? 'یا کوئی اور مقام لکھیں...' : 'Or type custom location (e.g. Wapda Town, Gujrat)...'}
-                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-[#181A20]"
+                  className="w-full p-2.5 rounded-xl bg-slate-50 border border-slate-200 text-xs text-[#1C2C34]"
                 />
                 <button
                   onClick={() => {
@@ -981,7 +990,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                     }
                   }}
                   disabled={!customLocationInput.trim()}
-                  className="w-full py-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white text-xs font-bold disabled:opacity-30 cursor-pointer"
+                  className="w-full py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold disabled:opacity-30 cursor-pointer"
                 >
                   {isUrdu ? 'مقام شامل کریں' : 'Apply Location'}
                 </button>

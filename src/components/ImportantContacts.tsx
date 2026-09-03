@@ -199,7 +199,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
       saveContacts(updated);
       showNotification(isUrdu ? 'رابطہ اپ ڈیٹ ہو گیا' : 'Contact updated');
     } else {
-      const colors = ['bg-rose-500', 'bg-blue-500', 'bg-emerald-500', 'bg-purple-500', 'bg-amber-500', 'bg-indigo-500'];
+      const colors = ['bg-rose-500', 'bg-blue-500', 'bg-emerald-500', 'bg-teal-600', 'bg-amber-500', 'bg-cyan-600'];
       const randomColor = colors[Math.floor(Math.random() * colors.length)];
       const newContact: UserContact = {
         id: `c-${Date.now()}`,
@@ -243,7 +243,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
   });
 
   return (
-    <div className="max-w-4xl mx-auto px-4 py-4 space-y-5 text-[#181A20]">
+    <div className="max-w-4xl mx-auto px-4 py-4 space-y-5 text-[#1C2C34]">
       {/* Toast Notification */}
       <AnimatePresence>
         {actionSuccessMsg && (
@@ -251,9 +251,9 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: -10 }}
-            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#181A20] text-white font-bold text-xs shadow-lg flex items-center space-x-2 border border-slate-700"
+            className="fixed top-16 left-1/2 -translate-x-1/2 z-50 px-4 py-2.5 rounded-2xl bg-[#1C2C34] text-white font-bold text-xs shadow-lg flex items-center space-x-2 border border-slate-700"
           >
-            <Check className="w-4 h-4 text-[#B886FD]" />
+            <Check className="w-4 h-4 text-[#FC7454]" />
             <span>{actionSuccessMsg}</span>
           </motion.div>
         )}
@@ -264,14 +264,14 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 relative z-10">
           <div className="space-y-1.5">
             <div className="flex items-center space-x-2">
-              <div className="p-2 rounded-2xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF] shadow-xs">
+              <div className="p-2 rounded-2xl bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4] shadow-xs">
                 <Users className="w-5 h-5" />
               </div>
-              <h1 className="text-xl sm:text-2xl font-black text-[#181A20]">
+              <h1 className="text-xl sm:text-2xl font-black text-[#1C2C34]">
                 {isUrdu ? 'اہم اور ہنگامی رابطے' : 'Important & Trusted Contacts'}
               </h1>
             </div>
-            <p className="text-xs sm:text-sm text-[#6B7280] max-w-xl leading-relaxed">
+            <p className="text-xs sm:text-sm text-[#5A6E78] max-w-xl leading-relaxed">
               {isUrdu 
                 ? 'اپنے بااعتماد دوست، اہلخانہ، وکلاء اور ڈاکٹرز کے نمبرز محفوظ کریں۔ یہ رابطے سیفٹی چیک ان اور ایمرجنسی ایس او ایس میں خودکار الرٹس وصول کریں گے۔'
                 : 'Manage your trusted circle for instant Emergency SOS triggers, automated Journey Check-In monitoring, and secure legal document sharing.'}
@@ -281,22 +281,22 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
           <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white text-xs font-bold flex items-center space-x-2 shadow-xs transition cursor-pointer"
+              className="px-4 py-2.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold flex items-center space-x-2 shadow-xs transition cursor-pointer"
             >
-              <UserPlus className="w-4 h-4 text-[#B886FD]" />
+              <UserPlus className="w-4 h-4 text-[#FC7454]" />
               <span>{isUrdu ? 'نیا رابطہ شامل کریں' : 'Add New Contact'}</span>
             </button>
           </div>
         </div>
 
-        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs text-[#6B7280] font-semibold">
+        <div className="mt-4 pt-3 border-t border-slate-100 flex flex-wrap items-center gap-4 text-xs text-[#5A6E78] font-semibold">
           <span className="flex items-center space-x-1">
             <ShieldAlert className="w-3.5 h-3.5 text-rose-500" />
-            <span><strong className="text-[#181A20]">{contacts.filter(c => c.isEmergencyContact).length}</strong> {isUrdu ? 'ہنگامی رابطے' : 'Emergency Contacts'}</span>
+            <span><strong className="text-[#1C2C34]">{contacts.filter(c => c.isEmergencyContact).length}</strong> {isUrdu ? 'ہنگامی رابطے' : 'Emergency Contacts'}</span>
           </span>
           <span className="flex items-center space-x-1">
-            <Clock className="w-3.5 h-3.5 text-[#9333EA]" />
-            <span><strong className="text-[#181A20]">{contacts.filter(c => c.isDefaultNotified).length}</strong> {isUrdu ? 'چیک ان نگران' : 'Check-In Monitors'}</span>
+            <Clock className="w-3.5 h-3.5 text-[#FC7454]" />
+            <span><strong className="text-[#1C2C34]">{contacts.filter(c => c.isDefaultNotified).length}</strong> {isUrdu ? 'چیک ان نگران' : 'Check-In Monitors'}</span>
           </span>
           <span className="flex items-center space-x-1">
             <Lock className="w-3.5 h-3.5 text-[#9CA3AF]" />
@@ -314,12 +314,12 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             placeholder={isUrdu ? 'نام، فون نمبر یا تعلق تلاش کریں...' : 'Search contacts by name, phone, or relationship...'}
-            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA] shadow-2xs"
+            className="w-full pl-10 pr-4 py-2.5 rounded-2xl bg-white border border-slate-200 text-xs text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454] shadow-2xs"
           />
           {searchTerm && (
             <button
               onClick={() => setSearchTerm('')}
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#181A20] p-0.5"
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1C2C34] p-0.5"
             >
               <X className="w-3.5 h-3.5" />
             </button>
@@ -339,8 +339,8 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
               onClick={() => setFilterType(f.key)}
               className={`px-3 py-2 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
                 filterType === f.key
-                  ? 'bg-[#181A20] text-white shadow-xs'
-                  : 'bg-white border border-slate-200 text-[#6B7280] hover:bg-[#F5EEFD] hover:text-[#181A20]'
+                  ? 'bg-[#1C2C34] text-white shadow-xs'
+                  : 'bg-white border border-slate-200 text-[#5A6E78] hover:bg-[#ECF4F4] hover:text-[#1C2C34]'
               }`}
             >
               {f.label}
@@ -360,18 +360,18 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
             className={`rounded-3xl bg-white border p-4 sm:p-5 shadow-xs transition-all flex flex-col justify-between space-y-4 ${
               contact.isEmergencyContact 
                 ? 'border-rose-200 hover:border-rose-300' 
-                : 'border-slate-200 hover:border-[#E9D5FF]'
+                : 'border-slate-200 hover:border-[#BCD4D4]'
             }`}
           >
             {/* Top row: Avatar + Name + Badges */}
             <div className="flex items-start justify-between gap-3">
               <div className="flex items-center space-x-3 min-w-0">
-                <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-[#9333EA] font-black text-sm flex-shrink-0 shadow-2xs bg-[#F5EEFD] border border-[#E9D5FF]">
+                <div className="w-11 h-11 rounded-2xl flex items-center justify-center text-[#FC7454] font-black text-sm flex-shrink-0 shadow-2xs bg-[#ECF4F4] border border-[#BCD4D4]">
                   {contact.name.charAt(0).toUpperCase()}
                 </div>
                 <div className="min-w-0">
                   <div className="flex items-center space-x-1.5 flex-wrap">
-                    <h3 className="font-extrabold text-sm text-[#181A20] truncate">
+                    <h3 className="font-extrabold text-sm text-[#1C2C34] truncate">
                       {contact.name}
                     </h3>
                     {contact.isEmergencyContact && (
@@ -380,7 +380,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       </span>
                     )}
                   </div>
-                  <p className="text-xs text-[#6B7280] flex items-center space-x-1 mt-0.5">
+                  <p className="text-xs text-[#5A6E78] flex items-center space-x-1 mt-0.5">
                     <span>{contact.relation}</span>
                     {contact.organization && (
                       <span>• {contact.organization}</span>
@@ -393,7 +393,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
               <div className="flex items-center space-x-1 flex-shrink-0">
                 <button
                   onClick={() => handleOpenEdit(contact)}
-                  className="p-1.5 rounded-xl hover:bg-[#F5EEFD] text-slate-400 hover:text-[#9333EA] transition cursor-pointer"
+                  className="p-1.5 rounded-xl hover:bg-[#ECF4F4] text-slate-400 hover:text-[#FC7454] transition cursor-pointer"
                   title="Edit Contact"
                 >
                   <Edit3 className="w-4 h-4" />
@@ -410,10 +410,10 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
 
             {/* Quick Contact Chips & Toggles */}
             <div className="space-y-2.5 pt-1">
-              <div className="flex items-center justify-between text-xs text-[#181A20] bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
+              <div className="flex items-center justify-between text-xs text-[#1C2C34] bg-slate-50 p-2.5 rounded-2xl border border-slate-100">
                 <span className="font-mono font-bold text-xs">{contact.phone}</span>
                 {contact.email && (
-                  <span className="text-[11px] text-[#6B7280] truncate max-w-[140px]">{contact.email}</span>
+                  <span className="text-[11px] text-[#5A6E78] truncate max-w-[140px]">{contact.email}</span>
                 )}
               </div>
 
@@ -424,7 +424,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                   className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
                     contact.isEmergencyContact
                       ? 'bg-rose-50 border-rose-200 text-rose-700'
-                      : 'bg-white border-slate-200 text-[#6B7280] hover:bg-[#F5EEFD]'
+                      : 'bg-white border-slate-200 text-[#5A6E78] hover:bg-[#ECF4F4]'
                   }`}
                 >
                   <ShieldAlert className="w-3.5 h-3.5 text-rose-600" />
@@ -436,7 +436,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                   className={`flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl text-[11px] font-bold border transition cursor-pointer ${
                     contact.isDefaultNotified
                       ? 'bg-emerald-50 border-emerald-200 text-emerald-700'
-                      : 'bg-white border-slate-200 text-[#6B7280] hover:bg-[#F5EEFD]'
+                      : 'bg-white border-slate-200 text-[#5A6E78] hover:bg-[#ECF4F4]'
                   }`}
                 >
                   <Clock className="w-3.5 h-3.5 text-emerald-600" />
@@ -449,9 +449,9 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
             <div className="pt-2 border-t border-slate-100 grid grid-cols-3 gap-2">
               <a
                 href={`tel:${contact.phone}`}
-                className="py-2 px-2 rounded-xl bg-[#181A20] hover:bg-slate-800 text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition"
+                className="py-2 px-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs flex items-center justify-center space-x-1.5 shadow-2xs transition"
               >
-                <Phone className="w-3.5 h-3.5 text-[#B886FD]" />
+                <Phone className="w-3.5 h-3.5 text-[#FC7454]" />
                 <span>{isUrdu ? 'کال' : 'Call'}</span>
               </a>
 
@@ -469,10 +469,10 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
 
               <button
                 onClick={() => onStartCheckInWithContact?.(contact.id)}
-                className="py-2 px-2 rounded-xl bg-[#F5EEFD] hover:bg-[#E9D5FF] text-[#9333EA] border border-[#E9D5FF] font-bold text-xs flex items-center justify-center space-x-1.5 transition cursor-pointer"
+                className="py-2 px-2 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/50 text-[#FC7454] border border-[#BCD4D4] font-bold text-xs flex items-center justify-center space-x-1.5 transition cursor-pointer"
                 title="Start a Safety Check-In with this contact"
               >
-                <Clock className="w-3.5 h-3.5 text-[#9333EA]" />
+                <Clock className="w-3.5 h-3.5 text-[#FC7454]" />
                 <span>Check-In</span>
               </button>
             </div>
@@ -482,12 +482,12 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
         {filteredContacts.length === 0 && (
           <div className="col-span-full p-8 rounded-3xl bg-white border border-slate-200 text-center space-y-3">
             <Users className="w-8 h-8 text-slate-400 mx-auto" />
-            <p className="text-sm font-bold text-[#6B7280]">
+            <p className="text-sm font-bold text-[#5A6E78]">
               {isUrdu ? 'کوئی رابطہ نہیں ملا' : 'No contacts found matching your search.'}
             </p>
             <button
               onClick={handleOpenAdd}
-              className="px-4 py-2 rounded-2xl bg-[#181A20] text-white text-xs font-bold shadow-xs cursor-pointer"
+              className="px-4 py-2 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold shadow-xs cursor-pointer"
             >
               {isUrdu ? 'پہلا رابطہ شامل کریں' : 'Add your first contact'}
             </button>
@@ -503,14 +503,14 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
               initial={{ opacity: 0, scale: 0.95 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}
-              className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[#181A20]"
+              className="w-full max-w-lg rounded-3xl bg-white border border-slate-200 p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto text-[#1C2C34]"
             >
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <div className="flex items-center space-x-2">
-                  <div className="p-2 rounded-xl bg-[#F5EEFD] text-[#9333EA] border border-[#E9D5FF]">
-                    <UserPlus className="w-5 h-5 text-[#9333EA]" />
+                  <div className="p-2 rounded-xl bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4]">
+                    <UserPlus className="w-5 h-5 text-[#FC7454]" />
                   </div>
-                  <h2 className="text-base font-black text-[#181A20]">
+                  <h2 className="text-base font-black text-[#1C2C34]">
                     {editingContact 
                       ? (isUrdu ? 'رابطہ تبدیل کریں' : 'Edit Contact') 
                       : (isUrdu ? 'نیا اہم رابطہ شامل کریں' : 'Add Important Contact')}
@@ -518,7 +518,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                 </div>
                 <button
                   onClick={() => setIsAddModalOpen(false)}
-                  className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#181A20] cursor-pointer"
+                  className="p-1 rounded-xl hover:bg-slate-100 text-slate-400 hover:text-[#1C2C34] cursor-pointer"
                 >
                   <X className="w-5 h-5" />
                 </button>
@@ -526,7 +526,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
 
               <form onSubmit={handleSaveForm} className="space-y-4 text-xs">
                 <div>
-                  <label className="block font-bold text-[#181A20] mb-1">
+                  <label className="block font-bold text-[#1C2C34] mb-1">
                     {isUrdu ? 'مکمل نام *' : 'Full Name *'}
                   </label>
                   <input
@@ -535,13 +535,13 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                     value={formName}
                     onChange={(e) => setFormName(e.target.value)}
                     placeholder="e.g. Fatima Noor / Adv. Tahira"
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                   />
                 </div>
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-[#181A20] mb-1">
+                    <label className="block font-bold text-[#1C2C34] mb-1">
                       {isUrdu ? 'تعلق / رشتہ' : 'Relationship / Role'}
                     </label>
                     <input
@@ -549,18 +549,18 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       value={formRelation}
                       onChange={(e) => setFormRelation(e.target.value)}
                       placeholder="e.g. Mother, Lawyer, Roommate"
-                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-[#181A20] mb-1">
+                    <label className="block font-bold text-[#1C2C34] mb-1">
                       {isUrdu ? 'رابطے کی قسم' : 'Contact Category'}
                     </label>
                     <select
                       value={formType}
                       onChange={(e) => setFormType(e.target.value as ContactRelationship)}
-                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                     >
                       <option value="family">{isUrdu ? 'اہلخانہ (Family)' : 'Family'}</option>
                       <option value="friend">{isUrdu ? 'دوست (Friend)' : 'Friend'}</option>
@@ -575,7 +575,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
 
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div>
-                    <label className="block font-bold text-[#181A20] mb-1">
+                    <label className="block font-bold text-[#1C2C34] mb-1">
                       {isUrdu ? 'فون نمبر *' : 'Phone Number *'}
                     </label>
                     <input
@@ -584,12 +584,12 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       value={formPhone}
                       onChange={(e) => setFormPhone(e.target.value)}
                       placeholder="+92 300 1234567"
-                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                     />
                   </div>
 
                   <div>
-                    <label className="block font-bold text-[#181A20] mb-1">
+                    <label className="block font-bold text-[#1C2C34] mb-1">
                       {isUrdu ? 'ای میل (اختیاری)' : 'Email (Optional)'}
                     </label>
                     <input
@@ -597,13 +597,13 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       value={formEmail}
                       onChange={(e) => setFormEmail(e.target.value)}
                       placeholder="contact@example.pk"
-                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                      className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="block font-bold text-[#181A20] mb-1">
+                  <label className="block font-bold text-[#1C2C34] mb-1">
                     {isUrdu ? 'ادارہ / تنظیم (اگر کوئی ہو)' : 'Organization / Law Firm (Optional)'}
                   </label>
                   <input
@@ -611,7 +611,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                     value={formOrg}
                     onChange={(e) => setFormOrg(e.target.value)}
                     placeholder="e.g. AGHS Legal Cell / Lahore High Court Bar"
-                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#181A20] focus:outline-none focus:ring-2 focus:ring-[#9333EA]"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                   />
                 </div>
 
@@ -625,10 +625,10 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       className="mt-0.5 rounded text-rose-600 focus:ring-rose-400"
                     />
                     <div>
-                      <span className="font-bold text-[#181A20] block">
+                      <span className="font-bold text-[#1C2C34] block">
                         {isUrdu ? 'ہنگامی SOS میں شامل کریں' : 'Include in Emergency SOS Circle'}
                       </span>
-                      <span className="text-[11px] text-[#6B7280]">
+                      <span className="text-[11px] text-[#5A6E78]">
                         {isUrdu ? 'ایمرجنسی کا بٹن دبانے پر اس رابطے کو فوری لائیو لوکیشن ایس ایم ایس جائے گا۔' : 'Receives immediate emergency broadcast with GPS coordinates.'}
                       </span>
                     </div>
@@ -642,10 +642,10 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       className="mt-0.5 rounded text-emerald-600 focus:ring-emerald-400"
                     />
                     <div>
-                      <span className="font-bold text-[#181A20] block">
+                      <span className="font-bold text-[#1C2C34] block">
                         {isUrdu ? 'سیفٹی چیک ان میں بطور نگران شامل کریں' : 'Default Monitor for Safety Check-In'}
                       </span>
-                      <span className="text-[11px] text-[#6B7280]">
+                      <span className="text-[11px] text-[#5A6E78]">
                         {isUrdu ? 'جب بھی نیا چیک ان شروع ہو گا، یہ رابطہ پہلے سے منتخب ہو گا۔' : 'Automatically pre-selected when starting a new journey check-in.'}
                       </span>
                     </div>
@@ -656,15 +656,15 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                   <button
                     type="button"
                     onClick={() => setIsAddModalOpen(false)}
-                    className="px-4 py-2.5 rounded-2xl bg-slate-100 text-[#6B7280] font-bold hover:bg-slate-200 cursor-pointer"
+                    className="px-4 py-2.5 rounded-2xl bg-slate-100 text-[#5A6E78] font-bold hover:bg-slate-200 cursor-pointer"
                   >
                     {isUrdu ? 'منسوخ کریں' : 'Cancel'}
                   </button>
                   <button
                     type="submit"
-                    className="px-5 py-2.5 rounded-2xl bg-[#181A20] hover:bg-slate-800 text-white font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer"
+                    className="px-5 py-2.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold shadow-xs flex items-center space-x-1.5 cursor-pointer"
                   >
-                    <Check className="w-4 h-4 text-[#B886FD]" />
+                    <Check className="w-4 h-4 text-[#FC7454]" />
                     <span>{isUrdu ? 'محفوظ کریں' : 'Save Contact'}</span>
                   </button>
                 </div>
