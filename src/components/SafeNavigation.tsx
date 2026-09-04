@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, SafeRoute, UserProfile } from '../types';
+import { findLahoreLocations, generateSafeRoutes, LAHORE_LOCATIONS } from '../data/lahoreLocations';
 
 interface SafeNavigationProps {
   language: AppLanguage;
@@ -57,70 +58,82 @@ export const SafeNavigation: React.FC<SafeNavigationProps> = ({
   const [emergencySirenPlaying, setEmergencySirenPlaying] = useState<boolean>(false);
   const [feedbackRating, setFeedbackRating] = useState<'safe' | 'concerns' | null>('safe');
   const [feedbackNote, setFeedbackNote] = useState<string>('');
+  const [showSearchSuggestions, setShowSearchSuggestions] = useState<boolean>(false);
 
-  // Sample routes
+  // Dynamic routes based on destination query (#1, #2, #43)
+  const matchedDestinations = findLahoreLocations(destinationQuery);
+  const destLoc = matchedDestinations[0] || LAHORE_LOCATIONS.find(l => l.id === 'gulberg')!;
+  const originLoc = LAHORE_LOCATIONS.find(l => l.id === 'gulberg')!;
+  const routeData = generateSafeRoutes(
+    originLoc.name,
+    destLoc.name,
+    { lat: originLoc.lat, lng: originLoc.lng },
+    { lat: destLoc.lat, lng: destLoc.lng }
+  );
+  const fromLabel = user?.district ? `${user.district} Center` : originLoc.name;
+
   const routes: SafeRoute[] = [
     {
       id: 'route-safest',
-      title: 'Via Main Boulevard & Market Corridors',
-      from: user?.district ? `${user.district} Center` : 'Dhanmondi / Gulberg 15',
-      to: destinationQuery || 'Gulberg Campus',
+      title: `Via Main Boulevard & Market Corridors to ${destLoc.name}`,
+      from: fromLabel,
+      to: destinationQuery || destLoc.name,
       routeType: 'safest',
-      durationMinutes: 25,
-      distanceKm: 3.2,
-      safetyScore: 96,
-      safetyGrade: 'A+',
-      verifiedCount: 12,
+      durationMinutes: routeData.safest.durationMin,
+      distanceKm: routeData.safest.distanceKm,
+      safetyScore: routeData.safest.safetyScore,
+      safetyGrade: routeData.safest.safetyScore >= 95 ? 'A+' : routeData.safest.safetyScore >= 88 ? 'A' : 'B+',
+      verifiedCount: Math.max(2, Math.round(routeData.safest.safetyScore / 8)),
       verifiedAgo: '2 hours ago',
       features: {
-        wellLitPercent: 92,
-        activeWomenCount: 8,
-        policePostNearby: true,
-        cctvCoveragePercent: 88,
-        safeZonesCount: 3
+        wellLitPercent: routeData.safest.wellLit,
+        activeWomenCount: routeData.safest.women,
+        policePostNearby: routeData.safest.police,
+        cctvCoveragePercent: routeData.safest.cctv,
+        safeZonesCount: routeData.safest.zones
       },
       nextTurnInstruction: 'In 5 min: Turn Right Onto Well-Lit Main Avenue',
       addedTimeMinutes: 3
     },
     {
       id: 'route-balanced',
-      title: 'Via Gulshan Circle / Commercial Road',
-      from: 'Gulberg 15',
-      to: destinationQuery || 'Campus',
+      title: `Via Commercial Road to ${destLoc.name}`,
+      from: fromLabel,
+      to: destinationQuery || destLoc.name,
       routeType: 'balanced',
-      durationMinutes: 18,
-      distanceKm: 2.7,
-      safetyScore: 88,
-      safetyGrade: 'A',
-      verifiedCount: 7,
+      durationMinutes: routeData.balanced.durationMin,
+      distanceKm: routeData.balanced.distanceKm,
+      safetyScore: routeData.balanced.safetyScore,
+      safetyGrade: routeData.balanced.safetyScore >= 95 ? 'A+' : routeData.balanced.safetyScore >= 88 ? 'A' : 'B+',
+      verifiedCount: Math.max(2, Math.round(routeData.balanced.safetyScore / 12)),
       verifiedAgo: '4 hours ago',
       features: {
-        wellLitPercent: 82,
-        activeWomenCount: 4,
-        policePostNearby: false,
-        cctvCoveragePercent: 70,
-        safeZonesCount: 2
+        wellLitPercent: routeData.balanced.wellLit,
+        activeWomenCount: routeData.balanced.women,
+        policePostNearby: routeData.balanced.police,
+        cctvCoveragePercent: routeData.balanced.cctv,
+        safeZonesCount: routeData.balanced.zones
       },
       nextTurnInstruction: 'In 2 min: Keep Straight Past Shopping Mall'
     },
     {
       id: 'route-fastest',
-      title: 'Via Short Alley & Direct Link',
-      from: 'Gulberg 15',
-      to: destinationQuery || 'Campus',
+      title: `Via Short Alley & Direct Link to ${destLoc.name}`,
+      from: fromLabel,
+      to: destinationQuery || destLoc.name,
       routeType: 'fastest',
-      durationMinutes: 14,
-      distanceKm: 2.1,
-      safetyScore: 72,
-      safetyGrade: 'B+',
-      verifiedCount: 2,
+      durationMinutes: routeData.fastest.durationMin,
+      distanceKm: routeData.fastest.distanceKm,
+      safetyScore: routeData.fastest.safetyScore,
+      safetyGrade: routeData.fastest.safetyScore >= 95 ? 'A+' : routeData.fastest.safetyScore >= 88 ? 'A' : 'B+',
+      verifiedCount: Math.max(1, Math.round(routeData.fastest.safetyScore / 30)),
       verifiedAgo: 'Yesterday',
       features: {
-        wellLitPercent: 60,
-        activeWomenCount: 1,
-        policePostNearby: false,
-        cctvCoveragePercent: 40,
-        safeZonesCount: 1
+        wellLitPercent: routeData.fastest.wellLit,
+        activeWomenCount: routeData.fastest.women,
+        policePostNearby: routeData.fastest.police,
+        cctvCoveragePercent: routeData.fastest.cctv,
+        safeZonesCount: routeData.fastest.zones
       },
       nextTurnInstruction: 'In 1 min: Turn Left on Link Road'
     }
@@ -190,16 +203,55 @@ export const SafeNavigation: React.FC<SafeNavigationProps> = ({
               </div>
             </div>
 
-            {/* Where to Input */}
+            {/* Where to Input with Search Suggestions (#1) */}
             <div className="relative">
-              <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-[#5A6E78] dark:text-slate-400" />
+              <Search className="w-5 h-5 absolute left-3.5 top-3.5 text-[#5A6E78] dark:text-slate-400 z-10" />
               <input
                 type="text"
                 value={destinationQuery}
-                onChange={(e) => setDestinationQuery(e.target.value)}
+                onChange={(e) => {
+                  setDestinationQuery(e.target.value);
+                  setShowSearchSuggestions(e.target.value.trim().length > 0);
+                }}
+                onFocus={() => {
+                  if (destinationQuery.trim()) setShowSearchSuggestions(true);
+                }}
+                onBlur={() => {
+                  // Delay to allow click on suggestion
+                  setTimeout(() => setShowSearchSuggestions(false), 200);
+                }}
                 placeholder={isUrdu ? 'کہاں جانا چاہتے ہیں؟ (مثلاً گلبرگ، یونیورسٹی، مال)' : 'Where to? (e.g. University, Mall, Market)'}
                 className="w-full bg-slate-50 dark:bg-[#131E24] border border-[#BCD4D4]/60 dark:border-slate-700 rounded-xl py-3.5 pl-11 pr-4 text-sm font-medium text-[#1C2C34] dark:text-white placeholder:text-[#9CA3AF] dark:placeholder:text-slate-500 focus:outline-none focus:border-[#FC7454] dark:focus:border-[#FC7C54]"
               />
+              {/* Search Suggestions Dropdown */}
+              {showSearchSuggestions && matchedDestinations.length > 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white dark:bg-[#18242A] border border-[#BCD4D4]/60 dark:border-slate-700 rounded-xl shadow-lg z-20 max-h-48 overflow-y-auto">
+                  {matchedDestinations.slice(0, 6).map((loc) => (
+                    <button
+                      key={loc.id}
+                      onMouseDown={(e) => {
+                        e.preventDefault();
+                        setDestinationQuery(loc.name);
+                        setShowSearchSuggestions(false);
+                      }}
+                      className="w-full text-left px-4 py-2.5 text-xs font-medium text-[#1C2C34] dark:text-white hover:bg-[#ECF4F4] dark:hover:bg-[#263842] flex items-center justify-between gap-2 cursor-pointer transition border-b border-slate-100 dark:border-slate-800 last:border-0"
+                    >
+                      <div className="flex items-center gap-2 min-w-0">
+                        <MapPin className="w-3.5 h-3.5 text-[#FC7454] flex-shrink-0" />
+                        <span className="truncate font-bold">{loc.name}</span>
+                        <span className="text-[10px] text-slate-400 flex-shrink-0">{loc.district}</span>
+                      </div>
+                      <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded flex-shrink-0 ${
+                        loc.safetyScore >= 90 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' :
+                        loc.safetyScore >= 75 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' :
+                        'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400'
+                      }`}>
+                        {loc.safetyScore}/100
+                      </span>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
 
             {/* Current Location Pill */}

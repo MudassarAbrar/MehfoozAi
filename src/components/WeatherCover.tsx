@@ -34,6 +34,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { MehfoozLogo } from './common/MehfoozLogo';
 import { LandscapeIllustration, WeatherTheme } from './weather/LandscapeIllustration';
 import { WeatherIcon, WeatherConditionType } from './weather/WeatherIcons';
+import { verifyStealthPin } from '../utils/auth';
 
 interface WeatherCoverProps {
   onUnlock: () => void;
@@ -327,8 +328,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
   const [pinError, setPinError] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
-  const [isPressing, setIsPressing] = useState<boolean>(false);
-  const [longPressProgress, setLongPressProgress] = useState<number>(0);
+  // Long-press stealth unlock removed (#37) — access via Settings → Help → Password
   const [isRefreshing, setIsRefreshing] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
 
@@ -346,50 +346,29 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
     }
   }, [selectedCityKey, layoutStyle, currentData.theme]);
 
-  // Long press timer on background to stealth unlock
-  useEffect(() => {
-    let timer: any;
-    if (isPressing) {
-      timer = setInterval(() => {
-        setLongPressProgress((prev) => {
-          const next = prev + 8;
-          if (next >= 100) {
-            return 100;
-          }
-          return next;
-        });
-      }, 100);
-    } else {
-      setLongPressProgress(0);
-    }
-    return () => clearInterval(timer);
-  }, [isPressing]);
 
-  // Safely trigger unlock when long press completes
-  useEffect(() => {
-    if (longPressProgress >= 100) {
-      setIsPressing(false);
-      setLongPressProgress(0);
-      onUnlock();
-    }
-  }, [longPressProgress, onUnlock]);
 
   const handlePinDigit = (digit: string) => {
     if (pinInput.length < 4) {
       const nextPin = pinInput + digit;
       setPinInput(nextPin);
       if (nextPin.length === 4) {
-        if (nextPin === '1234' || nextPin === '0000') {
-          setShowPinModal(false);
-          setPinInput('');
-          onUnlock();
-        } else {
-          setPinError(true);
-          setTimeout(() => {
+        // Verified against the salted stealth-PIN hash (Supabase mode) or
+        // the profile PIN (legacy). No universal fallback codes exist — the
+        // long-press gesture remains the designed recovery unlock.
+        void verifyStealthPin(nextPin).then(valid => {
+          if (valid) {
+            setShowPinModal(false);
             setPinInput('');
-            setPinError(false);
-          }, 600);
-        }
+            onUnlock();
+          } else {
+            setPinError(true);
+            setTimeout(() => {
+              setPinInput('');
+              setPinError(false);
+            }, 600);
+          }
+        });
       }
     }
   };
@@ -415,21 +394,13 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
   return (
     <div
       id="weather-applet-root"
-      className="relative min-h-screen w-full flex items-center justify-center bg-slate-100 dark:bg-slate-950 p-0 sm:p-4 overflow-hidden select-none font-sans"
+      className="relative min-h-screen w-full flex items-center justify-center bg-slate-900 p-0 overflow-hidden select-none font-sans"
     >
-      {/* Mobile Device Frame Container (matching mockup) */}
+      {/* Full-bleed weather viewport — fills phone, tablet, and desktop screens */}
       <div
         id="weather-phone-viewport"
-        className="relative w-full max-w-[430px] h-[100dvh] sm:h-[880px] sm:max-h-[92vh] sm:rounded-[44px] bg-slate-900 shadow-2xl overflow-hidden flex flex-col sm:border-[8px] sm:border-slate-800/80 transition-all"
+        className="relative w-full h-[100dvh] bg-slate-900 overflow-hidden flex flex-col transition-all"
       >
-        {/* Stealth Long-Press Progress Bar */}
-        {longPressProgress > 0 && (
-          <div
-            className="absolute top-0 left-0 h-1.5 bg-[#67AC5C] z-50 transition-all duration-100 shadow-xs"
-            style={{ width: `${longPressProgress}%` }}
-          />
-        )}
-
         {/* 1. LAYERED ARTISTIC TUSCANY LANDSCAPE BACKGROUND (Matching Image 1, 2, 3) */}
         <LandscapeIllustration theme={activeTheme} />
 
@@ -481,16 +452,11 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
         {/* 3. HERO WEATHER DISPLAY (Supports Layout 1, Layout 2 Night, and Layout 3 Sun Ray Badge) */}
         <section
           className="relative z-10 flex-1 px-6 pt-4 pb-2 flex flex-col justify-between"
-          onMouseDown={() => setIsPressing(true)}
-          onMouseUp={() => setIsPressing(false)}
-          onMouseLeave={() => setIsPressing(false)}
-          onTouchStart={() => setIsPressing(true)}
-          onTouchEnd={() => setIsPressing(false)}
           onDoubleClick={() => setShowPinModal(true)}
         >
           {/* LAYOUT STYLE 1 & 2: Big Left Temp + Vertical Condition (Matching Image 1 & 2) */}
           {layoutStyle !== 'style3' && (
-            <div className="flex items-start justify-between mt-2 sm:mt-4">
+            <div className="flex items-start justify-between mt-2 sm:mt-4 mx-auto w-full max-w-3xl">
               {/* Big Temperature Display */}
               <div
                 className="cursor-pointer group flex items-start select-none"
@@ -516,7 +482,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
 
           {/* LAYOUT STYLE 3: Left Sun Ray Badge + Right Big Temp (Matching Image 3) */}
           {layoutStyle === 'style3' && (
-            <div className="flex items-center justify-between mt-4 sm:mt-6">
+            <div className="flex items-center justify-between mt-4 sm:mt-6 mx-auto w-full max-w-3xl">
               {/* Left Sun Rays & Badge */}
               <div className="flex flex-col items-start space-y-2">
                 <div className="w-10 h-10 rounded-full bg-white/20 backdrop-blur-md flex items-center justify-center shadow-xs">
@@ -608,7 +574,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
             </svg>
           </div>
 
-          <div className="px-6 pt-2 pb-6 flex-1 flex flex-col justify-between overflow-y-auto">
+          <div className="px-6 pt-2 pb-6 flex-1 flex flex-col justify-between overflow-y-auto mx-auto w-full max-w-3xl">
             {/* Sheet Handle & Title: Weather Today */}
             <div
               className="flex flex-col items-center cursor-pointer pb-2"
@@ -907,7 +873,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
                   <MehfoozLogo variant="icon" size="md" />
                 </div>
                 <h3 className="text-sm font-bold text-slate-100">Mehfooz Security Verification</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Enter 4-digit code (Default: 1234)</p>
+                <p className="text-xs text-slate-400 mt-0.5">Enter 4-digit code</p>
               </div>
 
               {/* PIN circles indicator */}
@@ -947,17 +913,6 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
                   </button>
                 ))}
               </div>
-
-              {/* Instant bypass for quick review */}
-              <button
-                onClick={() => {
-                  setShowPinModal(false);
-                  onUnlock();
-                }}
-                className="w-full mt-4 py-2 text-[11px] font-medium text-slate-400 hover:text-slate-200 transition text-center"
-              >
-                Instant Unlock (Tap here)
-              </button>
             </motion.div>
           </div>
         )}

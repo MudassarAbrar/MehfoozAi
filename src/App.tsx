@@ -5,7 +5,7 @@
 
 import React, { useState, useEffect, useCallback } from 'react';
 import { AppLanguage, AuditLogEntry, ComplaintDraft, VaultRecord, UserProfile, ActiveTab } from './types';
-import { getStoredProfile, getStoredSessionToken } from './utils/auth';
+import { getStoredProfile, getStoredSessionToken, initializeAuth } from './utils/auth';
 
 // Stealth & Crisis
 import { WeatherCover } from './components/WeatherCover';
@@ -31,14 +31,26 @@ import { ComplaintBuilder } from './components/ComplaintBuilder';
 import { TrackingDashboard } from './components/TrackingDashboard';
 import { SupportDirectory } from './components/SupportDirectory';
 import { LandingPage } from './components/LandingPage';
+import { ApiActivityDashboard } from './components/ApiActivityDashboard';
 import { OfflineIndicator } from './components/common/OfflineIndicator';
 import { OfflineLegalCorpusModal } from './components/common/OfflineLegalCorpusModal';
 import { initializeOfflineEmergencyCache } from './utils/offlineEmergencyCache';
+import { migrateLocalDataToSupabase } from './utils/localDataMigration';
+import { ChatStateProvider } from './utils/chatState';
 
 export default function App() {
-  // Disguise & App State (Default to unlocked for interactive preview, but with instant Esc / stealth button)
+  return (
+    <ChatStateProvider>
+      <AppInner />
+    </ChatStateProvider>
+  );
+}
+
+function AppInner() {
+  // Disguise & App State
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('home');
+  const [activeTab, setActiveTab] = useState<ActiveTab>('landing'); // Start at landing page
+  const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false); // Post-signup onboarding
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [isOfflineCorpusOpen, setIsOfflineCorpusOpen] = useState<boolean>(false);
   const [themeMode, setThemeMode] = useState<'light' | 'dark'>(() => {
@@ -53,31 +65,12 @@ export default function App() {
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
 
-  // User Profile State
+  // User Profile State — start with null (loading), populate via initializeAuth()
   const [user, setUser] = useState<UserProfile | null>(() => {
-    const existing = getStoredProfile();
-    if (existing) return existing;
-    // Default demo profile for seamless experience
-    return {
-      id: 'demo-user-1',
-      fullName: 'Fatima Noor',
-      safeNickname: 'Fatima',
-      email: 'fatima.noor@example.pk',
-      phone: '+92 300 1234567',
-      district: 'Lahore',
-      emergencyContactName: 'Tulsi (Mom)',
-      emergencyContactPhone: '+92 300 9876543',
-      emergencyContacts: [
-        { id: 'c1', name: 'Tulsi (Mom)', relation: 'Mother', phone: '+92 300 9876543', isDefaultNotified: true },
-        { id: 'c2', name: 'Gopal (Brother)', relation: 'Brother', phone: '+92 321 4567890', isDefaultNotified: true }
-      ],
-      preferredLanguage: 'en',
-      themeMode: 'light',
-      stealthPin: '1520',
-      discreetNotifications: true,
-      createdAt: new Date().toISOString()
-    };
+    // Synchronously check for a cached profile (fast path for instant UI render)
+    return getStoredProfile();
   });
+  const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
 
   // Cross-component legal handoff state
   const [vaultDraftNote, setVaultDraftNote] = useState<{ title: string; note: string } | null>(null);
@@ -99,7 +92,7 @@ export default function App() {
 
   const addAuditLog = useCallback((eventType: string, detail: string, confidence?: number) => {
     const newLog: AuditLogEntry = {
-      id: `log-${Date.now()}-${Math.random().toString(36).substr(2, 4)}`,
+      id: `log-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
       timestamp: new Date().toISOString(),
       eventType,
       detail,
@@ -118,11 +111,69 @@ export default function App() {
     }
   }, [themeMode]);
 
+  // Restore authentication session on mount (Supabase or legacy localStorage).
+  // Falls back to a demo profile only when Supabase is not configured AND no
+  // cached session exists, preserving the seamless interactive preview.
+  useEffect(() => {
+    let cancelled = false;
+    void initializeAuth().then(authUser => {
+      if (cancelled) return;
+      if (authUser) {
+        setUser(authUser);
+      } else if (!getStoredProfile()) {
+        // No auth session found — provide a demo profile for offline preview
+        setUser({
+          id: 'demo-user-1',
+          fullName: 'Fatima Noor',
+          safeNickname: 'Fatima',
+          email: 'fatima.noor@example.pk',
+          phone: '+92 300 1234567',
+          district: 'Lahore',
+          emergencyContactName: 'Tulsi (Mom)',
+          emergencyContactPhone: '+92 300 9876543',
+          emergencyContacts: [
+            { id: 'c1', name: 'Tulsi (Mom)', relation: 'Mother', phone: '+92 300 9876543', isDefaultNotified: true },
+            { id: 'c2', name: 'Gopal (Brother)', relation: 'Brother', phone: '+92 321 4567890', isDefaultNotified: true }
+          ],
+          preferredLanguage: 'en',
+          themeMode: 'light',
+          stealthPin: '1520',
+          discreetNotifications: true,
+          quickExitHotkey: 'Escape',
+          createdAt: new Date().toISOString(),
+          lastLoginAt: new Date().toISOString()
+        });
+      }
+      setIsAuthLoading(false);
+    }).catch(() => {
+      if (cancelled) return;
+      setIsAuthLoading(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
   // Pre-cache Punjab Support Directory & Legal Corpus for zero-network incidents
   useEffect(() => {
     const meta = initializeOfflineEmergencyCache();
     addAuditLog('offline_cache_initialized', `Pre-cached ${meta.totalDirectoryEntries} directory entries & ${meta.totalLegalArticles} legal articles for zero-network incidents`, 1.0);
   }, [addAuditLog]);
+
+  // One-time legacy localStorage → Supabase migration (no-op when Supabase
+  // is not configured or the user is not signed in).
+  useEffect(() => {
+    let cancelled = false;
+    void migrateLocalDataToSupabase().then(result => {
+      if (cancelled) return;
+      if (result.migrated) {
+        addAuditLog(
+          'local_data_migrated',
+          `Migrated ${result.counts.vault} vault record(s), ${result.counts.drafts} complaint draft(s) and ${result.counts.contacts} contact(s) into your encrypted Supabase account`,
+          1.0
+        );
+      }
+    });
+    return () => { cancelled = true; };
+  }, [user?.id, addAuditLog]);
 
   // Quick Exit to Weather handler
   const handleQuickExit = useCallback(() => {
@@ -191,11 +242,70 @@ export default function App() {
     );
   }
 
-  // Render Landing Page if active
-  if (activeTab === 'landing') {
+  // Demo mode handler — bypasses real onboarding
+  const handleDemoMode = useCallback(() => {
+    const demoUser: UserProfile = {
+      id: 'demo-user-1',
+      fullName: 'Fatima Noor',
+      safeNickname: 'Fatima',
+      email: 'fatima.noor@example.pk',
+      phone: '+92 300 1234567',
+      district: 'Lahore',
+      emergencyContactName: 'Tulsi (Mom)',
+      emergencyContactPhone: '+92 300 9876543',
+      emergencyContacts: [
+        { id: 'c1', name: 'Tulsi (Mom)', relation: 'Mother', phone: '+92 300 9876543', isDefaultNotified: true },
+        { id: 'c2', name: 'Gopal (Brother)', relation: 'Brother', phone: '+92 321 4567890', isDefaultNotified: true }
+      ],
+      preferredLanguage: 'en',
+      themeMode: 'light',
+      stealthPin: '1520',
+      discreetNotifications: true,
+      quickExitHotkey: 'Escape',
+      createdAt: new Date().toISOString(),
+      lastLoginAt: new Date().toISOString()
+    };
+    setUser(demoUser);
+    setActiveTab('home');
+    setNeedsOnboarding(false);
+    addAuditLog('demo_mode_activated', 'User entered demo mode — bypassed real onboarding');
+  }, [addAuditLog]);
+
+  // Auth success handler — triggers onboarding for new real users
+  const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
+    setUser(authedUser);
+    // Mark that this user needs onboarding (phone, address, parent, passwords)
+    setNeedsOnboarding(true);
+  }, []);
+
+  // Onboarding complete — enter the app
+  const handleOnboardingComplete = useCallback(() => {
+    setNeedsOnboarding(false);
+    setActiveTab('home');
+  }, []);
+
+  // Render Landing Page when no authenticated user or explicitly navigating to landing
+  if (activeTab === 'landing' && !user) {
     return (
       <LandingPage
-        onLaunchApp={(tab = 'home') => setActiveTab(tab)}
+        onLaunchApp={() => setIsAuthModalOpen(true)}
+        onOpenWeather={() => {
+          setIsUnlocked(false);
+          setActiveTab('home');
+        }}
+        language={language}
+        onLanguageChange={setLanguage}
+        themeMode={themeMode}
+        onThemeChange={setThemeMode}
+      />
+    );
+  }
+
+  // Also show landing if explicitly navigated back (e.g. logo click)
+  if (activeTab === 'landing' && user) {
+    return (
+      <LandingPage
+        onLaunchApp={() => setActiveTab('home')}
         onOpenWeather={() => {
           setIsUnlocked(false);
           setActiveTab('home');
@@ -209,7 +319,7 @@ export default function App() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] text-[#1C2C34] dark:text-[#F4F4FC] flex flex-col font-sans selection:bg-[#FC7454] selection:text-white transition-colors duration-200 ${isUrdu ? 'font-urdu' : ''}`}>
+    <div className={`min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] text-[#1C2C34] dark:text-[#F4F4FC] flex flex-col font-sans selection:bg-[#FC7454] selection:text-white transition-colors duration-200 overflow-x-hidden max-w-full ${isUrdu ? 'font-urdu' : ''}`}>
       {/* 1. Header & Ergonomic Navigation Bar */}
       <Navigation
         activeTab={activeTab}
@@ -358,14 +468,24 @@ export default function App() {
             onOpenCrisis={() => setIsCrisisModalOpen(true)}
           />
         )}
+
+        {/* LIVE API INTEGRATION MONITOR (Prompt #2) */}
+        {activeTab === 'api_monitor' && (
+          <ApiActivityDashboard language={language} />
+        )}
       </main>
 
-      {/* 3. Onboarding Walkthrough (Matching Design Image 5) */}
+      {/* 3. Onboarding Walkthrough */}
       <OnboardingModal
-        isOpen={isOnboardingOpen}
-        onClose={() => setIsOnboardingOpen(false)}
+        isOpen={isOnboardingOpen || needsOnboarding}
+        onClose={() => {
+          setIsOnboardingOpen(false);
+          if (needsOnboarding) handleOnboardingComplete();
+        }}
         language={language}
         user={user}
+        isNewUser={needsOnboarding}
+        onComplete={handleOnboardingComplete}
       />
 
       {/* 4. Auth Modal */}
@@ -373,7 +493,9 @@ export default function App() {
         isOpen={isAuthModalOpen}
         onClose={() => setIsAuthModalOpen(false)}
         language={language}
-        onAuthSuccess={(authedUser) => setUser(authedUser)}
+        onSuccess={(authedUser) => setUser(authedUser)}
+        onAuthSuccess={handleAuthSuccess}
+        onDemoMode={handleDemoMode}
       />
 
       {/* 5. Immediate Safety Crisis Modal */}
@@ -382,6 +504,7 @@ export default function App() {
         onClose={() => setIsCrisisModalOpen(false)}
         onQuickExit={handleQuickExit}
         language={language}
+        contacts={user?.emergencyContacts || []}
       />
 
       {/* 6. Telemetry Inspector Drawer */}

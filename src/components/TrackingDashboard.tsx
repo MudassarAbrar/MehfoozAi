@@ -32,6 +32,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, ComplaintDraft, ComplaintStage } from '../types';
 import { ExportPdfModal } from './ExportPdfModal';
 import { getStoredProfile } from '../utils/auth';
+import { loadComplaintDrafts, persistComplaintDrafts } from '../utils/dataService';
 
 
 interface TrackingDashboardProps {
@@ -71,14 +72,14 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
   const isUrdu = language === 'ur';
 
   useEffect(() => {
-    const saved = localStorage.getItem('mehfooz_complaint_drafts_v1');
-    if (saved) {
-      try {
-        setDrafts(JSON.parse(saved));
-      } catch (err) {
-        console.error('Failed to parse drafts', err);
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadComplaintDrafts();
+      if (cancelled) return;
+      if (loaded.length > 0) {
+        setDrafts(loaded);
+        return;
       }
-    } else {
       // Seed sample tracking demo item
       const seed: ComplaintDraft[] = [
         {
@@ -106,8 +107,10 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
         }
       ];
       setDrafts(seed);
-      localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify(seed));
-    }
+      const persisted = await persistComplaintDrafts(seed);
+      if (!cancelled) setDrafts(persisted);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   const handleUpdateDraftRef = (draftId: string) => {
@@ -126,7 +129,7 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
     });
 
     setDrafts(updated);
-    localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify(updated));
+    void persistComplaintDrafts(updated);
     if (activeDraftModal?.id === draftId) {
       setActiveDraftModal({ ...activeDraftModal, officialReferenceNumber: manualRefInput.trim(), stage: 'reference_saved' });
     }
@@ -150,7 +153,7 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
     });
 
     setDrafts(updated);
-    localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify(updated));
+    void persistComplaintDrafts(updated);
     if (activeDraftModal?.id === draftId) {
       const existing = activeDraftModal.userFollowupNotes ? `${activeDraftModal.userFollowupNotes}\n\n` : '';
       setActiveDraftModal({
@@ -164,7 +167,7 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
   const handleDeleteDraft = (draftId: string) => {
     const updated = drafts.filter(d => d.id !== draftId);
     setDrafts(updated);
-    localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify(updated));
+    void persistComplaintDrafts(updated);
     if (activeDraftModal?.id === draftId) setActiveDraftModal(null);
     onLogAudit?.('draft_deleted', `Deleted draft ${draftId}`);
   };
@@ -185,7 +188,7 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
 
     try {
       const userProfile = getStoredProfile();
-      const userEmail = userProfile?.email || 'mudassarabrarr@gmail.com';
+      const userEmail = userProfile?.email || '';
 
       const res = await fetch('/api/complaints/send-email', {
         method: 'POST',

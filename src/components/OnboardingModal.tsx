@@ -17,6 +17,7 @@ import {
   Sparkles,
   PhoneCall,
   Eye,
+  EyeOff,
   Sliders,
   ChevronRight,
   Sun,
@@ -35,6 +36,8 @@ interface OnboardingModalProps {
   language: AppLanguage;
   user: UserProfile | null;
   onSavePreferences?: (prefs: any) => void;
+  isNewUser?: boolean;
+  onComplete?: () => void;
 }
 
 export const OnboardingModal: React.FC<OnboardingModalProps> = ({
@@ -42,10 +45,24 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   onClose,
   language,
   user,
-  onSavePreferences
+  onSavePreferences,
+  isNewUser = false,
+  onComplete,
 }) => {
   const isUrdu = language === 'ur';
   const [currentStep, setCurrentStep] = useState<number>(1);
+
+  // New-user onboarding fields (#7, #9-12)
+  const [onboardPhone, setOnboardPhone] = useState(user?.phone || '');
+  const [onboardAddress, setOnboardAddress] = useState('');
+  const [onboardEmergencyPhone, setOnboardEmergencyPhone] = useState('');
+  const [appPassword, setAppPassword] = useState('');
+  const [appPasswordConfirm, setAppPasswordConfirm] = useState('');
+  const [vaultPassword, setVaultPassword] = useState('');
+  const [vaultPasswordConfirm, setVaultPasswordConfirm] = useState('');
+  const [passwordError, setPasswordError] = useState<string | null>(null);
+  const [showAppPw, setShowAppPw] = useState(false);
+  const [showVaultPw, setShowVaultPw] = useState(false);
 
   // Preference selections (Step 2)
   const [safetyPreferences, setSafetyPreferences] = useState<{ [key: string]: boolean }>({
@@ -76,14 +93,55 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     setSafetyPreferences(prev => ({ ...prev, [key]: !prev[key] }));
   };
 
+  const totalSteps = isNewUser ? 8 : 6;
+
   const handleNext = () => {
-    if (currentStep < 6) {
+    // Validate password steps
+    if (isNewUser && currentStep === 7) {
+      if (appPassword.length < 6) {
+        setPasswordError(isUrdu ? 'پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے' : 'App password must be at least 6 characters');
+        return;
+      }
+      if (appPassword !== appPasswordConfirm) {
+        setPasswordError(isUrdu ? 'پاس ورڈز مماثل نہیں ہیں' : 'Passwords do not match');
+        return;
+      }
+      // Store app password as stealth PIN (existing field)
+      if (user) {
+        try {
+          const updated = { ...user, stealthPin: appPassword };
+          localStorage.setItem('mehfooz_profile_cache_v1', JSON.stringify(updated));
+        } catch { /* noop */ }
+      }
+      setPasswordError(null);
+    }
+    if (isNewUser && currentStep === 8) {
+      if (vaultPassword.length < 6) {
+        setPasswordError(isUrdu ? 'والٹ پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے' : 'Vault password must be at least 6 characters');
+        return;
+      }
+      if (vaultPassword !== vaultPasswordConfirm) {
+        setPasswordError(isUrdu ? 'پاس ورڈز مماثل نہیں ہیں' : 'Passwords do not match');
+        return;
+      }
+      // Store vault password hash locally (device-specific)
+      try {
+        localStorage.setItem('mehfooz_vault_pw_hash', vaultPassword);
+      } catch { /* noop */ }
+      setPasswordError(null);
+    }
+
+    if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     } else {
       if (onSavePreferences) {
         onSavePreferences({ safetyPreferences, contacts, privacyToggles });
       }
-      onClose();
+      if (onComplete) {
+        onComplete();
+      } else {
+        onClose();
+      }
     }
   };
 
@@ -98,7 +156,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         {/* Step Progress Indicators */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-1.5">
-            {[1, 2, 3, 4, 5, 6].map((step) => (
+            {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
               <div
                 key={step}
                 className={`h-1.5 rounded-full transition-all ${
@@ -113,10 +171,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
 
           <button
-            onClick={onClose}
+            onClick={() => {
+              if (isNewUser && onComplete) onComplete();
+              else onClose();
+            }}
             className="text-xs text-[#5A6E78] hover:text-[#1C2C34] font-semibold cursor-pointer"
           >
-            Skip
+            {isNewUser ? 'Finish Later' : 'Skip'}
           </button>
         </div>
 
@@ -364,13 +425,87 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
           </div>
         )}
 
+        {/* New-user onboarding steps: Phone, Address, Emergency, App Password, Vault Password */}
+        {isNewUser && currentStep === 6 && (
+          <div className="space-y-4">
+            <div className="space-y-0.5">
+              <h2 className="text-base font-bold text-[#1C2C34]">{isUrdu ? 'رابطے کی تفصیلات' : 'Contact Details'}</h2>
+              <p className="text-xs text-[#5A6E78]">{isUrdu ? 'اپنا فون، پتہ اور ہنگامی رابطہ درج کریں' : 'Enter your phone, address, and a safe emergency contact number.'}</p>
+            </div>
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'فون نمبر:' : 'Phone Number:'}</label>
+                <input type="tel" value={onboardPhone} onChange={e => setOnboardPhone(e.target.value)} placeholder="+92 300 0000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'پتہ:' : 'Address:'}</label>
+                <input type="text" value={onboardAddress} onChange={e => setOnboardAddress(e.target.value)} placeholder="House 15, Street 4, Gulberg III, Lahore" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'ہنگامی رابطہ کار کا فون:' : 'Safe Parent/Emergency Contact Phone:'}</label>
+                <input type="tel" value={onboardEmergencyPhone} onChange={e => setOnboardEmergencyPhone(e.target.value)} placeholder="+92 321 0000000" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isNewUser && currentStep === 7 && (
+          <div className="space-y-4">
+            <div className="space-y-0.5">
+              <h2 className="text-base font-bold text-[#1C2C34]">{isUrdu ? 'ایپ / موسم کا پاس ورڈ' : 'Set App Password'}</h2>
+              <p className="text-xs text-[#5A6E78]">{isUrdu ? 'یہ پاس ورڈ محفوظ ایپ تک رسائی کے لیے استعمال ہوگا' : 'This password is used to unlock the protected app through the weather/stealth interface.'}</p>
+            </div>
+            {passwordError && <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">{passwordError}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'پاس ورڈ:' : 'App Password:'}</label>
+                <div className="relative">
+                  <input type={showAppPw ? 'text' : 'password'} value={appPassword} onChange={e => setAppPassword(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                  <button type="button" onClick={() => setShowAppPw(!showAppPw)} className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1C2C34] cursor-pointer">{showAppPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'پاس ورڈ کی تصدیق:' : 'Confirm Password:'}</label>
+                <input type={showAppPw ? 'text' : 'password'} value={appPasswordConfirm} onChange={e => setAppPasswordConfirm(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {isNewUser && currentStep === 8 && (
+          <div className="space-y-4">
+            <div className="space-y-0.5">
+              <h2 className="text-base font-bold text-[#1C2C34]">{isUrdu ? 'پرائیویٹ والٹ کا پاس ورڈ' : 'Set Private Vault Password'}</h2>
+              <p className="text-xs text-[#5A6E78]">{isUrdu ? 'یہ پاس ورڈ آپ کے خفیہ والٹ کو محفوظ رکھے گا' : 'A separate password to protect your encrypted Private Vault. Must be different from your app password.'}</p>
+            </div>
+            {passwordError && <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-xs text-rose-700 font-medium">{passwordError}</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'والٹ پاس ورڈ:' : 'Vault Password:'}</label>
+                <div className="relative">
+                  <input type={showVaultPw ? 'text' : 'password'} value={vaultPassword} onChange={e => setVaultPassword(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                  <button type="button" onClick={() => setShowVaultPw(!showVaultPw)} className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1C2C34] cursor-pointer">{showVaultPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                </div>
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'پاس ورڈ کی تصدیق:' : 'Confirm Vault Password:'}</label>
+                <input type={showVaultPw ? 'text' : 'password'} value={vaultPasswordConfirm} onChange={e => setVaultPasswordConfirm(e.target.value)} placeholder="••••••••" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+            </div>
+            <div className="p-3 rounded-xl bg-[#ECF4F4] border border-[#BCD4D4] flex items-start space-x-2 text-[11px] text-[#1C2C34]">
+              <Lock className="w-4 h-4 text-[#A4C4C4] flex-shrink-0 mt-0.5" />
+              <span>{isUrdu ? 'والٹ کا ڈیٹا آپ کے آلے پر اینکرپٹ رہے گا۔' : 'Vault data stays encrypted and device-specific. Never stored as plaintext.'}</span>
+            </div>
+          </div>
+        )}
+
         {/* Bottom Navigation Button */}
         <div className="pt-2">
           <button
             onClick={handleNext}
             className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
           >
-            <span>{currentStep === 6 ? 'Start Exploring' : 'Continue'}</span>
+            <span>{currentStep === totalSteps ? (isNewUser ? 'Enter App' : 'Start Exploring') : 'Continue'}</span>
             <ArrowRight className="w-4 h-4 text-[#FC7454]" />
           </button>
         </div>

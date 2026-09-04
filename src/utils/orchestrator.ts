@@ -5,6 +5,7 @@
 
 import { searchLegalCorpus } from '../data/legalCorpus';
 import { AppLanguage, LegalQueryResponse, OrchestratorIntent, RiskLevel, UserContact } from '../types';
+import { getAuthHeaders } from './auth';
 
 // Deterministic keywords for immediate danger check (filtered to true physical danger indicators)
 const IMMEDIATE_DANGER_KEYWORDS = [
@@ -220,7 +221,7 @@ export async function processSafetyOrchestration(
   try {
     const res = await fetch('/api/orchestrate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: getAuthHeaders(),
       body: JSON.stringify({
         query: userQuery,
         language: effectiveLang,

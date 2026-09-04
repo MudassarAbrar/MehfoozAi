@@ -14,16 +14,44 @@ import {
   Lock,
   HeartHandshake,
   CheckCircle2,
-  Building
+  Building,
+  Send
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AppLanguage } from '../types';
+import { AppLanguage, UserContact } from '../types';
+import { getAuthHeaders } from '../utils/auth';
 
 interface CrisisModalProps {
   isOpen: boolean;
   onClose: () => void;
   onQuickExit: () => void;
   language: AppLanguage;
+  /** Emergency contacts for the SOS SMS burst (Prompt #2). */
+  contacts: UserContact[];
+}
+
+function getCurrentPosition(timeoutMs = 6000): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 30_000 }
+    );
+  });
+}
+
+async function getBatteryLevel(): Promise<number | null> {
+  try {
+    const nav = navigator as Navigator & { getBattery?: () => Promise<{ level: number }> };
+    if (nav.getBattery) {
+      const battery = await nav.getBattery();
+      return battery.level;
+    }
+  } catch {
+    /* Battery API not supported */
+  }
+  return null;
 }
 
 export const CrisisModal: React.FC<CrisisModalProps> = ({
@@ -31,8 +59,11 @@ export const CrisisModal: React.FC<CrisisModalProps> = ({
   onClose,
   onQuickExit,
   language,
+  contacts,
 }) => {
   const [callInitiated, setCallInitiated] = useState<string | null>(null);
+  const [smsState, setSmsState] = useState<'idle' | 'sending' | 'sent' | 'error' | 'signin_required'>('idle');
+  const [smsResult, setSmsResult] = useState<{ notified: number; dispatched: number; simulated: number } | null>(null);
 
   if (!isOpen) return null;
 
@@ -43,6 +74,43 @@ export const CrisisModal: React.FC<CrisisModalProps> = ({
     // Open tel: URI
     window.location.href = `tel:${number}`;
     setTimeout(() => setCallInitiated(null), 3000);
+  };
+
+  // SOS SMS burst to her trusted contacts — live GPS + battery level,
+  // dispatched server-side via Twilio (Prompt #2).
+  const handleSendSmsAlert = async () => {
+    if (contacts.length === 0) return;
+    setSmsState('sending');
+    try {
+      const [pos, battery] = await Promise.all([getCurrentPosition(), getBatteryLevel()]);
+      const res = await fetch('/api/crisis-alert', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          contacts: contacts.map(c => ({ id: c.id, name: c.name, phone: c.phone })),
+          ...(pos ? { lat: pos.lat, lng: pos.lng } : {}),
+          ...(battery !== null ? { batteryLevel: battery } : {}),
+          helpline: 'Punjab Police 15'
+        })
+      });
+      if (res.status === 401) {
+        setSmsState('signin_required');
+        return;
+      }
+      if (!res.ok) {
+        setSmsState('error');
+        return;
+      }
+      const data = await res.json();
+      setSmsResult({
+        notified: data.contactsNotified || 0,
+        dispatched: data.dispatched || 0,
+        simulated: data.simulated || 0
+      });
+      setSmsState('sent');
+    } catch {
+      setSmsState('error');
+    }
   };
 
   return (
@@ -83,6 +151,68 @@ export const CrisisModal: React.FC<CrisisModalProps> = ({
           {isUrdu 
             ? 'محفوظ ایپ از خود پولیس یا ایمرجنسی سروسز کو روانہ نہیں کرتی۔ اگر آپ کو یا آپ کے بچوں کو فوری خطرہ لاحق ہے تو نیچے دیے گئے بٹن سے 15 یا ورچوئل وومن پولیس اسٹیشن پر کال کریں۔'
             : 'Mehfooz does not automatically dispatch police or contact emergency services without your action. If you or your children are in imminent physical danger, prioritize physical safety and contact Punjab Police 15 directly below.'}
+        </div>
+
+        {/* SOS SMS burst to trusted contacts (Prompt #2) */}
+        <div className="p-4 rounded-2xl bg-slate-900/[0.03] dark:bg-[#131E24] border border-slate-200 dark:border-slate-800 space-y-3">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div className="min-w-0">
+              <span className="text-[10px] font-bold uppercase tracking-wider text-[#FC7454] dark:text-[#FC7C54]">Trusted Contacts SMS</span>
+              <h4 className="text-sm font-bold text-[#1C2C34] dark:text-white">
+                {isUrdu ? 'قریبی رابطوں کو SOS ایس ایم ایس بھیجیں' : `Send SOS SMS to ${contacts.length} emergency contact${contacts.length !== 1 ? 's' : ''}`}
+              </h4>
+              <p className="text-[11px] text-[#5A6E78] dark:text-slate-400">
+                {isUrdu ? 'لائیو مقام اور بیٹری کی سطح کے ساتھ — سرور کی جانب سے ٹویلیو کے ذریعے' : 'Includes your live GPS location & battery level — dispatched server-side via Twilio'}
+              </p>
+            </div>
+
+            <button
+              onClick={handleSendSmsAlert}
+              disabled={smsState === 'sending' || contacts.length === 0}
+              className="px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-white hover:bg-slate-800 dark:hover:bg-slate-100 text-white dark:text-[#1C2C34] font-bold text-xs flex items-center justify-center space-x-1.5 shadow-xs transition transform active:scale-95 flex-shrink-0 self-start sm:self-center w-full sm:w-auto cursor-pointer disabled:opacity-50"
+            >
+              <Send className={`w-4 h-4 ${smsState === 'sending' ? 'animate-pulse' : ''}`} />
+              <span>{smsState === 'sending' ? (isUrdu ? 'بھیجا جا رہا ہے…' : 'Sending…') : (isUrdu ? 'الرٹ بھیجیں' : 'Send Alert')}</span>
+            </button>
+          </div>
+
+          {smsState === 'sent' && smsResult && (
+            <div className="flex items-start space-x-2 text-[11px] rounded-xl bg-emerald-50 dark:bg-emerald-950/40 border border-emerald-200 dark:border-emerald-900 text-emerald-800 dark:text-emerald-300 p-2.5 leading-relaxed">
+              <CheckCircle2 className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                {isUrdu ? 'الرٹ بھیج دیا گیا — ' : 'Alert dispatched — '}
+                <strong>{smsResult.notified}</strong>
+                {isUrdu ? ' رابطوں کو اطلاع دی گئی' : ` contact${smsResult.notified !== 1 ? 's' : ''} notified`}
+                {smsResult.dispatched > 0
+                  ? ` (${smsResult.dispatched} live SMS via Twilio)`
+                  : smsResult.simulated > 0
+                    ? ' (simulated — Twilio credentials not configured on this server)'
+                    : ''}.
+              </span>
+            </div>
+          )}
+
+          {smsState === 'signin_required' && (
+            <div className="flex items-start space-x-2 text-[11px] rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-900 text-amber-800 dark:text-amber-300 p-2.5 leading-relaxed">
+              <Lock className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                {isUrdu
+                  ? 'سرور سے ایس ایم ایس بھیجنے کے لیے سائن اِن کریں۔ نیچے دیے گئے کال بٹن سائن اِن کے بغیر بھی کام کرتے ہیں۔'
+                  : 'Sign in to enable server-dispatched SMS alerts. The direct call buttons below work without sign-in.'}
+              </span>
+            </div>
+          )}
+
+          {smsState === 'error' && (
+            <div className="flex items-start space-x-2 text-[11px] rounded-xl bg-rose-50 dark:bg-rose-950/40 border border-rose-200 dark:border-rose-900 text-rose-800 dark:text-rose-300 p-2.5 leading-relaxed">
+              <AlertOctagon className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                {isUrdu
+                  ? 'ڈسپیچ سروس تک رسائی نہیں ہو سکی۔ براہِ کرم نیچے دیے گئے فوری کال بٹن استعمال کریں۔'
+                  : 'Could not reach the SMS dispatch service. Please use the direct call buttons below.'}
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Emergency Call Options */}

@@ -33,7 +33,10 @@ import {
   Twitter,
   Linkedin,
   Instagram,
-  Sparkles
+  Sparkles,
+  Activity,
+  Settings,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLogo } from './common/AppLogo';
@@ -95,7 +98,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   const PRIMARY_NAV: NavItem[] = [
     { id: 'home', label: 'Home', labelUrdu: 'ہوم', icon: Home },
     { id: 'assistant', label: 'AI Legal', labelUrdu: 'قانونی AI', icon: Scale, highlight: true },
-    { id: 'navigate', label: 'Navigate', labelUrdu: 'نیویگیٹ', icon: NavIcon },
+    { id: 'navigate', label: 'Safe Corridor', labelUrdu: 'محفوظ راستہ', icon: NavIcon },
     { id: 'checkin', label: 'Check-In', labelUrdu: 'چیک ان', icon: Clock },
     { id: 'alerts', label: 'Alerts', labelUrdu: 'الرٹس', icon: AlertTriangle, badge: 2 },
   ];
@@ -106,6 +109,12 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'profile', label: 'Profile', labelUrdu: 'پروفائل', icon: User },
   ];
 
+  // Settings gear items (#35, #36)
+  const SETTINGS_ITEMS = [
+    { id: 'profile', label: 'Profile & Account', labelUrdu: 'پروفائل اور اکاؤنٹ', icon: User },
+    { id: 'vault', label: 'Private Vault', labelUrdu: 'پرائیویٹ والٹ', icon: Lock },
+  ];
+
   // Secondary Legal & Vault items accessible via top bar or dropdown
   const LEGAL_SUITE: { id: ActiveTab; label: string; labelUrdu: string; icon: React.FC<{ className?: string }>; badge?: number }[] = [
     { id: 'assistant', label: 'Unsaid Legal AI', labelUrdu: 'قانونی معاون', icon: Scale },
@@ -114,6 +123,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'builder', label: 'Complaint Drafter', labelUrdu: 'درخواست ڈرافٹ', icon: FileText },
     { id: 'tracking', label: 'My Status', labelUrdu: 'میری اپ ڈیٹس', icon: Clock, badge: draftCount },
     { id: 'directory', label: 'Helplines', labelUrdu: 'ڈائریکٹری', icon: HeartHandshake },
+    { id: 'api_monitor', label: 'API Monitor', labelUrdu: 'اے پی آئی مانیٹر', icon: Activity }
   ];
 
   return (
@@ -134,26 +144,32 @@ export const Navigation: React.FC<NavigationProps> = ({
               <span className="hidden sm:inline font-medium">
                 {isUrdu ? 'موسم' : 'Weather'}
               </span>
-              <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Esc</span>
+              <span className="hidden sm:inline text-[10px] font-mono px-1 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Esc</span>
             </button>
 
-            {/* App Logo */}
+            {/* App Logo: icon-only below sm so every header action (SOS, language,
+                menu) stays on screen on small phones; full wordmark from sm up */}
             <div 
               onClick={() => onSelectTab('landing')}
               className="cursor-pointer group flex items-center flex-shrink-0"
               title="Mehfooz (محفوظ) - Return to Overview"
             >
-              <AppLogo variant="horizontal" size="sm" showUrdu={true} className="scale-95 sm:scale-100 origin-left" />
+              <span className="inline-flex sm:hidden">
+                <AppLogo variant="icon" size="sm" />
+              </span>
+              <span className="hidden sm:inline-flex">
+                <AppLogo variant="horizontal" size="sm" showUrdu={true} className="scale-95 sm:scale-100 origin-left" />
+              </span>
             </div>
           </div>
 
           {/* Right Action Controls: Highly focused and uncluttered */}
-          <div className="flex items-center space-x-2 flex-shrink-0">
+          <div className="flex items-center space-x-1.5 sm:space-x-2 flex-shrink-0">
             {/* 1. Direct Emergency SOS 15 */}
             <button
               id="nav-crisis-btn"
               onClick={onOpenCrisis}
-              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap cursor-pointer"
+              className="flex items-center space-x-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap cursor-pointer"
               title="Police Helpline 15"
             >
               <PhoneCall className="w-3.5 h-3.5 animate-pulse text-white" />
@@ -204,12 +220,51 @@ export const Navigation: React.FC<NavigationProps> = ({
                       animate={{ opacity: 1, y: 0, scale: 1 }}
                       exit={{ opacity: 0, y: 8, scale: 0.98 }}
                       transition={{ duration: 0.15 }}
-                      className="absolute right-0 mt-2 w-80 sm:w-88 max-h-[85vh] overflow-y-auto bg-white dark:bg-[#18242A] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 z-50 space-y-3"
+                      className="absolute right-0 mt-2 w-80 sm:w-88 max-w-[calc(100vw-24px)] max-h-[85vh] overflow-y-auto bg-white dark:bg-[#18242A] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 z-50 space-y-3"
                     >
-                      {/* Section 1: Quick Settings (Theme, Inspector, PWA) */}
+                      {/* Section 1: Settings Gear (#35, #36) */}
                       <div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400 px-1 mb-1.5 flex items-center gap-1.5">
+                          <Settings className="w-3 h-3" />
+                          <span>{isUrdu ? 'سیٹنگز' : 'Settings'}</span>
+                        </div>
+                        <div className="space-y-1">
+                          {SETTINGS_ITEMS.map(item => {
+                            const Icon = item.icon;
+                            return (
+                              <button
+                                key={item.id}
+                                onClick={() => { onSelectTab(item.id); setIsMoreMenuOpen(false); }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                                  activeTab === item.id
+                                    ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] font-bold border border-[#BCD4D4] dark:border-[#263842]'
+                                    : 'text-[#1C2C34] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#263842]/60'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <Icon className="w-3.5 h-3.5 text-[#FC7454] dark:text-[#BCD4D4]" />
+                                  <span>{isUrdu ? item.labelUrdu : item.label}</span>
+                                </div>
+                              </button>
+                            );
+                          })}
+                          {/* Help option (#36) */}
+                          <button
+                            onClick={() => { onOpenOnboarding(); setIsMoreMenuOpen(false); }}
+                            className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium text-[#1C2C34] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#263842]/60 transition cursor-pointer"
+                          >
+                            <div className="flex items-center space-x-2">
+                              <HelpCircle className="w-3.5 h-3.5 text-[#FC7454] dark:text-[#BCD4D4]" />
+                              <span>{isUrdu ? 'مدد' : 'Help'}</span>
+                            </div>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Quick Settings (Theme, Inspector, PWA) */}
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
                         <div className="text-[11px] font-bold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400 px-1 mb-1.5">
-                          {isUrdu ? 'سیٹنگز اور ٹولز' : 'Quick Settings'}
+                          {isUrdu ? 'ظاہری سیٹنگز' : 'Display'}
                         </div>
                         <div className="grid grid-cols-2 gap-1.5">
                           {/* Theme Mode Toggle */}

@@ -165,7 +165,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
   return (
     <div
       ref={containerRef}
-      className="min-h-screen bg-[#FCFCFC] dark:bg-[#0F171A] text-[#1C2C34] dark:text-[#F4F4FC] font-sans transition-colors selection:bg-[#FC7454] selection:text-white relative"
+      className="min-h-screen bg-[#FCFCFC] dark:bg-[#0F171A] text-[#1C2C34] dark:text-[#F4F4FC] font-sans transition-colors selection:bg-[#FC7454] selection:text-white relative overflow-x-hidden max-w-full"
     >
       {/* ========================================================================= */}
       {/* GLOBAL SCROLL PROGRESS TOP BAR                                            */}

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { 
   ShieldCheck, 
   MapPin, 
@@ -26,7 +26,11 @@ import {
   ShieldAlert,
   Play,
   Compass,
-  Search
+  Search,
+  X,
+  FileText,
+  HeartHandshake,
+  Grid3x3
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { ActiveTab, AppLanguage, UserProfile } from '../types';
@@ -59,6 +63,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
 }) => {
   const isUrdu = language === 'ur';
   const userName = user?.safeNickname || user?.fullName?.split(' ')[0] || (isUrdu ? 'عائشہ' : 'Ayesha');
+  const [isAllToolsOpen, setIsAllToolsOpen] = useState(false);
 
   const triggerCheckIn = onOpenCheckIn || onStartCheckIn || (() => {});
 
@@ -183,28 +188,28 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
             </div>
 
-            {/* Card 3: INCIDENT VAULT (Outlined card with coral dot) */}
+            {/* Card 3: CHECK-IN TIMER (replaced Vault — Vault moved to menu per #14) */}
             <div
-              onClick={() => handleNav('vault')}
+              onClick={triggerCheckIn}
               className="rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:border-[#FC7454] dark:hover:border-[#FC7C54] transition bg-white dark:bg-[#18242A] min-h-[96px] group shadow-2xs"
             >
               <div className="relative">
-                <Lock className="w-6 h-6 text-[#1C2C34] dark:text-slate-100 group-hover:scale-110 transition-transform" />
+                <Clock className="w-6 h-6 text-[#1C2C34] dark:text-slate-100 group-hover:scale-110 transition-transform" />
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54]" />
               </div>
               <div className="text-center">
                 <span className="text-xs font-bold text-[#1C2C34] dark:text-white block">
-                  {isUrdu ? 'شواہد والٹ' : 'Incident Vault'}
+                  {isUrdu ? 'چیک ان' : 'Check-In'}
                 </span>
               </div>
             </div>
 
-            {/* Card 4: ALL / SOS & COMPLAINT BUILDER (Solid Soft Mint Card) */}
+            {/* Card 4: ALL TOOLS (functional dropdown per #15) */}
             <div
-              onClick={() => handleNav('builder')}
+              onClick={() => setIsAllToolsOpen(true)}
               className="rounded-2xl bg-[#ECF4F4] dark:bg-[#263842] border border-[#BCD4D4] dark:border-[#344854] p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:bg-[#C4DCDC]/40 transition min-h-[96px] group shadow-2xs"
             >
-              <Sparkles className="w-6 h-6 text-[#FC7454] dark:text-[#FC7C54] group-hover:scale-110 transition-transform" />
+              <Grid3x3 className="w-6 h-6 text-[#FC7454] dark:text-[#FC7C54] group-hover:scale-110 transition-transform" />
               <span className="text-xs font-bold text-[#1C2C34] dark:text-white">
                 {isUrdu ? 'تمام سہولیات' : 'All Tools'}
               </span>
@@ -318,6 +323,54 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* All Tools Dropdown Modal (#15) */}
+      {isAllToolsOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onClick={() => setIsAllToolsOpen(false)}>
+          <motion.div
+            initial={{ y: 40, opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: 40, opacity: 0 }}
+            onClick={e => e.stopPropagation()}
+            className="w-full max-w-md bg-white dark:bg-[#18242A] border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-2xl space-y-3 max-h-[80vh] overflow-y-auto"
+          >
+            <div className="flex items-center justify-between pb-2 border-b border-slate-100 dark:border-slate-800">
+              <h3 className="text-sm font-bold text-[#1C2C34] dark:text-white">{isUrdu ? 'تمام سہولیات' : 'All Tools'}</h3>
+              <button onClick={() => setIsAllToolsOpen(false)} className="p-1 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 transition cursor-pointer">
+                <X className="w-4 h-4 text-slate-500" />
+              </button>
+            </div>
+            {[
+              { id: 'assistant' as ActiveTab, label: isUrdu ? 'قانونی AI' : 'Legal AI Assistant', labelUrdu: 'قانونی AI', icon: Scale },
+              { id: 'navigate' as ActiveTab, label: isUrdu ? 'محفوظ راستہ' : 'Safe Corridor', labelUrdu: 'محفوظ راستہ', icon: Compass },
+              { id: 'checkin' as ActiveTab, label: isUrdu ? 'چیک ان' : 'Silent Check-In', labelUrdu: 'چیک ان', icon: Clock },
+              { id: 'builder' as ActiveTab, label: isUrdu ? 'درخواست ڈرافٹ' : 'Complaint Builder', labelUrdu: 'درخواست ڈرافٹ', icon: FileText },
+              { id: 'vault' as ActiveTab, label: isUrdu ? 'پرائیویٹ والٹ' : 'Private Vault', labelUrdu: 'پرائیویٹ والٹ', icon: Lock },
+              { id: 'directory' as ActiveTab, label: isUrdu ? 'ڈائریکٹری' : 'Support Directory', labelUrdu: 'ڈائریکٹری', icon: HeartHandshake },
+              { id: 'contacts' as ActiveTab, label: isUrdu ? 'اہم رابطے' : 'Important Contacts', labelUrdu: 'اہم رابطے', icon: Users },
+              { id: 'community' as ActiveTab, label: isUrdu ? 'کمیونٹی' : 'Community Updates', labelUrdu: 'کمیونٹی', icon: HeartHandshake },
+              { id: 'alerts' as ActiveTab, label: isUrdu ? 'الرٹس' : 'Active Alerts', labelUrdu: 'الرٹس', icon: AlertTriangle },
+            ].map(tool => {
+              const Icon = tool.icon;
+              return (
+                <button
+                  key={tool.id}
+                  onClick={() => { handleNav(tool.id); setIsAllToolsOpen(false); }}
+                  className="w-full flex items-center justify-between p-3 rounded-xl hover:bg-[#ECF4F4] dark:hover:bg-[#263842] transition text-left cursor-pointer"
+                >
+                  <div className="flex items-center space-x-3">
+                    <div className="w-8 h-8 rounded-xl bg-[#ECF4F4] dark:bg-[#263842] flex items-center justify-center">
+                      <Icon className="w-4 h-4 text-[#FC7454]" />
+                    </div>
+                    <span className="text-xs font-bold text-[#1C2C34] dark:text-white">{tool.label}</span>
+                  </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400" />
+                </button>
+              );
+            })}
+          </motion.div>
+        </div>
+      )}
 
     </div>
   );

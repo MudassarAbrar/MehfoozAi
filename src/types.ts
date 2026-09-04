@@ -43,7 +43,17 @@ export interface LegalSourceCitation {
 export interface ChatActionConfirmation {
   id: string;
   type: 'send_complaint' | 'call_contact' | 'share_location' | 'add_contact' | 'start_checkin' | 'emergency_sos';
+  /** Legacy alias for `type` — some templates read actionType. */
+  actionType?: string;
   targetContact?: UserContact;
+  /** Human-readable prompt text shown to the user. */
+  prompt?: string;
+  /** Label shown on the action button. */
+  buttonLabel?: string;
+  /** Phone number for call actions. */
+  targetPhone?: string;
+  /** Display name of the target (person, department, etc.). */
+  targetName?: string;
   summary: string;
   details?: string;
   payload?: any;
@@ -98,6 +108,11 @@ export interface VaultRecord {
   photoUrl?: string;
   audioDuration?: number;
   isLinkedToComplaint?: boolean;
+  /** Supabase incidents row id (set once synced). */
+  remoteId?: string;
+  /** True when the ciphertext could not be decrypted on this device. */
+  locked?: boolean;
+  attachments?: string[];
 }
 
 export type ComplaintStage = 
@@ -200,6 +215,8 @@ export interface ComplaintDraft {
   userFollowupNotes?: string;
   isMockHandoff?: boolean;
   statusHistory?: { stage: ComplaintStage; timestamp: string; note: string }[];
+  /** Supabase complaints row id (set once synced). */
+  remoteId?: string;
 }
 
 export type ActiveTab = 
@@ -215,7 +232,23 @@ export type ActiveTab =
   | 'builder' 
   | 'tracking' 
   | 'directory' 
-  | 'profile';
+  | 'profile'
+  | 'api_monitor';
+
+/** Row of the api_activity_logs table (Prompt #2 live integration monitor). */
+export interface ApiActivityLog {
+  id: string;
+  endpoint: string;
+  method: string;
+  targetService: string;
+  status: 'pending' | 'success' | 'failed' | 'timeout' | string;
+  statusCode: number | null;
+  requestPreview: string | null;
+  responsePreview: string | null;
+  durationMs: number | null;
+  errorMessage: string | null;
+  createdAt: string;
+}
 
 export type ContactRelationship = 
   | 'family' 
@@ -441,4 +474,83 @@ export interface AuditTelemetryEvent {
   detail: string;
   confidenceScore?: number;
   metadata?: Record<string, any>;
+}
+
+// =====================================================================
+// Agent response types (server-side function-calling loop)
+// =====================================================================
+
+export type AgentResponseType = 'final' | 'confirmation_required' | 'ui_action' | 'error';
+
+export type AgentToolSafety = 'read_only' | 'ui_only' | 'requires_confirmation';
+
+export type AgentToolStatus =
+  | 'proposed'
+  | 'pending_confirmation'
+  | 'confirmed'
+  | 'executing'
+  | 'executed'
+  | 'failed'
+  | 'cancelled'
+  | 'expired';
+
+export interface AgentToolProposal {
+  id: string;
+  toolName: string;
+  safety: AgentToolSafety;
+  status: AgentToolStatus;
+  title: string;
+  description: string;
+  displayData: {
+    recipient?: string;
+    recipientPhone?: string;
+    messagePreview?: string;
+    destination?: string;
+    durationMinutes?: number;
+    contactNames?: string;
+    complaintCategory?: string;
+    incidentType?: string;
+    incidentTitle?: string;
+    complaintId?: string;
+    recipientEmail?: string;
+    includeGps?: boolean;
+  };
+  expiresAt?: string;
+}
+
+export interface AgentStep {
+  id: string;
+  toolName?: string;
+  label: string;
+  status: 'active' | 'completed' | 'waiting' | 'failed';
+  startedAt?: string;
+  completedAt?: string;
+}
+
+export interface AgentCitation {
+  sourceId: string;
+  title: string;
+  statute?: string;
+  section?: string;
+  summary: string;
+}
+
+export interface AgentResponse {
+  type: AgentResponseType;
+  conversationId: string;
+  runId: string;
+  text?: string;
+  citations?: AgentCitation[];
+  pendingActions?: AgentToolProposal[];
+  uiActions?: Array<{
+    action: string;
+    payload?: Record<string, unknown>;
+  }>;
+  steps?: AgentStep[];
+  error?: {
+    code: string;
+    message: string;
+  };
+  modelUsed?: string;
+  isAiGenerated?: boolean;
 }

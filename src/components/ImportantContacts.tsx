@@ -30,6 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, ContactRelationship, UserContact, UserProfile } from '../types';
+import { persistContacts } from '../utils/dataService';
 
 interface ImportantContactsProps {
   language: AppLanguage;
@@ -129,7 +130,8 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
 
   const saveContacts = (updated: UserContact[]) => {
     setContacts(updated);
-    localStorage.setItem('mehfooz_user_contacts_v1', JSON.stringify(updated));
+    // Mirrors locally and syncs to Supabase emergency_contacts when configured.
+    void persistContacts(updated);
     if (user && onUpdateUser) {
       onUpdateUser({
         ...user,

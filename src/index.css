@@ -56,6 +56,9 @@
     background-color: #FCFCFC;
     color: #1C2C34;
     @apply transition-colors duration-200;
+    /* #39: Prevent horizontal overflow strips on mobile */
+    overflow-x: hidden;
+    max-width: 100vw;
   }
 
   .dark body, body.dark {

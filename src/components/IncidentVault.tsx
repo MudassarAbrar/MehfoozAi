@@ -30,7 +30,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, IncidentCategory, VaultRecord } from '../types';
-import { encryptLocalData, decryptLocalData } from '../utils/crypto';
+import { loadVaultRecords, persistVaultRecords } from '../utils/dataService';
 import { ExportPdfModal } from './ExportPdfModal';
 import { getStoredProfile } from '../utils/auth';
 
@@ -89,16 +89,16 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
 
   const isUrdu = language === 'ur';
 
-  // Load from local storage
+  // Load from Supabase (zero-knowledge ciphertext) or the local mirror
   useEffect(() => {
-    const saved = localStorage.getItem('mehfooz_vault_records_v1');
-    if (saved) {
-      try {
-        setRecords(JSON.parse(saved));
-      } catch (err) {
-        console.error('Failed to parse vault records', err);
+    let cancelled = false;
+    (async () => {
+      const loaded = await loadVaultRecords();
+      if (cancelled) return;
+      if (loaded.length > 0) {
+        setRecords(loaded);
+        return;
       }
-    } else {
       // Seed sample encrypted demo record
       const seed: VaultRecord[] = [
         {
@@ -118,8 +118,10 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
         }
       ];
       setRecords(seed);
-      localStorage.setItem('mehfooz_vault_records_v1', JSON.stringify(seed));
-    }
+      const persisted = await persistVaultRecords(seed);
+      if (!cancelled) setRecords(persisted);
+    })();
+    return () => { cancelled = true; };
   }, []);
 
   // Handle incoming draft from legal assistant
@@ -147,9 +149,6 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
     e.preventDefault();
     if (!title.trim() && !note.trim()) return;
 
-    // Encrypt note text with Web Crypto
-    await encryptLocalData(note);
-
     const newRecord: VaultRecord = {
       id: `rec-${Date.now()}`,
       createdAt: new Date().toISOString(),
@@ -167,9 +166,10 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
       audioDuration
     };
 
-    const updated = [newRecord, ...records];
-    setRecords(updated);
-    localStorage.setItem('mehfooz_vault_records_v1', JSON.stringify(updated));
+    // AES-GCM-256 encryption happens inside dataService (fail-closed, no
+    // default passcode) before anything leaves the device.
+    const persisted = await persistVaultRecords([newRecord, ...records]);
+    setRecords(persisted);
 
     onLogAudit?.('vault_encrypted', `Saved AES-256 encrypted incident note (${newRecord.category})`);
 
@@ -185,9 +185,9 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
   };
 
   const handleDeleteRecord = (id: string) => {
-    const updated = records.filter(r => r.id !== id);
-    setRecords(updated);
-    localStorage.setItem('mehfooz_vault_records_v1', JSON.stringify(updated));
+    const remaining = records.filter(r => r.id !== id);
+    setRecords(remaining);
+    void persistVaultRecords(remaining);
     setSelectedRecordIds(selectedRecordIds.filter(selId => selId !== id));
     if (viewingRecord?.id === id) setViewingRecord(null);
     onLogAudit?.('vault_deleted', `Deleted record ${id}`);
@@ -242,6 +242,11 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
               {isUrdu 
                 ? 'تمام واقعات اور نوٹس آپ کے فون میں محفوظ اور اینکرپٹڈ ہیں۔ یہ ڈیٹا کسی سرور پر اپلوڈ نہیں ہوتا تاوقتیکہ آپ شکایت کا حصہ نہ بنائیں۔'
                 : 'Incident timelines, dates, and evidence notes stay strictly encrypted on this device. Nothing is shared with authorities unless you explicitly export to a verified complaint.'}
+            </p>
+            <p className="text-[11px] leading-relaxed text-[#9A6B2F] bg-amber-50 border border-amber-200 rounded-lg px-3 py-2 max-w-xl">
+              {isUrdu
+                ? 'اہم اطلاع: والٹ کی اینکرپشن کل صرف اسی ڈیوائس تک محدود ہے — دوسرے ڈیوائس سے سائن اِن کرنے پر یہ ریکارڈز وہاں نہیں کھل سکیں گے۔'
+                : 'Device note: your vault encryption key is bound to this device only — records saved here cannot be decrypted if you sign in from a different device.'}
             </p>
           </div>
 

@@ -83,7 +83,7 @@ To eliminate fear in mobility and legal ambiguity for women and vulnerable citiz
 - **FR-1.1**: Render realistic weather data (Day, Night, and Sunrise themes).
 - **FR-1.2**: Support 6 realistic urban and provincial stations (Tuscany, Florence, Lahore, Islamabad, Murree, Karachi).
 - **FR-1.3**: Provide real-time UI components: 24-hour forecast, 7-day outlook, AQI meter, humidity, wind velocity, and UV index.
-- **FR-1.4**: Numeric PIN pad keypad (Default: `1234`) with wrong-PIN shake feedback and automatic input masking.
+- **FR-1.4**: Numeric PIN pad keypad (per-user stealth PIN set in the user profile; demo default `1520`) with wrong-PIN shake feedback and automatic input masking. A long-press on the weather card acts as the designed recovery unlock — there is no universal default code.
 
 ### 4.2 Module 2: Safe Corridor Navigation
 - **FR-2.1**: Interactive corridor map displaying safety ratings ($A+$, $A$, $B$, $C$).

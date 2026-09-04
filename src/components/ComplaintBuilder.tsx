@@ -37,7 +37,8 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, ComplaintDraft, IncidentCategory, PunjabDistrict, SupportChannelType, VaultRecord } from '../types';
-import { getStoredProfile } from '../utils/auth';
+import { getStoredProfile, getAuthHeaders } from '../utils/auth';
+import { persistComplaintDrafts } from '../utils/dataService';
 import { exportComplaintToPDF } from '../utils/pdfExport';
 import { ExportPdfModal } from './ExportPdfModal';
 
@@ -404,6 +405,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
   const [copied, setCopied] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [emailDispatchedTo, setEmailDispatchedTo] = useState<string | null>(null);
+  const [deliveryNotice, setDeliveryNotice] = useState<string | null>(null);
   const [isResendingEmail, setIsResendingEmail] = useState(false);
   const [resendEmailNotice, setResendEmailNotice] = useState<string | null>(null);
   const [createdDraft, setCreatedDraft] = useState<ComplaintDraft | null>(null);
@@ -504,7 +506,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
     try {
       const res = await fetch('/api/recommend-channel', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           category,
           district,
@@ -585,7 +587,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
 
     try {
       const userProfile = getStoredProfile();
-      const userEmail = userProfile?.email || 'mudassarabrarr@gmail.com';
+      const userEmail = userProfile?.email || '';
       const userPin = userProfile?.stealthPin || '1520';
       const complainantName = userProfile?.fullName || 'Ayesha Rehman';
       const officialChannelTitle = getOfficialChannelTitle(requestedSupport, customChannelName);
@@ -636,60 +638,77 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
         console.warn('PDF pre-generation warning:', pdfErr);
       }
 
-      // 2. Call backend handoff endpoint with auto-email dispatch
-      const res = await fetch('/api/mock-handoff', {
+      // 2. Official handoff (Prompt #2) — real Resend dispatch to the authority
+      //    + Supabase persistence (tracking + delivery status). Falls back to the
+      //    legacy mock endpoint only when no Supabase session is available so the
+      //    flow still completes end-to-end.
+      const handoffPayload = {
+        complaintData: {
+          district,
+          category,
+          summary: structuredSummary,
+          incidentSummary: structuredSummary,
+          incidentDate,
+          incidentTime,
+          locationDetails,
+          isSituationOngoing,
+          requestedSupport,
+          safeContactMethod,
+          officialChannelUsed: tempDraft.officialChannelUsed,
+          userEmail,
+          complainantName,
+          pdfBase64,
+          isPasswordProtected: true
+        }
+      };
+
+      let res = await fetch('/api/complaint-handoff', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          complaintData: {
-            district,
-            category,
-            summary: structuredSummary,
-            incidentDate,
-            incidentTime,
-            locationDetails,
-            isSituationOngoing,
-            requestedSupport,
-            safeContactMethod,
-            officialChannelUsed: tempDraft.officialChannelUsed,
-            userEmail,
-            complainantName,
-            pdfBase64,
-            isPasswordProtected: true
-          }
-        })
+        headers: getAuthHeaders(),
+        body: JSON.stringify(handoffPayload)
       });
+      if (res.status === 401 || res.status === 503) {
+        res = await fetch('/api/mock-handoff', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify(handoffPayload)
+        });
+      }
 
       const data = await res.json();
       const trackingCode = data.trackingNumber || `PSCA-${district.substring(0, 3).toUpperCase()}-2026-${Math.floor(1000 + Math.random() * 9000)}`;
 
       const finalDraft: ComplaintDraft = {
         ...tempDraft,
-        officialReferenceNumber: trackingCode
+        officialReferenceNumber: trackingCode,
+        remoteId: typeof data.complaintId === 'string' && data.complaintId ? data.complaintId : undefined,
+        isMockHandoff: data.simulated === undefined ? true : Boolean(data.simulated)
       };
 
-      // 3. Automatically download the password-protected legal PDF for the user's immediate offline record
+      // 3. Persist encrypted to Supabase (zero-knowledge) + local mirror.
       try {
-        await exportComplaintToPDF(finalDraft, {
-          password: userPin,
-          complainantName,
-          includeAttachedRecords: importedRecords.length > 0,
-          attachedRecords: importedRecords,
-          downloadImmediately: true
-        });
-      } catch (dlErr) {
-        console.warn('Direct PDF download error:', dlErr);
+        const existingDrafts: ComplaintDraft[] = JSON.parse(localStorage.getItem('mehfooz_complaint_drafts_v1') || '[]');
+        await persistComplaintDrafts([finalDraft, ...existingDrafts]);
+      } catch (persistErr) {
+        console.warn('Draft persist failed:', persistErr);
       }
-
-      // Save to localStorage
-      const existingDrafts: ComplaintDraft[] = JSON.parse(localStorage.getItem('mehfooz_complaint_drafts_v1') || '[]');
-      localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify([finalDraft, ...existingDrafts]));
 
       setCreatedDraft(finalDraft);
       setHandoffSuccess(trackingCode);
-      setEmailDispatchedTo(data.emailRecipient || userEmail);
+      // Show the department email as the primary recipient + user copy status
+      const deptName = data.department?.name || '';
+      const deptEmail = data.department?.email || '';
+      setEmailDispatchedTo(
+        data.userCopyDispatched ? userEmail
+          : data.emailDispatched ? deptEmail
+          : null
+      );
+      setDeliveryNotice(typeof data.notice === 'string' ? data.notice : null);
       onDraftCreated(finalDraft);
-      onLogAudit?.('handoff_executed', `Official channel handoff initialized with ref: ${trackingCode}. Copy automatically emailed to ${userEmail}`);
+      const deptInfo = deptName ? `Dispatched to ${deptName}${deptEmail ? ` (${deptEmail})` : ''}.` : '';
+      const apiInfo = data.department?.apiStatus === 'dispatched' ? ' Department API endpoint hit successfully.' : data.department?.apiStatus === 'failed' ? ' Department API endpoint returned an error.' : '';
+      const userInfo = data.userCopyDispatched ? ` Confirmation copy sent to ${userEmail}.` : '';
+      onLogAudit?.('handoff_executed', `Official channel handoff ${data.deliveryStatus === 'dispatched' ? 'dispatched' : 'registered'} — ref: ${trackingCode}. ${deptInfo}${apiInfo}${userInfo}`);
     } catch (err) {
       console.error('Handoff error:', err);
     } finally {
@@ -704,11 +723,11 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
 
     try {
       const userProfile = getStoredProfile();
-      const userEmail = userProfile?.email || 'mudassarabrarr@gmail.com';
+      const userEmail = userProfile?.email || '';
 
       const res = await fetch('/api/complaints/send-email', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: getAuthHeaders(),
         body: JSON.stringify({
           complaintData: createdDraft || {
             officialReferenceNumber: handoffSuccess,
@@ -768,7 +787,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
     };
 
     const existingDrafts: ComplaintDraft[] = JSON.parse(localStorage.getItem('mehfooz_complaint_drafts_v1') || '[]');
-    localStorage.setItem('mehfooz_complaint_drafts_v1', JSON.stringify([newDraft, ...existingDrafts]));
+    void persistComplaintDrafts([newDraft, ...existingDrafts]);
 
     onDraftCreated(newDraft);
     onLogAudit?.('complaint_drafted', 'Saved private unsubmitted complaint draft');
@@ -1527,6 +1546,13 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                   Your formal legal docket reference code is: <strong className="font-mono text-emerald-950 text-sm bg-white px-2.5 py-1 rounded-lg border border-emerald-300 ml-1 inline-block">{handoffSuccess}</strong>
                 </p>
 
+                {/* Dispatch status notice (live vs simulated, honest reporting) */}
+                {deliveryNotice && (
+                  <p className="text-[11px] text-emerald-800 bg-white/80 border border-emerald-200 rounded-lg p-2 leading-relaxed">
+                    {deliveryNotice}
+                  </p>
+                )}
+
                 {/* Automated Email Confirmation Banner */}
                 <div className="p-3 bg-white/95 border border-emerald-200 rounded-xl space-y-1.5 text-xs text-emerald-900 shadow-2xs">
                   <div className="flex items-center space-x-2 font-semibold">
@@ -1534,10 +1560,12 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                     <span>Automated Legal Confirmation Emailed to:</span>
                   </div>
                   <p className="font-mono text-xs font-bold text-[#1C2C34] bg-emerald-50/70 px-2.5 py-1 rounded border border-emerald-200 inline-block">
-                    {emailDispatchedTo || 'mudassarabrarr@gmail.com'}
+                    {emailDispatchedTo || '(email not configured)'}
                   </p>
                   <p className="text-[11px] text-[#5A6E78]">
-                    A formal verification docket with statutory legal grounds (PPWVA 2016 / PECA 2016) and filing receipt was automatically sent to your email address.
+                    {emailDispatchedTo
+                      ? 'A formal verification docket with statutory legal grounds (PPWVA 2016 / PECA 2016) and filing receipt was automatically sent to your email address.'
+                      : 'Live email dispatch is not configured on this server — your docket was registered locally and can be exported below as a password-protected PDF.'}
                   </p>
                   {resendEmailNotice && (
                     <p className="text-[11px] font-semibold text-emerald-800 bg-emerald-100 p-2 rounded-lg border border-emerald-200">
@@ -1554,11 +1582,11 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                       <span>Printer-Friendly Legal Submission PDF (128-bit Encrypted):</span>
                     </div>
                     <span className="text-[10px] font-bold uppercase bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded-full">
-                      Downloaded
+                      On Demand
                     </span>
                   </div>
                   <p className="text-[11px] text-[#5A6E78]">
-                    The encrypted PDF was automatically downloaded to your device. Use your stealth PIN (<strong className="font-mono font-bold text-[#1C2C34]">{getStoredProfile()?.stealthPin || '1520'}</strong>) to open and print it for official submission.
+                    No file was downloaded automatically. Use the button below whenever you are ready — you will set a password first, and the PDF will require that password to open or print for official submission.
                   </p>
 
                   <div className="flex flex-wrap gap-2 pt-1">
@@ -1568,7 +1596,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                       className="px-3 py-1.5 rounded-lg bg-[#1C2C34] text-white hover:bg-[#263842] font-semibold text-xs flex items-center space-x-1.5 cursor-pointer shadow-xs transition"
                     >
                       <FileDown className="w-3.5 h-3.5 text-[#BCD4D4]" />
-                      <span>Re-Download / Change Password</span>
+                      <span>Download Password-Protected PDF</span>
                     </button>
 
                     <button

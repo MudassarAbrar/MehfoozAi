@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { SupportResource } from '../types';
+import { SupportResource } from '../types.js';
 
 export const PUNJAB_SUPPORT_DIRECTORY: SupportResource[] = [
   {

@@ -386,7 +386,9 @@ export async function exportComplaintToPDF(
   const blob = doc.output('blob');
   const base64 = doc.output('datauristring');
 
-  if (options.downloadImmediately !== false && typeof window !== 'undefined') {
+  // Downloads are strictly opt-in: a browser download may only be triggered by an
+  // explicit user action (never draft creation, preview, save, or email confirm).
+  if (options.downloadImmediately === true && typeof window !== 'undefined') {
     downloadBlob(blob, fileName);
   }
 
@@ -568,7 +570,7 @@ export async function exportIncidentRecordsToPDF(
   const blob = doc.output('blob');
   const base64 = doc.output('datauristring');
 
-  if (options.downloadImmediately !== false && typeof window !== 'undefined') {
+  if (options.downloadImmediately === true && typeof window !== 'undefined') {
     downloadBlob(blob, fileName);
   }
 

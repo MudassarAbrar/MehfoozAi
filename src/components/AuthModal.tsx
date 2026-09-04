@@ -21,12 +21,14 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, PunjabDistrict, AppLanguage } from '../types';
-import { loginUser, signUpUser } from '../utils/auth';
+import { loginUser, signUpUser, resetUserPassword } from '../utils/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
   onClose: () => void;
   onSuccess: (user: UserProfile) => void;
+  onAuthSuccess?: (user: UserProfile) => void;
+  onDemoMode?: () => void;
   language: AppLanguage;
   initialMode?: 'login' | 'signup';
 }
@@ -51,14 +53,22 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   isOpen,
   onClose,
   onSuccess,
+  onAuthSuccess,
+  onDemoMode,
   language,
   initialMode = 'login',
 }) => {
+  const handleSuccess = (user: UserProfile) => {
+    onSuccess(user);
+    onAuthSuccess?.(user);
+  };
   const isUrdu = language === 'ur';
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [resetMessage, setResetMessage] = useState<string | null>(null);
+  const [resetting, setResetting] = useState(false);
 
   // Form fields
   const [email, setEmail] = useState('');
@@ -77,6 +87,32 @@ export const AuthModal: React.FC<AuthModalProps> = ({
     setErrorMessage(null);
   };
 
+  const handleForgotPassword = async () => {
+    if (!email.trim()) {
+      setErrorMessage(isUrdu ? 'پہلے اپنا ای میل درج کریں۔' : 'Enter your email address first.');
+      return;
+    }
+    setErrorMessage(null);
+    setResetMessage(null);
+    setResetting(true);
+    try {
+      const result = await resetUserPassword(email);
+      if (result.success) {
+        setResetMessage(
+          isUrdu
+            ? 'پاس ورڈ ری سیٹ لنک آپ کے ای میل پر بھیج دیا گیا ہے۔'
+            : 'Password reset link sent. Please check your inbox.'
+        );
+      } else {
+        setErrorMessage(result.error || 'Failed to send reset email.');
+      }
+    } catch (err: any) {
+      setErrorMessage(err?.message || 'Failed to send reset email.');
+    } finally {
+      setResetting(false);
+    }
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMessage(null);
@@ -86,7 +122,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (mode === 'login') {
         const result = await loginUser(email, password);
         if (result.success && result.user) {
-          onSuccess(result.user);
+          handleSuccess(result.user);
           onClose();
         } else {
           setErrorMessage(result.error || 'Login failed.');
@@ -110,7 +146,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
 
         if (result.success && result.user) {
-          onSuccess(result.user);
+          handleSuccess(result.user);
           onClose();
         } else {
           setErrorMessage(result.error || 'Registration failed.');
@@ -183,6 +219,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         </div>
 
+        {/* Demo Mode Button */}
+        {mode === 'login' && onDemoMode && (
+          <button
+            type="button"
+            onClick={() => { onDemoMode(); onClose(); }}
+            className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-[#FC7454]/10 to-[#FC7454]/5 hover:from-[#FC7454]/20 hover:to-[#FC7454]/10 border border-[#FC7454]/30 text-[#1C2C34] text-xs font-bold flex items-center justify-center space-x-2 transition cursor-pointer"
+          >
+            <Sparkles className="w-4 h-4 text-[#FC7454]" />
+            <span>{isUrdu ? 'ڈیمو موڈ میں داخل ہوں' : 'Enter Demo Mode'}</span>
+          </button>
+        )}
+
         {/* Demo Account Quick Fill Button */}
         {mode === 'login' && (
           <button
@@ -190,9 +238,17 @@ export const AuthModal: React.FC<AuthModalProps> = ({
             onClick={handleDemoFill}
             className="w-full py-2 px-3 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/30 border border-[#BCD4D4] text-[#1C2C34] text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
           >
-            <Sparkles className="w-3.5 h-3.5 text-[#FC7454]" />
-            <span>Use Demo Verified Account (ayesha.rehman@gmail.com)</span>
+            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
+            <span>{isUrdu ? 'ڈیمو اکاؤنٹ بھریں' : 'Use Demo Verified Account'}</span>
           </button>
+        )}
+
+        {/* Reset Email Feedback */}
+        {resetMessage && (
+          <div className="p-3 rounded-xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-800 font-medium flex items-start space-x-2">
+            <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0 mt-0.5" />
+            <span>{resetMessage}</span>
+          </div>
         )}
 
         {/* Error Alert */}
@@ -286,6 +342,20 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {mode === 'login' && (
+              <div className="flex justify-end mt-1">
+                <button
+                  type="button"
+                  onClick={handleForgotPassword}
+                  disabled={resetting}
+                  className="text-[10px] font-semibold text-[#5A6E78] hover:text-[#FC7454] transition cursor-pointer disabled:opacity-50"
+                >
+                  {resetting
+                    ? (isUrdu ? 'بھیجا جا رہا ہے…' : 'Sending…')
+                    : (isUrdu ? 'پاس ورڈ بھول گئیں؟' : 'Forgot password?')}
+                </button>
+              </div>
+            )}
           </div>
 
           {mode === 'signup' && (

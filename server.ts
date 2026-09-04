@@ -6,28 +6,60 @@
 import express, { Request, Response, NextFunction } from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { createServer as createViteServer } from 'vite';
+// NOTE: Vite is imported lazily inside startServer()'s dev branch. A static
+// import would drag Vite + Rollup (and their platform-specific native
+// binaries) into the serverless bundle on Vercel and crash cold starts.
 import { GoogleGenAI, Type } from '@google/genai';
 import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
-import nodemailer from 'nodemailer';
+import crypto from 'crypto';
+import { isSupabaseServerConfigured, supabaseAuthOptional, requireSupabaseAuth, createUserClient, AuthedRequest } from './server/supabaseServer.js';
+import { apiActivityTracker, logApiActivity } from './server/apiActivity.js';
+import { registerCheckInRoutes } from './server/checkIns.js';
+import { sendComplaintEmail, isEmailConfigured } from './server/email.js';
+import { dispatchToDepartment, getDepartmentContact } from './server/departmentRouting.js';
+import { isSmsConfigured } from './server/sms.js';
+import { initializeEmbeddings, hybridSearch, areEmbeddingsReady, getRetrieverStatus } from './src/utils/hybridRetriever.js';
+import { isAgentAvailable } from './server/agent/config.js';
+import { runMehfoozAgent } from './server/agent/runner.js';
+import { confirmPendingAction, cancelPendingAction } from './server/agent/confirmation.js';
+import { AgentError, normalizeAgentError, toErrorResponse } from './server/agent/errors.js';
+import { AgentInput, AgentResponse } from './server/agent/schemas.js';
+import { checkImmediateDanger } from './server/agent/dangerCheck.js';
 
 dotenv.config();
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-const app = express();
-const PORT = 3000;
+export const app = express();
+const PORT = Number(process.env.PORT) || 3000;
 
 // Configure Express to trust reverse proxy headers (e.g. Nginx, Cloud Run)
 app.set('trust proxy', 1);
 
 // 1. SECURITY HEADERS & HELMET CONFIGURATION
-// Configured to be safe and compatible with the AI Studio iframe preview
+// CSP is fully enforced in production; relaxed in development for Vite HMR
+// and AI Studio iframe compatibility.
 app.use(helmet({
-  contentSecurityPolicy: false, // Allows Vite dev hot bundle and client scripts in iframe
+  contentSecurityPolicy: process.env.NODE_ENV === 'production' ? {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'", "'unsafe-inline'"],
+      // Google Fonts CSS + Leaflet CSS served from unpkg (index.html <link>).
+      styleSrc: ["'self'", "'unsafe-inline'", "https://fonts.googleapis.com", "https://unpkg.com"],
+      // Map tile imagery (OpenStreetMap + Carto basemaps) must load in production.
+      imgSrc: ["'self'", "data:", "blob:", "https://*.tile.openstreetmap.org", "https://*.basemaps.cartocdn.com"],
+      fontSrc: ["'self'", "data:", "https://fonts.gstatic.com"],
+      // Nominatim reverse/forward geocoding (osmService) is fetched client-side.
+      connectSrc: ["'self'", "https://*.supabase.co", "wss://*.supabase.co", "https://nominatim.openstreetmap.org"],
+      frameAncestors: ["'self'"],
+      objectSrc: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"]
+    }
+  } : false,
   crossOriginEmbedderPolicy: false,
   crossOriginOpenerPolicy: false, // Permitted for AI Studio preview iframe embedding
   crossOriginResourcePolicy: { policy: 'cross-origin' },
@@ -42,6 +74,11 @@ app.use((req: Request, res: Response, next: NextFunction) => {
   res.setHeader('Permissions-Policy', 'camera=(self), microphone=(self), geolocation=(self)');
   next();
 });
+
+// Query parsing hardening: the default parser (qs) has open DoS advisories
+// (GHSA-x5fp-wj9c-mxmx, GHSA-4mjr-xmp4-gh2g) and no route here reads
+// req.query — use Node's simple querystring parser instead.
+app.set('query parser', 'simple');
 
 // 2. BODY PARSING & PAYLOAD SIZE LIMITS
 app.use(express.json({ limit: '5mb' }));
@@ -89,6 +126,8 @@ const globalApiLimiter = rateLimit({
   }
 });
 app.use('/api/', globalApiLimiter);
+// Real-time API activity logging -> public.api_activity_logs (Prompt #2)
+app.use('/api/', apiActivityTracker);
 
 // AI Legal Orchestration rate limit: 30 requests per 5 minutes per IP (Prevents LLM quota abuse)
 const aiOrchestratorLimiter = rateLimit({
@@ -152,6 +191,17 @@ app.get('/api/health', (req: Request, res: Response) => {
       inputSanitization: 'ACTIVE (null-byte and script injection filters)',
       zeroDataLeak: 'ACTIVE (photos & notes stored exclusively on client-side Web Crypto vault)',
     },
+    integrations: {
+      gemini: Boolean(process.env.GEMINI_API_KEY) ? 'CONFIGURED' : 'NOT CONFIGURED (offline corpus fallback)',
+      supabase: isSupabaseServerConfigured()
+        ? 'CONFIGURED (JWT verification + RLS user context active)'
+        : 'NOT CONFIGURED (offline localStorage fallback)',
+      twilioSms: isSmsConfigured() ? 'CONFIGURED (live SMS dispatch)' : 'NOT CONFIGURED (simulated dispatch)',
+      resendEmail: isEmailConfigured() ? 'CONFIGURED (live complaint dispatch)' : 'NOT CONFIGURED (simulated dispatch)',
+      checkInMonitor: 'ACTIVE (pg_cron every 60s + check-in-monitor Edge Function)',
+      hybridRetriever: getRetrieverStatus()
+    },
+
     hasGeminiKey: Boolean(process.env.GEMINI_API_KEY)
   });
 });
@@ -174,7 +224,7 @@ app.get('/api/security-status', (req: Request, res: Response) => {
 });
 
 // 6. Safety Orchestrator Grounded RAG Endpoint with strict input validation & rate limiting
-app.post('/api/orchestrate', aiOrchestratorLimiter, async (req: Request, res: Response) => {
+app.post('/api/orchestrate', supabaseAuthOptional, aiOrchestratorLimiter, async (req: Request, res: Response) => {
   try {
     const { query, language, intent, citations } = req.body;
 
@@ -197,6 +247,58 @@ app.post('/api/orchestrate', aiOrchestratorLimiter, async (req: Request, res: Re
     const safeIntent = typeof intent === 'string' ? intent.substring(0, 50) : 'legal_information';
     const safeCitations = Array.isArray(citations) ? citations.slice(0, 8) : [];
 
+    const authed = req as AuthedRequest;
+
+    // --- Agent fast path: when authenticated + agent available, use the function-calling loop ---
+    if (authed.supabaseUserId && authed.supabaseAccessToken && isAgentAvailable()) {
+      try {
+        // Immediate danger check (deterministic fast path — skips LLM entirely)
+        if (checkImmediateDanger(query)) {
+          const dangerResponse: AgentResponse = {
+            type: 'final',
+            conversationId: '',
+            runId: `danger-${Date.now()}`,
+            text: safeLanguage === 'ur'
+              ? 'فوری حفاظتی الرٹ: اگر آپ فوری جسمانی خطرے میں ہیں تو اپنی جان کی حفاظت کو اولین ترجیح دیں۔ براہ کرم ایمرجنسی 15 پر کال کریں۔'
+              : 'IMMEDIATE SAFETY ALERT: If you are in immediate physical danger, prioritize your safety. Please call Emergency 15 or tap the crisis button.',
+            isAiGenerated: false,
+            modelUsed: 'local-safety-guardrail'
+          };
+          return res.json(dangerResponse);
+        }
+
+        const agentInput: AgentInput = {
+          userId: authed.supabaseUserId,
+          accessToken: authed.supabaseAccessToken,
+          conversationId: typeof req.body.conversationId === 'string' ? req.body.conversationId : undefined,
+          query,
+          language: safeLanguage as 'en' | 'ur',
+          clientContext: req.body.clientContext
+        };
+
+        const agentOutput = await runMehfoozAgent(agentInput);
+
+        const agentResponse: AgentResponse = {
+          type: agentOutput.type,
+          conversationId: agentOutput.conversationId,
+          runId: agentOutput.runId,
+          text: agentOutput.text,
+          citations: agentOutput.citations,
+          pendingActions: agentOutput.pendingActions,
+          uiActions: agentOutput.uiActions,
+          steps: agentOutput.steps,
+          modelUsed: agentOutput.modelUsed,
+          isAiGenerated: true,
+          error: agentOutput.error
+        };
+
+        return res.json(agentResponse);
+      } catch (agentErr: any) {
+        console.warn('Agent loop failed, falling back to legacy orchestrator:', agentErr?.message);
+        // Fall through to the legacy single-shot Gemini call below
+      }
+    }
+
     const ai = getGeminiClient();
     if (!ai) {
       return res.status(200).json({
@@ -205,7 +307,10 @@ app.post('/api/orchestrate', aiOrchestratorLimiter, async (req: Request, res: Re
       });
     }
 
-    const citationText = safeCitations.map((c: any) => 
+    // Use hybrid retriever: Gemini embeddings + keyword scoring (replaces client-provided citations)
+    const relevantCitations = await hybridSearch(query, ai, 5);
+
+    const citationText = relevantCitations.map((c: any) =>
       `[${String(c.document || 'Punjab Law')} - ${String(c.section || '')}: ${String(c.sectionTitle || '')}]\nSummary: ${String(c.excerpt || '')}`
     ).join('\n\n');
 
@@ -278,9 +383,10 @@ CRITICAL SAFETY & LEGAL RULES:
         intent: safeIntent,
         riskLevel: 'standard',
         ...parsedResponse,
-        sourceReferences: safeCitations,
+        sourceReferences: relevantCitations,
         modelUsed: successfulModel,
-        isAiGenerated: true
+        isAiGenerated: true,
+        retrieverMode: areEmbeddingsReady() ? 'hybrid-embedding' : 'keyword-fallback'
       });
     }
 
@@ -296,6 +402,139 @@ CRITICAL SAFETY & LEGAL RULES:
       fallback: true,
       error: 'Backend LLM generation encountered an error; deterministic local grounding fallback active.'
     });
+  }
+});
+
+// 6b. Agent confirmation endpoint — executes a pending action after user confirms
+app.post('/api/orchestrate/confirm', requireSupabaseAuth, async (req: Request, res: Response) => {
+  try {
+    const authed = req as AuthedRequest;
+    const { actionId } = req.body;
+
+    if (!actionId || typeof actionId !== 'string') {
+      return res.status(400).json({
+        error: 'Validation Error: "actionId" is required.',
+        code: 'INVALID_ACTION_ID'
+      });
+    }
+
+    const result = await confirmPendingAction(
+      actionId,
+      authed.supabaseUserId!,
+      authed.supabaseAccessToken!
+    );
+
+    const response: AgentResponse = {
+      type: result.result && (result.result as any).uiAction ? 'ui_action' : 'final',
+      conversationId: '',
+      runId: `confirm-${Date.now()}`,
+      text: result.result && (result.result as any).message
+        ? (result.result as any).message
+        : 'Action completed successfully.',
+      uiActions: result.result && (result.result as any).uiAction
+        ? [{ action: (result.result as any).uiAction, payload: result.result as Record<string, unknown> }]
+        : undefined
+    };
+
+    return res.json(response);
+  } catch (err: unknown) {
+    const agentErr = err instanceof AgentError ? err : normalizeAgentError(err);
+    const errorInfo = toErrorResponse(agentErr);
+    return res.status(errorInfo.statusCode).json({
+      error: errorInfo.message,
+      code: errorInfo.code
+    });
+  }
+});
+
+// 6c. Agent cancel endpoint — cancels a pending action
+app.post('/api/orchestrate/cancel', requireSupabaseAuth, async (req: Request, res: Response) => {
+  try {
+    const authed = req as AuthedRequest;
+    const { actionId } = req.body;
+
+    if (!actionId || typeof actionId !== 'string') {
+      return res.status(400).json({
+        error: 'Validation Error: "actionId" is required.',
+        code: 'INVALID_ACTION_ID'
+      });
+    }
+
+    await cancelPendingAction(
+      actionId,
+      authed.supabaseUserId!,
+      authed.supabaseAccessToken!
+    );
+
+    return res.json({
+      success: true,
+      message: 'Action cancelled.'
+    });
+  } catch (err: unknown) {
+    const agentErr = err instanceof AgentError ? err : normalizeAgentError(err);
+    const errorInfo = toErrorResponse(agentErr);
+    return res.status(errorInfo.statusCode).json({
+      error: errorInfo.message,
+      code: errorInfo.code
+    });
+  }
+});
+
+// 6d. Conversation list — returns recent conversations for the authenticated user
+app.get('/api/conversations', requireSupabaseAuth, async (req: Request, res: Response) => {
+  try {
+    const authed = req as AuthedRequest;
+    const userClient = createUserClient(authed.supabaseAccessToken!);
+    if (!userClient) {
+      return res.status(503).json({ error: 'Supabase backend not configured.', code: 'SUPABASE_UNAVAILABLE' });
+    }
+
+    const { data, error } = await userClient
+      .from('conversations')
+      .select('id, title, language, message_count, last_message_at, created_at')
+      .eq('user_id', authed.supabaseUserId!)
+      .order('last_message_at', { ascending: false })
+      .limit(50);
+
+    if (error) {
+      return res.status(500).json({ error: error.message, code: 'CONVERSATIONS_LOAD_FAILED' });
+    }
+
+    return res.json({ conversations: data || [] });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message, code: 'CONVERSATIONS_LOAD_FAILED' });
+  }
+});
+
+// 6e. Conversation messages — returns messages for a specific conversation
+app.get('/api/conversations/:id/messages', requireSupabaseAuth, async (req: Request, res: Response) => {
+  try {
+    const authed = req as AuthedRequest;
+    const userClient = createUserClient(authed.supabaseAccessToken!);
+    if (!userClient) {
+      return res.status(503).json({ error: 'Supabase backend not configured.', code: 'SUPABASE_UNAVAILABLE' });
+    }
+
+    const conversationId = req.params.id;
+    if (!conversationId) {
+      return res.status(400).json({ error: 'Conversation ID is required.', code: 'INVALID_CONVERSATION_ID' });
+    }
+
+    // Verify ownership via RLS (messages policy uses subquery on conversations)
+    const { data, error } = await userClient
+      .from('messages')
+      .select('id, role, content, function_calls, tool_results, execution_status, metadata, created_at')
+      .eq('conversation_id', conversationId)
+      .order('created_at', { ascending: true })
+      .limit(100);
+
+    if (error) {
+      return res.status(500).json({ error: error.message, code: 'MESSAGES_LOAD_FAILED' });
+    }
+
+    return res.json({ messages: data || [] });
+  } catch (err: any) {
+    return res.status(500).json({ error: err.message, code: 'MESSAGES_LOAD_FAILED' });
   }
 });
 
@@ -408,7 +647,7 @@ function getDeterministicChannelRecommendation(category: string, rawNarrative: s
 }
 
 // 7. AI Support Channel Recommendation Endpoint with strict system prompt & guardrails
-app.post('/api/recommend-channel', aiOrchestratorLimiter, async (req: Request, res: Response) => {
+app.post('/api/recommend-channel', supabaseAuthOptional, aiOrchestratorLimiter, async (req: Request, res: Response) => {
   try {
     const { category, district, rawNarrative, isSituationOngoing, language } = req.body;
 
@@ -540,174 +779,14 @@ Evaluate the facts according to Punjab jurisdiction rules and return the best ch
   }
 });
 
-// Helper: Automated Email Dispatcher for Filed Complaints
-interface SendComplaintEmailParams {
-  recipientEmail: string;
-  trackingNumber: string;
-  complainantName?: string;
-  district?: string;
-  category?: string;
-  summary: string;
-  incidentDate?: string;
-  incidentTime?: string;
-  locationDetails?: string;
-  isOngoing?: boolean;
-  channel?: string;
-  pdfBase64?: string;
-  isPasswordProtected?: boolean;
-}
+// Complaint email dispatch is centralized in ./server/email.ts
+// (sendComplaintEmail — Resend SDK, XSS-escaped templates, activity logging).
+// The former nodemailer/SMTP dispatcher was removed so all complaint routes
+// share one secure, auditable email path.
 
-async function sendComplaintFilingEmail(params: SendComplaintEmailParams): Promise<{ success: boolean; messageId: string; status: string; recipient: string; error?: string }> {
-  try {
-    let transporter: nodemailer.Transporter;
-
-    if (process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS) {
-      transporter = nodemailer.createTransport({
-        host: process.env.SMTP_HOST,
-        port: Number(process.env.SMTP_PORT) || 587,
-        secure: Number(process.env.SMTP_PORT) === 465,
-        auth: {
-          user: process.env.SMTP_USER,
-          pass: process.env.SMTP_PASS
-        }
-      });
-    } else {
-      // Safe sandboxed transport producing verified receipts
-      transporter = nodemailer.createTransport({
-        streamTransport: true,
-        newline: 'unix',
-        buffer: true
-      });
-    }
-
-    const fromAddress = process.env.EMAIL_FROM || '"Mehfooz Legal Protection" <no-reply@mehfooz.pk>';
-    const subject = `[CONFIDENTIAL DOCKET] Formal Legal Complaint Filed — Ref: ${params.trackingNumber}`;
-
-    const htmlContent = `
-      <div style="font-family: 'Times New Roman', Times, serif, system-ui; max-width: 680px; margin: 0 auto; background-color: #ffffff; border: 1px solid #cbd5e1; border-radius: 8px; overflow: hidden; color: #0f172a; padding: 24px;">
-        <div style="border-bottom: 2px solid #0f172a; padding-bottom: 14px; margin-bottom: 20px;">
-          <div style="font-size: 11px; letter-spacing: 1px; color: #475569; text-transform: uppercase; font-weight: bold;">
-            Government of Punjab • Virtual Women Police Station & Safe Cities Authority (PSCA)
-          </div>
-          <h1 style="font-size: 20px; font-weight: bold; margin: 6px 0 0 0; color: #0f172a;">
-            Formal Complaint Docket & Protective Petition
-          </h1>
-          <p style="font-size: 12px; color: #64748b; margin: 4px 0 0 0; font-style: italic;">
-            Automated Legal Filing Confirmation & User Safety Record
-          </p>
-        </div>
-
-        <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 6px; padding: 14px; margin-bottom: 20px;">
-          <table style="width: 100%; font-size: 13px; border-collapse: collapse;">
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; width: 40%; color: #334155;">Official Reference Code:</td>
-              <td style="padding: 4px 0; font-family: monospace; font-weight: bold; font-size: 14px; color: #047857;">${params.trackingNumber}</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; color: #334155;">Filing Timestamp:</td>
-              <td style="padding: 4px 0;">${new Date().toISOString()}</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; color: #334155;">Jurisdiction / District:</td>
-              <td style="padding: 4px 0;">${params.district || 'Lahore'}, Punjab</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; color: #334155;">Complainant:</td>
-              <td style="padding: 4px 0;">${params.complainantName || 'Protected Complainant (Sec 13 PPWVA)'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; color: #334155;">Target Submission Route:</td>
-              <td style="padding: 4px 0;">${params.channel || 'Punjab Safe Cities Authority / Virtual Women Police Station'}</td>
-            </tr>
-            <tr>
-              <td style="padding: 4px 0; font-weight: bold; color: #334155;">Threat Assessment:</td>
-              <td style="padding: 4px 0; color: ${params.isOngoing ? '#b91c1c; font-weight: bold;' : '#334155;'}">
-                ${params.isOngoing ? 'ONGOING RISK (Urgent Protective Action Requested)' : 'Recorded Historical Incident'}
-              </td>
-            </tr>
-          </table>
-        </div>
-
-        <div style="margin-bottom: 20px;">
-          <h3 style="font-size: 13px; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-bottom: 8px;">
-            Statement of Facts & Substantive Complaint:
-          </h3>
-          <div style="background-color: #fafafa; border-left: 3px solid #0f172a; padding: 12px 16px; font-size: 13px; line-height: 1.6; white-space: pre-wrap; color: #1e293b;">${params.summary}</div>
-        </div>
-
-        <div style="margin-bottom: 20px; font-size: 12px; color: #475569; line-height: 1.5;">
-          <h4 style="font-size: 12px; font-weight: bold; color: #0f172a; text-transform: uppercase; margin-bottom: 4px;">
-            Statutory Legal Grounds:
-          </h4>
-          <p style="margin: 0;">
-            This complaint is grounded upon the <em>Punjab Protection of Women Against Violence Act, 2016</em>, the <em>Protection Against Harassment of Women at the Workplace Act, 2010 (Amended 2022)</em>, and the <em>Prevention of Electronic Crimes Act (PECA), 2016</em>.
-          </p>
-        </div>
-
-        ${params.isPasswordProtected ? `
-        <div style="background-color: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 6px; padding: 12px; margin-bottom: 20px; font-size: 12px; color: #065f46;">
-          <strong>Security Notice:</strong> An encrypted, password-protected PDF copy has been generated with 128-bit protection. It requires your secret PIN/password to open and print for legal filing.
-        </div>
-        ` : ''}
-
-        <div style="background-color: #f1f5f9; border-radius: 6px; padding: 14px; font-size: 11px; color: #475569; line-height: 1.6;">
-          <strong>Immediate 24/7 Emergency Lines in Punjab:</strong><br />
-          • PSCA Police Emergency: <strong>15</strong> (Toll-Free)<br />
-          • Punjab Commission on Status of Women (PCSW) Helpline: <strong>1043</strong><br />
-          • Ministry of Human Rights Legal Advisory: <strong>1099</strong>
-        </div>
-
-        <div style="margin-top: 24px; border-top: 1px solid #e2e8f0; padding-top: 12px; font-size: 10px; color: #94a3b8; text-align: center;">
-          Mehfooz Legal Protection System • Generated securely for: ${params.recipientEmail}
-        </div>
-      </div>
-    `;
-
-    const attachments: any[] = [];
-    if (params.pdfBase64) {
-      const base64Data = params.pdfBase64.includes('base64,')
-        ? params.pdfBase64.split('base64,')[1]
-        : params.pdfBase64;
-
-      attachments.push({
-        filename: `Mehfooz_Legal_Complaint_${params.trackingNumber}.pdf`,
-        content: Buffer.from(base64Data, 'base64'),
-        contentType: 'application/pdf'
-      });
-    }
-
-    const mailOptions = {
-      from: fromAddress,
-      to: params.recipientEmail,
-      subject,
-      text: `Formal Legal Complaint Filed\nReference: ${params.trackingNumber}\nJurisdiction: ${params.district || 'Punjab'}\nComplainant: ${params.complainantName || 'Protected Complainant'}\n\nSummary:\n${params.summary}\n\nA formal verification copy has been registered for official agency review.`,
-      html: htmlContent,
-      attachments
-    };
-
-    const info = await transporter.sendMail(mailOptions);
-    console.log(`[Mehfooz Email Dispatch] Automated email sent to ${params.recipientEmail} for ref ${params.trackingNumber}, messageId: ${info.messageId}`);
-
-    return {
-      success: true,
-      messageId: info.messageId,
-      status: 'dispatched',
-      recipient: params.recipientEmail
-    };
-  } catch (err: any) {
-    console.error('[Mehfooz Email Dispatch Error]:', err.message);
-    return {
-      success: false,
-      messageId: `err-${Date.now()}`,
-      status: 'dispatch_failed',
-      recipient: params.recipientEmail,
-      error: err.message
-    };
-  }
-}
-
-// 7. Mock PSCA Official Channel Handoff Gateway with rate limiting, validation & automatic user email dispatch
-app.post('/api/mock-handoff', handoffLimiter, async (req: Request, res: Response) => {
+// 7. Mock Official Channel Handoff Gateway — routes complaint to the concerned department
+//    via API endpoint + email, then sends a confirmation copy to the user.
+app.post('/api/mock-handoff', supabaseAuthOptional, handoffLimiter, async (req: Request, res: Response) => {
   const { complaintData } = req.body;
 
   if (!complaintData || typeof complaintData !== 'object') {
@@ -719,15 +798,26 @@ app.post('/api/mock-handoff', handoffLimiter, async (req: Request, res: Response
 
   const rawDistrict = String(complaintData.district || 'LHR').replace(/[^a-zA-Z]/g, '');
   const districtCode = rawDistrict.substring(0, 3).toUpperCase() || 'LHR';
-  const randomSuffix = Math.floor(1000 + Math.random() * 9000);
-  const trackingNumber = `PSCA-${districtCode}-2026-${randomSuffix}`;
+  const randomSuffix = crypto.randomInt(1000, 9999);
+  const trackingNumber = `PSCA-${districtCode}-${new Date().getFullYear()}-${randomSuffix}`;
 
-  // Resolve user recipient email from complaintData or request body
-  const userEmail = String(complaintData.userEmail || req.body.userEmail || 'mudassarabrarr@gmail.com').trim().toLowerCase();
+  // Resolve user email — this is the logged-in user who will receive a confirmation copy
+  const userEmail = String(complaintData.userEmail || req.body.userEmail || '').trim().toLowerCase();
+  if (!userEmail) {
+    return res.status(400).json({
+      error: 'A user email is required to send the confirmation copy.',
+      code: 'MISSING_USER_EMAIL'
+    });
+  }
 
-  // Automatically dispatch formal complaint copy to the user's email
-  const emailResult = await sendComplaintFilingEmail({
-    recipientEmail: userEmail,
+  // Resolve the concerned department from the requested support channel
+  const requestedSupport = String(complaintData.requestedSupport || 'police_support').trim();
+  const deptContact = getDepartmentContact(requestedSupport);
+
+  const authed = req as AuthedRequest;
+  const dispatchCtx = { userId: authed.supabaseUserId, accessToken: authed.supabaseAccessToken };
+
+  const complaintPayload = {
     trackingNumber,
     complainantName: complaintData.complainantName,
     district: complaintData.district,
@@ -738,26 +828,60 @@ app.post('/api/mock-handoff', handoffLimiter, async (req: Request, res: Response
     locationDetails: complaintData.locationDetails,
     isOngoing: Boolean(complaintData.isSituationOngoing || complaintData.isOngoing),
     channel: complaintData.officialChannelUsed,
+    requestedSupport,
     pdfBase64: complaintData.pdfBase64,
     isPasswordProtected: Boolean(complaintData.isPasswordProtected)
+  };
+
+  // ── STEP 1: Dispatch to the concerned department (API + email) ──────────────
+  const deptResult = await dispatchToDepartment(requestedSupport, complaintPayload, userEmail, dispatchCtx);
+
+  // ── STEP 2: Send confirmation copy to the user (independent of dept result) ─
+  const userCopyResult = await sendComplaintEmail(complaintPayload, {
+    to: userEmail,
+    subjectPrefix: '[YOUR COPY]',
+    userId: dispatchCtx.userId,
+    accessToken: dispatchCtx.accessToken,
+    reason: 'user_confirmation_copy'
   });
+
+  // Build response with full dispatch details
+  const deptDispatched = deptResult.success;
+  const userCopyDispatched = userCopyResult.status === 'dispatched';
 
   res.json({
     success: true,
     trackingNumber,
-    status: 'Official Channel Handoff & Email Dispatched',
+    // Department dispatch details
+    department: {
+      id: deptResult.department.id,
+      name: deptResult.department.name,
+      email: deptResult.department.email,
+      apiEndpoint: deptResult.department.apiEndpoint || null,
+      apiStatus: deptResult.api?.status || 'not_configured',
+      emailStatus: deptResult.email.status
+    },
+    // User copy details
+    userCopyDispatched,
+    userCopyEmail: userEmail,
+    // Legacy fields for backward compatibility
+    status: deptDispatched
+      ? `Complaint dispatched to ${deptContact.name}`
+      : `Complaint registered (dispatch to ${deptContact.name} simulated)`,
     receivedTimestamp: new Date().toISOString(),
-    officialPortalNotice: `Draft prepared for official review. A formal legal verification copy has been automatically dispatched to ${userEmail}.`,
-    jurisdiction: 'Punjab Safe Cities Authority / Punjab Police',
+    officialPortalNotice: deptDispatched
+      ? `Your complaint has been dispatched to ${deptContact.name} (${deptContact.email}). ${userCopyDispatched ? `A confirmation copy has been sent to ${userEmail}.` : 'The confirmation copy could not be sent.'}`
+      : `Complaint registered with ref ${trackingNumber}. Live dispatch to ${deptContact.name} is not yet configured — the complaint is saved locally.`,
+    jurisdiction: deptContact.name,
     securityVerified: true,
-    emailDispatched: emailResult.success,
-    emailRecipient: userEmail,
-    emailMessageId: emailResult.messageId
+    emailDispatched: deptDispatched,
+    emailRecipient: deptResult.department.email,
+    emailMessageId: deptResult.email.messageId
   });
 });
 
 // Endpoint to explicitly resend or dispatch a complaint record to email on demand
-app.post('/api/complaints/send-email', handoffLimiter, async (req: Request, res: Response) => {
+app.post('/api/complaints/send-email', supabaseAuthOptional, handoffLimiter, async (req: Request, res: Response) => {
   const { complaintData, recipientEmail } = req.body;
 
   if (!complaintData || typeof complaintData !== 'object') {
@@ -767,11 +891,18 @@ app.post('/api/complaints/send-email', handoffLimiter, async (req: Request, res:
     });
   }
 
-  const targetEmail = String(recipientEmail || complaintData.userEmail || 'mudassarabrarr@gmail.com').trim().toLowerCase();
+  const targetEmail = String(recipientEmail || complaintData.userEmail || process.env.COMPLAINT_RECIPIENT_EMAIL || '').trim().toLowerCase();
+  if (!targetEmail) {
+    return res.status(400).json({
+      error: 'A recipient email address is required to dispatch the complaint record.',
+      code: 'MISSING_RECIPIENT_EMAIL'
+    });
+  }
   const trackingCode = complaintData.officialReferenceNumber || complaintData.trackingNumber || `REF-${Date.now().toString().slice(-6)}`;
 
-  const result = await sendComplaintFilingEmail({
-    recipientEmail: targetEmail,
+  // Dispatch via the shared secure email module (single auditable path).
+  const authed = req as AuthedRequest;
+  const result = await sendComplaintEmail({
     trackingNumber: trackingCode,
     complainantName: complaintData.complainantName,
     district: complaintData.district,
@@ -784,6 +915,11 @@ app.post('/api/complaints/send-email', handoffLimiter, async (req: Request, res:
     channel: complaintData.officialChannelUsed,
     pdfBase64: complaintData.pdfBase64,
     isPasswordProtected: Boolean(complaintData.isPasswordProtected)
+  }, {
+    to: targetEmail,
+    userId: authed.supabaseUserId,
+    accessToken: authed.supabaseAccessToken,
+    reason: 'complaint_record_email'
   });
 
   res.json({
@@ -791,9 +927,203 @@ app.post('/api/complaints/send-email', handoffLimiter, async (req: Request, res:
     messageId: result.messageId,
     recipient: targetEmail,
     timestamp: new Date().toISOString(),
-    notice: `Formal complaint record dispatched to ${targetEmail}.`
+    notice: result.simulated
+      ? `Complaint record prepared for ${targetEmail} — live email dispatch is not configured on this server, so the copy was simulated and not actually sent.`
+      : `Formal complaint record dispatched to ${targetEmail}.`
   });
 });
+
+
+// 7b. OFFICIAL COMPLAINT HANDOFF (Prompt #2) — real email dispatch via Resend
+// + complaint/tracking/delivery persistence in Supabase. Replaces the mock
+// flow: isMockHandoff is only true when live dispatch was not possible.
+async function generateUniqueTrackingNumber(
+  userClient: ReturnType<typeof createUserClient>,
+  districtCode: string
+): Promise<string> {
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const randomSuffix = crypto.randomInt(1000, 9999);
+    const candidate = `PSCA-${districtCode}-${new Date().getFullYear()}-${randomSuffix}`;
+    const { data } = await userClient!
+      .from('complaints')
+      .select('id')
+      .eq('tracking_number', candidate)
+      .maybeSingle();
+    if (!data) return candidate;
+  }
+  // Statistically unreachable fallback (extra entropy avoids collisions).
+  return `PSCA-${districtCode}-${new Date().getFullYear()}-${Date.now().toString().slice(-6)}`;
+}
+
+app.post('/api/complaint-handoff', requireSupabaseAuth, handoffLimiter, async (req: Request, res: Response) => {
+  const authed = req as AuthedRequest;
+  const userClient = createUserClient(authed.supabaseAccessToken!);
+  if (!userClient) {
+    return res.status(503).json({
+      error: 'The Supabase backend is not configured on this server.',
+      code: 'SUPABASE_NOT_CONFIGURED'
+    });
+  }
+
+  const { complaintData } = req.body || {};
+  if (!complaintData || typeof complaintData !== 'object') {
+    return res.status(400).json({
+      error: 'Invalid Request: "complaintData" is required.',
+      code: 'INVALID_COMPLAINT_DATA'
+    });
+  }
+
+  const rawDistrict = String(complaintData.district || 'LHR').replace(/[^a-zA-Z]/g, '');
+  const districtCode = rawDistrict.substring(0, 3).toUpperCase() || 'LHR';
+  const summary = String(complaintData.incidentSummary || complaintData.summary || '').slice(0, 3000);
+  if (!summary.trim()) {
+    return res.status(400).json({
+      error: 'Validation Error: a complaint summary is required.',
+      code: 'INVALID_SUMMARY'
+    });
+  }
+
+  try {
+    const trackingNumber = await generateUniqueTrackingNumber(userClient, districtCode);
+    const userEmail = String(complaintData.userEmail || authed.supabaseUserEmail || '').trim().toLowerCase();
+
+    // Resolve the concerned department from the requested support channel
+    const requestedSupport = String(complaintData.requestedSupport || 'police_support').trim();
+    const deptContact = getDepartmentContact(requestedSupport);
+    const dispatchCtx = { userId: authed.supabaseUserId, accessToken: authed.supabaseAccessToken };
+
+    const complaintPayload = {
+      trackingNumber,
+      complainantName: complaintData.complainantName,
+      district: complaintData.district,
+      category: complaintData.category,
+      summary,
+      incidentDate: complaintData.incidentDate,
+      incidentTime: complaintData.incidentTime,
+      locationDetails: complaintData.locationDetails,
+      isOngoing: Boolean(complaintData.isSituationOngoing || complaintData.isOngoing),
+      channel: complaintData.officialChannelUsed,
+      requestedSupport,
+      pdfBase64: complaintData.pdfBase64,
+      isPasswordProtected: Boolean(complaintData.isPasswordProtected)
+    };
+
+    // 1. Dispatch to the concerned department (API endpoint + email with user's email as Reply-To)
+    const deptResult = await dispatchToDepartment(requestedSupport, complaintPayload, userEmail, dispatchCtx);
+
+    // 2. Confirmation copy to the complainant — always attempted, independent of dept result
+    const userCopyResult = userEmail
+      ? await sendComplaintEmail(complaintPayload, {
+          to: userEmail,
+          subjectPrefix: '[YOUR COPY]',
+          userId: dispatchCtx.userId,
+          accessToken: dispatchCtx.accessToken,
+          reason: 'complaint_handoff_user_copy'
+        })
+      : null;
+
+    // 3. Persist complaint + tracking + delivery status (RLS user context).
+    const deliveryStatus =
+      deptResult.success ? 'dispatched'
+      : deptResult.email.status === 'simulated' ? 'local_only'
+      : 'dispatch_failed';
+    const row = {
+      user_id: authed.supabaseUserId,
+      tracking_number: trackingNumber,
+      status: 'submitted' as const,
+      stage: 'submitted_by_user',
+      category: typeof complaintData.category === 'string' ? complaintData.category.slice(0, 100) : null,
+      district: typeof complaintData.district === 'string' ? complaintData.district.slice(0, 100) : null,
+      // Non-sensitive routing metadata ONLY (never the complaint body).
+      summary_plain: `${complaintData.category || 'unspecified'} | ${complaintData.district || 'Punjab'} | ${requestedSupport} | submitted`,
+      is_mock_handoff: !deptResult.success,
+      delivery_status: deliveryStatus,
+      delivery_message_id: deptResult.email.messageId
+    };
+
+    let complaintId: string | null = null;
+    if (typeof complaintData.complaintId === 'string' && complaintData.complaintId.trim()) {
+      // Client-synced draft row — update it in place (no duplicates).
+      const { data, error } = await userClient
+        .from('complaints')
+        .update(row)
+        .eq('id', complaintData.complaintId.trim())
+        .select('id')
+        .maybeSingle();
+      if (!error && data) complaintId = String((data as Record<string, unknown>).id);
+    }
+    if (!complaintId) {
+      const { data, error } = await userClient
+        .from('complaints')
+        .insert(row)
+        .select('id')
+        .single();
+      if (!error && data) {
+        complaintId = String((data as Record<string, unknown>).id);
+      } else if (error) {
+        console.warn('complaint-handoff persistence failed:', error.message);
+      }
+    }
+
+    void logApiActivity({
+      endpoint: '/api/complaint-handoff',
+      method: 'POST',
+      targetService: 'department_dispatch',
+      status: deptResult.success ? 'success' : 'failed',
+      statusCode: deptResult.success ? 200 : 502,
+      userId: authed.supabaseUserId,
+      accessToken: authed.supabaseAccessToken,
+      requestPreview: { trackingNumber, district: complaintData.district, category: complaintData.category, department: requestedSupport },
+      responsePreview: {
+        trackingNumber,
+        department: deptResult.department.name,
+        departmentEmail: deptResult.department.email,
+        apiStatus: deptResult.api?.status || 'not_configured',
+        emailStatus: deptResult.email.status,
+        userCopyStatus: userCopyResult?.status || 'skipped',
+        complaintId
+      }
+    });
+
+    return res.json({
+      success: true,
+      trackingNumber,
+      complaintId,
+      // Department dispatch details
+      department: {
+        id: deptResult.department.id,
+        name: deptResult.department.name,
+        email: deptResult.department.email,
+        apiEndpoint: deptResult.department.apiEndpoint || null,
+        apiStatus: deptResult.api?.status || 'not_configured',
+        emailStatus: deptResult.email.status
+      },
+      // User copy details
+      userCopyDispatched: userCopyResult ? userCopyResult.status === 'dispatched' : false,
+      userCopyEmail: userEmail || null,
+      // Legacy fields for backward compatibility
+      emailDispatched: deptResult.success,
+      simulated: !deptResult.success,
+      deliveryStatus,
+      deliveryMessageId: deptResult.email.messageId,
+      recipient: deptResult.department.email,
+      receivedTimestamp: new Date().toISOString(),
+      jurisdiction: deptContact.name,
+      notice: deptResult.success
+        ? `Your complaint has been dispatched to ${deptContact.name} (${deptContact.email}). ${userCopyResult?.status === 'dispatched' ? `A confirmation copy was sent to ${userEmail}.` : 'The confirmation copy could not be sent.'}`
+        : `Complaint registered with tracking ${trackingNumber}. Live dispatch to ${deptContact.name} is not yet configured — the docket is saved locally.`
+    });
+  } catch (error: any) {
+    console.error('complaint-handoff error:', error.message);
+    return res.status(500).json({
+      error: 'A secure server error occurred while handing off the complaint.',
+      code: 'HANDOFF_FAILED'
+    });
+  }
+});
+
+// 7c. Silent check-in + crisis alert routes (Prompt #2)
+registerCheckInRoutes(app);
 
 
 // 8. Centralized Express Error Handling Middleware (Prevents stack trace leaks)
@@ -811,6 +1141,10 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 // 9. Vite Dev vs Production Handling
 async function startServer() {
   if (process.env.NODE_ENV !== 'production') {
+    // Lazy-load Vite: only the local dev server needs it. On serverless hosts
+    // (NODE_ENV=production / VERCEL=1) this branch never runs, keeping the
+    // Vite + Rollup dependency tree out of the request path.
+    const { createServer: createViteServer } = await import('vite');
     const vite = await createViteServer({
       server: { middlewareMode: true },
       appType: 'spa',
@@ -824,10 +1158,23 @@ async function startServer() {
     });
   }
 
+  // Initialize hybrid retriever embeddings if Gemini is available
+  const ai = getGeminiClient();
+  if (ai) {
+    initializeEmbeddings(ai).catch(err => {
+      console.warn('[HybridRetriever] Initialization failed, keyword fallback active:', err?.message);
+    });
+  } else {
+    console.info('[HybridRetriever] No Gemini key — using keyword-only retrieval');
+  }
+
   app.listen(PORT, '0.0.0.0', () => {
     console.log(`Mehfooz server running securely with active rate limiting & helmet protection on port ${PORT}`);
   });
 }
 
-startServer();
+// Start the server only when running locally (not on Vercel serverless)
+if (!process.env.VERCEL) {
+  startServer();
+}
 

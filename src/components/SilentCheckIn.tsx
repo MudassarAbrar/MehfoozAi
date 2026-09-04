@@ -35,6 +35,8 @@ import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, SilentCheckInSession, UserProfile, UserContact } from '../types';
 import { OpenStreetMapViewer } from './common/OpenStreetMapViewer';
 import { GeocodedAddress } from '../services/osmService';
+import { getAuthHeaders } from '../utils/auth';
+import { getNearbyPOIs } from '../data/lahoreLocations';
 
 interface SilentCheckInProps {
   language: AppLanguage;
@@ -55,6 +57,23 @@ interface ParentNotificationPayload {
   expectedArrivalTime: string;
   osmTrackingUrl: string;
   messageText: string;
+}
+
+// One "app minute" elapses per TICK_MS real milliseconds — the hackathon demo
+// compresses a 21-minute transit check into ~3 minutes while keeping every
+// downstream action (server timer row, missed-alert SMS dispatch) genuinely
+// real end-to-end. Set to 60_000 for real-time behaviour.
+const TICK_MS = 8_000;
+
+function getCurrentPosition(timeoutMs = 5000): Promise<{ lat: number; lng: number } | null> {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) return resolve(null);
+    navigator.geolocation.getCurrentPosition(
+      (pos) => resolve({ lat: pos.coords.latitude, lng: pos.coords.longitude }),
+      () => resolve(null),
+      { enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 60_000 }
+    );
+  });
 }
 
 export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
@@ -106,6 +125,13 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
   const [copiedText, setCopiedText] = useState<boolean>(false);
   const [mapCollapsed, setMapCollapsed] = useState<boolean>(false);
 
+  // Server-backed monitoring state (Prompt #2). When serverSessionId is set,
+  // the session lives in the check_ins table and the pg_cron + Edge Function
+  // monitor can dispatch alerts even if this browser closes.
+  const [serverSessionId, setServerSessionId] = useState<string | null>(null);
+  const [alertDispatched, setAlertDispatched] = useState<boolean>(false);
+  const [expireNotice, setExpireNotice] = useState<string | null>(null);
+
   // Toggle contact selection
   const handleToggleContact = (id: string) => {
     setSelectedContactIds(prev => 
@@ -127,7 +153,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
     setDestination(label);
   };
 
-  // Start check in: dispatches notification to parents with live GPS and OpenStreetMap link
+  // Start check in — dispatches notification to parents + background server registration
   const handleStartCheckIn = () => {
     const now = new Date();
     const arrivalTime = new Date(now.getTime() + durationMinutes * 60000);
@@ -141,6 +167,8 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
         relation: c.relation,
         phone: c.phone
       }));
+
+    const selectedContacts = availableContacts.filter(c => selectedContactIds.includes(c.id));
 
     const trackingUrl = `https://www.openstreetmap.org/?mlat=${currentCoords.lat.toFixed(5)}&mlon=${currentCoords.lon.toFixed(5)}#map=17/${currentCoords.lat.toFixed(5)}/${currentCoords.lon.toFixed(5)}`;
 
@@ -183,6 +211,9 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
       }
     };
 
+    setServerSessionId(null);
+    setAlertDispatched(false);
+    setExpireNotice(null);
     setActiveSession(session);
     setRemainingMinutes(durationMinutes);
     setIsPlaying(true);
@@ -197,23 +228,100 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
 
     // Auto-open modal once to confirm parents have been alerted
     setShowParentModal(true);
+
+    // Register the session server-side (real check_ins row + Edge Function
+    // monitoring). Failure is non-fatal — the local timer still runs.
+    void (async () => {
+      try {
+        const pos = await getCurrentPosition();
+        const compressed = TICK_MS < 60_000;
+        const res = await fetch('/api/check-in/start', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({
+            destination,
+            expectedMinutes: Math.max(1, Math.round((durationMinutes * TICK_MS) / 60_000)),
+            gracePeriodMinutes: compressed ? 0 : 2,
+            contacts: selectedContacts.map(c => ({ id: c.id, name: c.name, phone: c.phone })),
+            ...(pos ? { lat: pos.lat, lng: pos.lng } : {})
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.checkIn?.id) setServerSessionId(String(data.checkIn.id));
+        }
+      } catch {
+        /* local-only fallback mode */
+      }
+    })();
   };
 
-  // Timer countdown simulation
+  // Timer countdown (1 app-minute per TICK_MS)
   useEffect(() => {
     let timer: any;
     if (activeSession && activeSession.isRunning && isPlaying) {
       timer = setInterval(() => {
-        setRemainingMinutes(prev => {
-          if (prev <= 1) {
-            return 0;
-          }
-          return prev - 1;
-        });
-      }, 8000);
+        setRemainingMinutes(prev => (prev <= 1 ? 0 : prev - 1));
+      }, TICK_MS);
     }
     return () => clearInterval(timer);
   }, [activeSession, isPlaying]);
+
+  // App timer reached zero without a safe confirmation → missed check-in.
+  // Dispatch through the server (atomic claim — no double sends with the Edge
+  // Function) and surface the escalation in the UI.
+  useEffect(() => {
+    if (remainingMinutes > 0 || !activeSession || alertDispatched) return;
+    setAlertDispatched(true);
+    if (!serverSessionId) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/check-in/expire', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ checkInId: serverSessionId })
+        });
+        const data = await res.json().catch(() => ({}));
+        const results = Array.isArray(data.results) ? data.results : [];
+        const fired = results.some((r: { dispatched?: boolean }) => r.dispatched);
+        const simulated = results.some(
+          (r: { sms?: { simulated?: boolean }[] }) => (r.sms || []).some((s: { simulated?: boolean }) => s.simulated)
+        );
+        setExpireNotice(fired
+          ? (simulated
+              ? 'Missed check-in registered — SMS dispatch simulated (Twilio credentials not configured on this server).'
+              : 'Emergency SMS with your live location has been dispatched to your selected contacts.')
+          : 'Missed check-in registered. The server monitor dispatches alerts after the grace period.');
+      } catch {
+        setExpireNotice('Missed check-in recorded locally — the server monitor will dispatch alerts.');
+      }
+    })();
+  }, [remainingMinutes, activeSession, alertDispatched, serverSessionId]);
+
+  // Periodic GPS heartbeat so contacts receive her last known location.
+  useEffect(() => {
+    if (!activeSession || !serverSessionId) return;
+    let cancelled = false;
+    const push = async () => {
+      const pos = await getCurrentPosition();
+      if (cancelled || !pos) return;
+      try {
+        await fetch('/api/check-in/location', {
+          method: 'POST',
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ checkInId: serverSessionId, lat: pos.lat, lng: pos.lng })
+        });
+      } catch {
+        /* heartbeat is best effort */
+      }
+    };
+    void push();
+    const beat = setInterval(push, 30_000);
+    return () => {
+      cancelled = true;
+      clearInterval(beat);
+    };
+  }, [activeSession, serverSessionId]);
 
   // Extend time
   const handleExtendTime = (extraMin: number = 15) => {
@@ -225,10 +333,21 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
         : `Guardians notified: Trip extended by +${extraMin} min`
     );
     setTimeout(() => setDispatchNotice(null), 4000);
+    if (serverSessionId) {
+      void fetch('/api/check-in/extend', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          checkInId: serverSessionId,
+          extraMinutes: Math.max(1, Math.round((extraMin * TICK_MS) / 60_000))
+        })
+      }).catch(() => {});
+    }
   };
 
-  // Confirm safe
+  // Confirm safe — when alerts already fired this also sends the all-clear SMS.
   const handleConfirmSafe = () => {
+    const checkInId = serverSessionId;
     setShowSafeCelebration(true);
     setDispatchNotice(
       isUrdu
@@ -239,7 +358,17 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
       setShowSafeCelebration(false);
       setActiveSession(null);
       setDispatchNotice(null);
+      setServerSessionId(null);
+      setAlertDispatched(false);
+      setExpireNotice(null);
     }, 2500);
+    if (checkInId) {
+      void fetch('/api/check-in/confirm', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ checkInId })
+      }).catch(() => {});
+    }
   };
 
   const handleCopyText = (text: string) => {
@@ -252,6 +381,21 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
     navigator.clipboard.writeText(url);
     setCopiedLink(true);
     setTimeout(() => setCopiedLink(false), 2500);
+  };
+
+  // Abort the session (back arrow)
+  const handleCancelSession = () => {
+    if (serverSessionId) {
+      void fetch('/api/check-in/cancel', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ checkInId: serverSessionId })
+      }).catch(() => {});
+    }
+    setActiveSession(null);
+    setServerSessionId(null);
+    setAlertDispatched(false);
+    setExpireNotice(null);
   };
 
   return (
@@ -341,6 +485,46 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
             </div>
           </div>
 
+          {/* Dynamic Nearby POIs (#16, #17) */}
+          {(() => {
+            const nearbyPOIs = getNearbyPOIs(currentCoords.lat, currentCoords.lon, 6);
+            return (
+              <div className="space-y-2">
+                <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase flex items-center gap-1.5">
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#FC7454]" />
+                  <span>{isUrdu ? 'قریبی محفوظ مقامات' : 'NEARBY SAFE LOCATIONS'}</span>
+                </label>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {nearbyPOIs.map((poi) => (
+                    <button
+                      key={poi.id}
+                      onClick={() => {
+                        setDestination(poi.name);
+                        setDestinationCoords({ lat: poi.lat, lon: poi.lng });
+                      }}
+                      className="p-2.5 rounded-xl bg-slate-50 dark:bg-[#12141C] border border-slate-200 dark:border-slate-700 hover:border-[#FC7454] transition text-left cursor-pointer"
+                    >
+                      <div className="flex items-center gap-1.5 mb-1">
+                        <MapPin className="w-3 h-3 text-[#FC7454] flex-shrink-0" />
+                        <span className="text-[11px] font-bold text-[#1C2C34] dark:text-white truncate">{poi.name}</span>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-[9px] text-slate-500 font-mono">{poi.distanceKm.toFixed(1)} km</span>
+                        <span className={`text-[9px] font-bold px-1.5 py-0.2 rounded ${
+                          poi.safetyScore >= 90 ? 'bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-400' :
+                          poi.safetyScore >= 75 ? 'bg-amber-50 dark:bg-amber-950/50 text-amber-700 dark:text-amber-400' :
+                          'bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-400'
+                        }`}>
+                          {poi.safetyScore}/100
+                        </span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Interactive OpenStreetMap Component */}
           <div className="space-y-2">
             <div className="flex items-center justify-between">
@@ -393,6 +577,34 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                   {m}m
                 </button>
               ))}
+            </div>
+
+            {/* Custom Time Input (#18) */}
+            <div className="flex items-center gap-2 pt-1">
+              <button
+                onClick={() => setDurationMinutes(0)}
+                className={`px-3 py-2 rounded-xl text-xs font-black transition cursor-pointer border ${
+                  durationMinutes === 0 || (durationMinutes !== 15 && durationMinutes !== 21 && durationMinutes !== 30 && durationMinutes !== 45 && durationMinutes !== 60)
+                    ? 'bg-[#1C2C34] text-white shadow-sm border-[#1C2C34]'
+                    : 'bg-[#F8F9FD] dark:bg-[#12141C] text-[#5A6E78] dark:text-slate-400 hover:bg-[#ECF4F4] dark:hover:bg-[#1C2C34]/50 border-slate-200 dark:border-slate-700'
+                }`}
+              >
+                {isUrdu ? 'کسٹم وقت' : 'Custom'}
+              </button>
+              {(durationMinutes === 0 || (durationMinutes !== 15 && durationMinutes !== 21 && durationMinutes !== 30 && durationMinutes !== 45 && durationMinutes !== 60)) && (
+                <input
+                  type="number"
+                  min={1}
+                  max={480}
+                  value={durationMinutes || ''}
+                  onChange={(e) => {
+                    const val = parseInt(e.target.value, 10);
+                    if (!isNaN(val) && val >= 1 && val <= 480) setDurationMinutes(val);
+                  }}
+                  placeholder={isUrdu ? 'منٹ درج کریں' : 'Enter minutes'}
+                  className="w-24 py-2 px-3 rounded-xl bg-[#F8F9FD] dark:bg-[#12141C] border border-slate-200 dark:border-slate-700 text-xs font-bold text-[#1C2C34] dark:text-white focus:outline-none focus:border-[#FC7454]"
+                />
+              )}
             </div>
           </div>
 
@@ -476,7 +688,7 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           {/* Top Bar */}
           <div className="flex items-center justify-between px-1">
             <button
-              onClick={() => setActiveSession(null)}
+              onClick={handleCancelSession}
               className="p-2 hover:bg-[#ECF4F4] dark:hover:bg-slate-800 rounded-full transition cursor-pointer text-[#1C2C34] dark:text-slate-200"
               title="Return to Setup"
             >
@@ -544,6 +756,41 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
                 heightClass="h-[240px] sm:h-[280px]"
               />
             )}
+          </div>
+
+          {/* Missed check-in escalation banner */}
+          {alertDispatched && (
+            <motion.div
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              className="p-3.5 rounded-2xl bg-rose-600 text-white space-y-1.5 shadow-md"
+            >
+              <div className="flex items-center space-x-2 font-black text-[11px] tracking-wider uppercase">
+                <Bell className="w-4 h-4 animate-pulse" />
+                <span>{isUrdu ? 'چیک ان موصول نہیں ہوا — الرٹ بھیج دیا گیا' : 'MISSED CHECK-IN — ALERT DISPATCHED'}</span>
+              </div>
+              <p className="text-[11px] leading-relaxed text-rose-50">
+                {expireNotice || (isUrdu
+                  ? 'آپ کے رابطوں کو آخری معلوم مقام کے ساتھ ایمرجنسی پیغام بھیج دیا گیا ہے۔ اگر آپ محفوظ ہیں تو فوری طور پر "میں محفوظ ہوں" دبائیں۔'
+                  : 'Your emergency contacts have been notified with your last known location. Tap I\'M SAFE now to send the all-clear.')}
+              </p>
+            </motion.div>
+          )}
+
+          {/* Server monitoring status */}
+          <div className="flex items-center justify-center">
+            <span
+              className={`inline-flex items-center gap-1.5 text-[10px] font-black tracking-wider uppercase px-3 py-1 rounded-full border ${
+                serverSessionId
+                  ? 'bg-emerald-50 dark:bg-emerald-950/40 border-emerald-200 dark:border-emerald-900 text-emerald-700 dark:text-emerald-400'
+                  : 'bg-[#F8F9FD] dark:bg-[#12141C] border-slate-200 dark:border-slate-700 text-[#5A6E78] dark:text-slate-400'
+              }`}
+            >
+              <ShieldCheck className="w-3.5 h-3.5" />
+              {serverSessionId
+                ? (isUrdu ? 'سرور نگرانی فعال' : 'Server-monitored — alerts fire even if app closes')
+                : (isUrdu ? 'مقامی ٹائمر موڈ' : 'Local timer mode')}
+            </span>
           </div>
 
           {/* Session Header & Circular Controls */}

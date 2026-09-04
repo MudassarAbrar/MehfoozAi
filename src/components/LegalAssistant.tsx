@@ -34,11 +34,19 @@ import {
   Lock,
   Globe,
   ExternalLink,
-  ShieldAlert
+  ShieldAlert,
+  Clock,
+  Plus,
+  MessageSquare
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { AppLanguage, LegalQueryResponse, LegalSourceCitation, PunjabDistrict, VaultRecord, UserContact } from '../types';
-import { processSafetyOrchestration } from '../utils/orchestrator';
+import { AppLanguage, LegalQueryResponse, LegalSourceCitation, PunjabDistrict, VaultRecord, UserContact, AgentResponse, AgentToolProposal } from '../types';
+import { processSafetyOrchestration, checkImmediateDanger } from '../utils/orchestrator';
+import { sendAgentMessage, loadConversations, loadConversationMessages, ConversationSummary, StoredMessage } from '../utils/agentClient';
+import { loadVaultRecords, persistVaultRecords } from '../utils/dataService';
+import { AgentActionCard } from './AgentActionCard';
+import { AgentStepsPanel } from './AgentStepsPanel';
+import { useChatState, ChatMessage } from '../utils/chatState';
 
 interface LegalAssistantProps {
   language: AppLanguage;
@@ -51,15 +59,8 @@ interface LegalAssistantProps {
   onLogAudit?: (event: string, detail: string, confidence?: number) => void;
 }
 
-interface Message {
-  id: string;
-  sender: 'user' | 'assistant';
-  timestamp: string;
-  text: string;
-  location?: string;
-  photos?: string[];
-  responsePayload?: LegalQueryResponse;
-}
+// Re-export ChatMessage so the rest of this file can use it via the local alias
+type Message = ChatMessage;
 
 const QUICK_PROMPTS = [
   {
@@ -110,6 +111,17 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   onOpenCrisis,
   onLogAudit
 }) => {
+  // ── M.3–M.9: Lift conversation state to App-level context ────────────────
+  const {
+    messages, setMessages,
+    currentConversationId, setCurrentConversationId,
+    conversationList, setConversationList,
+    resetConversation
+  } = useChatState();
+
+  // Track whether we've done the initial load from server (prevents re-loading on remount)
+  const hasInitializedRef = useRef(false);
+
   // Synchronized language state (allows local & global toggling)
   const [currentLang, setCurrentLang] = useState<AppLanguage>(language);
 
@@ -119,16 +131,24 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
   const isUrdu = currentLang === 'ur';
 
-  const [messages, setMessages] = useState<Message[]>([
-    {
-      id: 'welcome-msg',
-      sender: 'assistant',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: isUrdu 
-        ? 'خوش آمدید۔ آپ پنجاب کے قوانین، گھریلو تشدد، ہراسانی اور قانونی حقوق بارے کوئی بھی سوال پوچھ سکتی ہیں۔ آپ کا ڈیٹا مکمل پرائیویٹ ہے۔'
-        : 'Welcome to Mehfooz Legal Navigator. You can describe any situation in your own words (English, Urdu, or Roman Urdu) to understand your legal rights under Punjab law, protection orders, and safe next steps.'
+  // Build the welcome message for the current language
+  const buildWelcomeMessage = (lang: AppLanguage): ChatMessage => ({
+    id: 'welcome-msg',
+    sender: 'assistant',
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    text: lang === 'ur'
+      ? 'خوش آمدید۔ آپ پنجاب کے قوانین، گھریلو تشدد، ہراسانی اور قانونی حقوق بارے کوئی بھی سوال پوچھ سکتی ہیں۔ آپ کا ڈیٹا مکمل پرائیویٹ ہے۔'
+      : 'Welcome to Mehfooz Legal Navigator. You can describe any situation in your own words (English, Urdu, or Roman Urdu) to understand your legal rights under Punjab law, protection orders, and safe next steps.'
+  });
+
+  // Initialize messages with welcome on very first mount (when context is empty)
+  useEffect(() => {
+    if (messages.length === 0) {
+      setMessages([buildWelcomeMessage(currentLang)]);
     }
-  ]);
+    // Only run on the first render where messages are empty
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const [inputText, setInputText] = useState('');
   const [loading, setLoading] = useState(false);
@@ -157,9 +177,74 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
+  // ── M.6–M.8: Voice cleanup on unmount ──────────────────────────────────────
+  useEffect(() => {
+    return () => {
+      // Stop speech recognition if active
+      if (recognitionRef.current) {
+        try { recognitionRef.current.stop(); } catch {}
+        recognitionRef.current = null;
+      }
+      // Stop any active speech synthesis
+      if (typeof window !== 'undefined' && window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+      }
+    };
+  }, []);
+
+  // History panel UI state (local — not persisted across unmounts)
+  const [isHistoryPanelOpen, setIsHistoryPanelOpen] = useState(false);
+
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, attachedPhotos]);
+
+  // Load conversation history on FIRST mount only (not on every remount)
+  useEffect(() => {
+    if (hasInitializedRef.current) return;
+    hasInitializedRef.current = true;
+    let cancelled = false;
+    void loadConversations().then(convs => {
+      if (cancelled) return;
+      setConversationList(prev => prev.length > 0 ? prev : convs);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // Switch to an existing conversation and load its messages
+  const handleSwitchConversation = async (convId: string) => {
+    if (convId === currentConversationId || loading) return;
+    setCurrentConversationId(convId);
+    setIsHistoryPanelOpen(false);
+    setLoading(true);
+    try {
+      const stored = await loadConversationMessages(convId);
+      const mapped: Message[] = stored
+        .filter((m: StoredMessage) => m.role === 'user' || m.role === 'model')
+        .map((m: StoredMessage) => ({
+          id: `hist-${m.id}`,
+          sender: m.role === 'user' ? 'user' as const : 'assistant' as const,
+          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          text: m.content || ''
+        }));
+      if (mapped.length > 0) setMessages(mapped);
+    } catch {
+      // Keep current messages on failure
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Start a fresh conversation — M.4: ONLY explicit user action creates a new chat
+  const handleNewConversation = () => {
+    resetConversation(buildWelcomeMessage(currentLang));
+    setIsHistoryPanelOpen(false);
+  };
+
+  const formatConvDate = (iso: string) => {
+    try { return new Date(iso).toLocaleDateString([], { month: 'short', day: 'numeric' }); }
+    catch { return ''; }
+  };
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -193,7 +278,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
     try {
       const recognition = new SpeechRecognition();
-      recognition.continuous = false;
+      recognition.continuous = true; // #23: Do NOT auto-stop after 6 seconds
       recognition.interimResults = true;
       recognition.lang = isUrdu ? 'ur-PK' : 'en-US';
 
@@ -321,7 +406,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     // Save photos to local encrypted safety vault if attached
     if (photosToAttach.length > 0) {
       try {
-        const existingVault: VaultRecord[] = JSON.parse(localStorage.getItem('mehfooz_vault_records_v1') || '[]');
+        const existingVault = await loadVaultRecords();
         const newRecord: VaultRecord = {
           id: `vault-photo-${Date.now()}`,
           createdAt: new Date().toISOString(),
@@ -337,7 +422,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           photoUrl: photosToAttach[0],
           isLinkedToComplaint: true
         };
-        localStorage.setItem('mehfooz_vault_records_v1', JSON.stringify([newRecord, ...existingVault]));
+        await persistVaultRecords([newRecord, ...existingVault]);
         onLogAudit?.('vault_photo_saved', 'Saved attached evidence photo into encrypted client vault');
       } catch (e) {
         console.error('Failed to save vault photo', e);
@@ -347,11 +432,67 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     onLogAudit?.('orchestrator_query', `Legal query with ${photosToAttach.length} photos: ${query.substring(0, 40)}...`);
 
     try {
-      // Send text query to model (Note: raw images are stored safely in local vault and not transmitted to model for strict user privacy)
       const promptQuery = currentLoc ? `[Location: ${currentLoc}] ${query}` : query;
-      const response = await processSafetyOrchestration(promptQuery, currentLang, userContacts);
-
       const assistantMessageId = `assistant-${Date.now()}`;
+
+      // Try the server-side agent first (function-calling loop)
+      try {
+        const agentResp = await sendAgentMessage(
+          promptQuery,
+          currentLang,
+          currentConversationId || undefined,
+          currentLoc ? {
+            currentLocation: { lat: 0, lng: 0, permissionGranted: true }
+          } : undefined
+        );
+
+        if (agentResp && agentResp.text && agentResp.type !== 'error') {
+          // Update conversation tracking after agent response
+          if (agentResp.conversationId && agentResp.conversationId !== currentConversationId) {
+            setCurrentConversationId(agentResp.conversationId);
+            // Refresh conversation list to include the new conversation
+            void loadConversations().then(convs => setConversationList(convs));
+          }
+
+          setMessages([
+            ...newMessages,
+            {
+              id: assistantMessageId,
+              sender: 'assistant',
+              timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+              text: agentResp.text,
+              agentResponse: agentResp
+            }
+          ]);
+
+          onLogAudit?.('agent_response', `Agent responded (${agentResp.type}) with ${agentResp.citations?.length || 0} citations`);
+
+          if (autoVoiceReadout) {
+            handleSpeak(assistantMessageId, agentResp.text);
+          }
+
+          // Handle UI actions from the agent
+          if (agentResp.uiActions) {
+            for (const uiAction of agentResp.uiActions) {
+              if (uiAction.action === 'open_crisis_modal' && onOpenCrisis) {
+                onOpenCrisis();
+              }
+              if (uiAction.action === 'open_complaint_builder' && onOpenComplaintWithData) {
+                const category = (uiAction.payload?.category as string) || 'domestic_violence';
+                onOpenComplaintWithData(agentResp.text || '', category);
+              }
+            }
+          }
+
+          setLoading(false);
+          return;
+        }
+      } catch (agentErr: any) {
+        console.info('Agent unavailable, using legacy orchestrator:', agentErr?.message);
+      }
+
+      // Fallback: legacy deterministic orchestrator
+      const response = await processSafetyOrchestration(promptQuery, currentLang, userContacts);
       const answerText = isUrdu && response.answerSummaryUrdu ? response.answerSummaryUrdu : response.answerSummary;
 
       setMessages([
@@ -426,8 +567,22 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           </div>
         </div>
 
-        {/* Action Controls: English/Urdu Pill & Voice Mode */}
+        {/* Action Controls: History, English/Urdu Pill & Voice Mode */}
         <div className="flex items-center space-x-2">
+          {/* Conversation History Toggle */}
+          <button
+            onClick={() => setIsHistoryPanelOpen(!isHistoryPanelOpen)}
+            className={`p-1.5 px-2 rounded-xl text-xs font-bold border transition flex items-center space-x-1.5 cursor-pointer ${
+              isHistoryPanelOpen
+                ? 'bg-[#ECF4F4] border-[#BCD4D4] text-[#FC7454]'
+                : 'bg-white border-slate-200 text-[#5A6E78] hover:bg-slate-50'
+            }`}
+            title={isUrdu ? 'چیٹ ہسٹری' : 'Chat History'}
+          >
+            <Clock className={`w-3.5 h-3.5 ${isHistoryPanelOpen ? 'text-[#FC7454]' : ''}`} />
+            <span className="hidden sm:inline">{isUrdu ? 'ہسٹری' : 'History'}</span>
+          </button>
+
           {/* English / Urdu Switcher */}
           <div className="flex items-center bg-slate-100 p-0.5 rounded-xl border border-slate-200">
             <button
@@ -469,6 +624,61 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           </button>
         </div>
       </div>
+
+      {/* Conversation History Panel */}
+      <AnimatePresence>
+        {isHistoryPanelOpen && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="border-b border-slate-200 overflow-hidden"
+          >
+            <div className="py-2.5 space-y-2">
+              <div className="flex items-center justify-between px-1">
+                <span className="text-xs font-bold text-[#5A6E78]">
+                  {isUrdu ? 'پچھلی بات چیت' : 'Previous Conversations'}
+                </span>
+                <button
+                  onClick={handleNewConversation}
+                  className="flex items-center space-x-1 px-2.5 py-1 rounded-lg text-xs font-bold bg-[#1C2C34] text-white hover:bg-[#263842] transition cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isUrdu ? 'نئی بات چیت' : 'New Chat'}</span>
+                </button>
+              </div>
+              {conversationList.length === 0 ? (
+                <p className="text-[11px] text-[#5A6E78] px-1 py-2">
+                  {isUrdu ? 'ابھی کوئی پرانی بات چیت نہیں ہے۔' : 'No previous conversations yet.'}
+                </p>
+              ) : (
+                <div className="space-y-1 max-h-40 overflow-y-auto pr-1">
+                  {conversationList.map(conv => (
+                    <button
+                      key={conv.id}
+                      onClick={() => handleSwitchConversation(conv.id)}
+                      className={`w-full text-left p-2.5 rounded-xl text-xs transition cursor-pointer flex items-center justify-between gap-2 ${
+                        conv.id === currentConversationId
+                          ? 'bg-[#ECF4F4] border border-[#BCD4D4] text-[#1C2C34] font-bold'
+                          : 'bg-slate-50 hover:bg-[#ECF4F4] border border-transparent text-[#1C2C34]'
+                      }`}
+                    >
+                      <div className="flex items-center space-x-2 min-w-0">
+                        <MessageSquare className="w-3.5 h-3.5 text-[#FC7454] flex-shrink-0" />
+                        <span className="truncate font-medium">{conv.title || (isUrdu ? 'بغیر عنوان' : 'Untitled')}</span>
+                      </div>
+                      <div className="flex items-center space-x-1.5 text-[10px] text-[#5A6E78] flex-shrink-0">
+                        <span>{conv.message_count} msgs</span>
+                        <span>{formatConvDate(conv.last_message_at || conv.created_at)}</span>
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* 2. Messages Scroll Area */}
       <div className="flex-1 overflow-y-auto py-3.5 space-y-4 pr-1">
@@ -520,6 +730,79 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               <p className={`text-sm sm:text-base leading-relaxed whitespace-pre-wrap ${isUrdu ? 'font-urdu' : 'font-medium'}`}>
                 {msg.text}
               </p>
+
+              {/* Agent Steps Panel (when agent response has steps) */}
+              {msg.agentResponse?.steps && msg.agentResponse.steps.length > 0 && (
+                <AgentStepsPanel steps={msg.agentResponse.steps} isUrdu={isUrdu} />
+              )}
+
+              {/* Agent Action Cards (pending confirmations) */}
+              {msg.agentResponse?.pendingActions && msg.agentResponse.pendingActions.length > 0 && (
+                <div className="mt-3 space-y-2">
+                  {msg.agentResponse.pendingActions.map((action) => (
+                    <AgentActionCard
+                      key={action.id}
+                      action={action}
+                      isUrdu={isUrdu}
+                      onConfirmed={(result) => {
+                        onLogAudit?.('agent_action_confirmed', `Confirmed: ${action.toolName}`);
+                        // If the action has a UI action (e.g. vault save), handle it
+                        if (result?.uiActions) {
+                          for (const ua of result.uiActions) {
+                            if (ua.action === 'save_incident_to_vault') {
+                              onOpenVaultWithDraft?.(
+                                (ua.payload?.title as string) || 'Incident Record',
+                                (ua.payload?.message as string) || ''
+                              );
+                            }
+                          }
+                        }
+                      }}
+                      onCancelled={() => {
+                        onLogAudit?.('agent_action_cancelled', `Cancelled: ${action.toolName}`);
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
+              {/* Agent Citations */}
+              {msg.agentResponse?.citations && msg.agentResponse.citations.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-slate-100">
+                  <button
+                    onClick={() => setExpandedCitation(expandedCitation === msg.id ? null : msg.id)}
+                    className="flex items-center space-x-1.5 text-xs font-bold text-[#5A6E78] hover:text-[#1C2C34] transition-colors py-1 group cursor-pointer"
+                  >
+                    <BookOpen className="w-3.5 h-3.5 text-[#FC7454]" />
+                    <span>{isUrdu ? `حوالہ جات (${msg.agentResponse.citations.length}) ▾` : `References (${msg.agentResponse.citations.length}) ▾`}</span>
+                    {expandedCitation === msg.id ? (
+                      <ChevronUp className="w-3.5 h-3.5 text-[#5A6E78]" />
+                    ) : (
+                      <ChevronDown className="w-3.5 h-3.5 text-[#5A6E78]" />
+                    )}
+                  </button>
+                  <AnimatePresence>
+                    {expandedCitation === msg.id && (
+                      <motion.div
+                        initial={{ opacity: 0, height: 0 }}
+                        animate={{ opacity: 1, height: 'auto' }}
+                        exit={{ opacity: 0, height: 0 }}
+                        className="mt-2 space-y-1.5 pl-5 border-l-2 border-[#BCD4D4] overflow-hidden"
+                      >
+                        {msg.agentResponse.citations.map((citation, cIdx) => (
+                          <div key={cIdx} className="py-1">
+                            <div className="text-xs font-bold text-[#1C2C34]">
+                              {citation.statute && <span>{citation.statute}: </span>}
+                              {citation.title}
+                            </div>
+                            <p className="text-[11px] text-[#5A6E78] mt-0.5">{citation.summary}</p>
+                          </div>
+                        ))}
+                      </motion.div>
+                    )}
+                  </AnimatePresence>
+                </div>
+              )}
 
               {/* Assistant Grounded Payload */}
               {msg.responsePayload && (
@@ -603,8 +886,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                         {msg.responsePayload.actionConfirmation.actionType === 'send_complaint' && (
                           <button
                             onClick={() => {
-                              const summary = msg.responsePayload?.answerSummary || 'Complaint Summary';
-                              onOpenComplaintWithData?.(summary, 'domestic_violence');
+                              // #31: Aggregate user messages for complaint
+                              const allUserMsgs = messages
+                                .filter(m => m.sender === 'user' && m.text && !m.text.startsWith('['))
+                                .map(m => m.text);
+                              const aggregated = allUserMsgs.join('\n\n');
+                              const summary = aggregated || msg.responsePayload?.answerSummary || 'Complaint Summary';
+                              const category = (msg.responsePayload?.legalConcepts?.[0]) || 'domestic_violence';
+                              onOpenComplaintWithData?.(summary, category);
                               onLogAudit?.('chat_action_executed', `Routed to complaint builder for ${msg.responsePayload?.actionConfirmation?.targetName}`);
                             }}
                             className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold flex items-center space-x-1.5 shadow-xs transition cursor-pointer"
@@ -699,7 +988,12 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
                     <button
                       onClick={() => {
-                        const summary = msg.responsePayload?.answerSummary || msg.text;
+                        // #31: Aggregate ALL user messages from current conversation
+                        const allUserMessages = messages
+                          .filter(m => m.sender === 'user' && m.text && !m.text.startsWith('['))
+                          .map(m => m.text);
+                        const aggregated = allUserMessages.join('\n\n');
+                        const summary = aggregated || msg.responsePayload?.answerSummary || msg.text;
                         const cat = msg.responsePayload?.legalConcepts?.[0] || 'domestic_violence';
                         const photos = msg.photos || [];
                         onOpenComplaintWithData?.(summary, cat, photos);
@@ -779,16 +1073,20 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             </div>
           ))}
 
-          {/* Active Voice Recording Indicator */}
+          {/* Active Voice Recording Indicator (#24: Stop Recording button) */}
           {isVoiceRecording && (
-            <div className="flex items-center space-x-2 px-3 py-1.5 rounded-xl bg-[#ECF4F4] border border-[#BCD4D4] text-xs font-bold text-[#FC7454] animate-pulse">
-              <Mic className="w-3.5 h-3.5" />
-              <span>{isUrdu ? 'بولیں، آواز ریکارڈ ہو رہی ہے...' : 'Listening... (Speak your question)'}</span>
+            <div className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#ECF4F4] border border-[#FC7454]/40 text-xs font-bold text-[#FC7454]">
+              <Mic className="w-3.5 h-3.5 animate-pulse" />
+              <span className="flex-1">{isUrdu ? 'ریکارڈنگ جاری... بولیں' : 'Recording... Speak freely'}</span>
+              {speechTranscript && (
+                <span className="text-[10px] text-[#5A6E78] max-w-[120px] truncate hidden sm:inline">{speechTranscript}</span>
+              )}
               <button
                 onClick={handleToggleVoiceRecording}
-                className="ml-2 text-xs underline font-bold cursor-pointer"
+                className="ml-2 px-3 py-1 rounded-lg bg-[#FC7454] text-white text-xs font-black hover:bg-[#FC7C54] transition cursor-pointer flex items-center gap-1"
               >
-                {isUrdu ? 'مکمل' : 'Done'}
+                <MicOff className="w-3 h-3" />
+                <span>{isUrdu ? 'روکیں' : 'Stop'}</span>
               </button>
             </div>
           )}

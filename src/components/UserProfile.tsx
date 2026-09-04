@@ -141,9 +141,8 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
 
     updateStoredProfile(updated);
     onUpdateProfile(updated);
-    
-    // Also update custom PIN in localStorage for Weather cover
-    localStorage.setItem('mehfooz_custom_pin', updated.stealthPin);
+    // NOTE: the stealth PIN is no longer stored in plaintext localStorage —
+    // updateStoredProfile persists only a salted hash (see utils/auth.ts).
 
     setSavedSuccess(true);
     setTimeout(() => setSavedSuccess(false), 3000);
