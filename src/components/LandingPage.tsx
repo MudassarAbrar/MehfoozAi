@@ -82,10 +82,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
   // Statistics
   const STATS = [
-    { label: 'Punjab Emergency Dispatch', value: '< 30s', sub: 'Integrated with 15 PSCA' },
-    { label: 'Verified Safe Corridors', value: '1,420+', sub: 'Lahore, Rawalpindi, Multan' },
-    { label: 'PPWVA Statutory Accuracy', value: '100%', sub: 'Zero-hallucination legal citations' },
-    { label: 'Zero-Signal Offline Cache', value: '100% Ready', sub: 'No internet required for SOS & Helplines' },
+    { label: 'Emergency SOS Response', value: '1-Tap', sub: 'Instant dispatch to Police 15 & trusted contacts' },
+    { label: 'Safe Routes Mapped', value: '1,420+', sub: 'Well-lit corridors across Lahore, Rawalpindi, Multan' },
+    { label: 'Legal Citations', value: '34 Acts', sub: 'Real Punjab protection laws — zero guesswork' },
+    { label: 'Works Without Internet', value: '100%', sub: 'SOS, helplines & legal rights cached on your device' },
   ];
 
   const CORE_PILLARS = [
@@ -93,10 +93,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       icon: CloudSun,
       title: 'Stealth Weather Cover',
       titleUrdu: 'خفیہ موسم کی اسکرین',
-      tag: 'DISCREET SECURITY',
+      tag: 'PRIVATE & DISCREET',
       color: 'from-amber-500/20 to-orange-500/10 border-amber-500/30 text-amber-600 dark:text-amber-400',
       description:
-        'Looks and operates as an authentic Tuscany meteorological weather station. Double-tapping the temperature tile opens your safety ecosystem discreetly.',
+        'Opens as a weather app — no one suspects it\'s your personal safety shield. Enter your PIN to instantly reveal the full protection toolkit hidden underneath.',
       tab: 'home' as ActiveTab,
       isWeather: true
     },
@@ -104,60 +104,60 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       icon: Navigation,
       title: 'Safe Corridor Navigation',
       titleUrdu: 'محفوظ راستے اور سروے',
-      tag: 'PSCA & LIGHTING HEATMAPS',
+      tag: 'WALK SAFELY, DAY & NIGHT',
       color: 'from-[#BCD4D4]/30 to-[#C4DCDC]/20 border-[#BCD4D4] text-[#1C2C34] dark:text-[#BCD4D4]',
       description:
-        'Routes pedestrians through verified well-lit avenues, active commercial zones, safe haven verified shops, and PSCA Safe City camera coverage.',
+        'Walking home after dark? Mehfooz finds the safest route — through well-lit streets, busy areas, and camera-covered zones — so you never have to take the risky shortcut.',
       tab: 'navigate' as ActiveTab
     },
     {
       icon: WifiOff,
       title: 'Zero-Signal Offline Mode',
       titleUrdu: 'بغیر انٹرنیٹ ہنگامی رسائی',
-      tag: '100% OFFLINE RESILIENT',
+      tag: 'NO INTERNET? NO PROBLEM.',
       color: 'from-emerald-500/20 to-teal-500/10 border-emerald-500/30 text-emerald-600 dark:text-emerald-400',
       description:
-        'Zero cellular data required. Built-in cached Punjab directory (15, 1043, 1122), offline statutory legal articles, safe haven locations, and SMS SOS dispatch.',
+        'Data packs run out. Signals drop. Mehfooz keeps working — emergency numbers, legal rights, SOS SMS, and safe haven locations are all stored on your phone, not the cloud.',
       tab: 'home' as ActiveTab
     },
     {
       icon: Scale,
       title: 'Punjab AI Legal Advisor',
       titleUrdu: 'پنجاب قانونی معاون',
-      tag: 'RAG STATUTORY ENGINE',
+      tag: 'KNOW YOUR RIGHTS',
       color: 'from-[#FC7454]/20 to-[#FC7C54]/10 border-[#FC7454]/30 text-[#FC7454] dark:text-[#FC7C54]',
       description:
-        'Grounding on PPWVA 2016, PECA Cyber Laws, and PCSW protections. Synthesizes legal advice and builds police complaint drafts with formal legal citations.',
+        'Facing harassment, domestic violence, or cyber bullying? Ask in plain English or Urdu — get real legal answers citing actual Punjab laws, plus ready-to-file police complaint drafts.',
       tab: 'assistant' as ActiveTab
     },
     {
       icon: Lock,
       title: 'Zero-Knowledge Incident Vault',
       titleUrdu: 'خفیہ انکرپٹڈ والٹ',
-      tag: 'AES-256 CLIENT ENCRYPTION',
+      tag: 'YOUR EVIDENCE, YOUR CONTROL',
       color: 'from-[#A4C4C4]/20 to-[#BCD4D4]/10 border-[#A4C4C4]/30 text-[#1C2C34] dark:text-[#A4C4C4]',
       description:
-        'Capture voice memos, harassment timelines, and photographic evidence. Encrypted locally with your custom stealth PIN before any network sync.',
+        'Record voice notes, save photos, and log harassment timelines — all encrypted on your phone with a secret PIN. No one can access your evidence, not even if they take your phone.',
       tab: 'vault' as ActiveTab
     },
     {
       icon: Clock,
       title: 'Silent Destination Check-In',
       titleUrdu: 'خودکار منزل کا چیک ان',
-      tag: 'FAILSAFE GUARDIAN TIMERS',
+      tag: 'SOMEONE ALWAYS KNOWS',
       color: 'from-[#C4DCDC]/30 to-[#ECF4F4]/50 border-[#C4DCDC] text-[#1C2C34] dark:text-[#C4DCDC]',
       description:
-        'Set an expected journey time. If you do not check in at your destination, an automated discreet alert with live coordinates is dispatched to chosen guardians.',
+        'Tell Mehfooz when you should arrive. If you don\'t check in, your trusted contacts automatically get your live location — so someone is always watching over your journey.',
       tab: 'checkin' as ActiveTab
     },
     {
       icon: PhoneCall,
       title: 'Crisis SOS & Police 15 Dispatch',
       titleUrdu: 'ایمرجنسی ایس او ایس',
-      tag: 'IMMEDIATE RESPONSE',
+      tag: 'ONE TAP. INSTANT HELP.',
       color: 'from-rose-500/20 to-red-500/10 border-rose-500/30 text-rose-600 dark:text-rose-400',
       description:
-        'Direct connection to Punjab Police 15, PCSW Helpline 1043, and 1122 Rescue with live coordinate broadcasting and silent emergency recording.',
+        'In danger? One tap calls Punjab Police 15, PCSW 1043, or Rescue 1122 while silently sharing your live location and recording audio evidence for later.',
       tab: 'home' as ActiveTab
     }
   ];
@@ -413,14 +413,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="inline-flex items-center space-x-2 px-3.5 py-1.5 rounded-full bg-[#ECF4F4] dark:bg-[#18242A] border border-[#BCD4D4] dark:border-[#263842] shadow-xs">
             <Layers className="w-4 h-4 text-[#1C2C34] dark:text-[#BCD4D4]" />
             <span className="text-xs font-bold text-[#1C2C34] dark:text-white uppercase tracking-wider">
-              Comprehensive Protection Layers
+              Built for Real Threats Women Face Daily
             </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white">
             Designed for Punjab's Ground Realities
           </h2>
           <p className="text-base sm:text-lg text-[#5A6E78] dark:text-slate-300">
-            Engineered specifically to solve real-world safety barriers: public harassment, delayed reporting, legal ambiguity, and digital privacy risks.
+            Street harassment, delayed police response, confusing legal rights, and privacy risks — Mehfooz tackles all of them in one app that looks like a weather widget.
           </p>
         </div>
 
@@ -656,16 +656,16 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               Test Mehfooz Capabilities Right Here
             </h2>
             <p className="text-sm sm:text-base text-slate-400">
-              Select a module below to test real simulated responses from our safety engine.
+              Pick any scenario below to see how Mehfooz protects you in real situations.
             </p>
 
             {/* Mode Switcher Tabs */}
             <div className="flex flex-wrap justify-center gap-2 pt-4">
               {[
-                { id: 'routing', label: 'Safe Corridor Algorithm' },
-                { id: 'legal', label: 'Punjab Legal RAG' },
-                { id: 'vault', label: 'Client-Side Hashing' },
-                { id: 'sos', label: 'Police 15 Dispatch' },
+                { id: 'routing', label: 'Find Safest Route' },
+                { id: 'legal', label: 'Ask Legal AI' },
+                { id: 'vault', label: 'Secure Evidence' },
+                { id: 'sos', label: 'Emergency SOS' },
               ].map((m) => (
                 <button
                   key={m.id}
@@ -689,10 +689,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                   <div>
                     <h4 className="text-base font-bold text-white">
-                      Safe Route Calculation: Mall Road → MM Alam Road
+                      Walking from Mall Road → MM Alam Road at 9 PM
                     </h4>
                     <p className="text-xs text-slate-400">
-                      Evaluating 3 routes based on street light sensor logs, CCTV coverage, and pedestrian activity.
+                      Mehfooz compares 3 routes — checking street lights, CCTV cameras, and how busy each area is at this hour.
                     </p>
                   </div>
                   <div className="flex bg-slate-900 p-1 rounded-xl">
@@ -754,8 +754,8 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             {simulatorMode === 'legal' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
-                  <h4 className="text-base font-bold text-white">Punjab Legal RAG Statutory Query</h4>
-                  <span className="text-xs text-[#BCD4D4] font-semibold">PPWVA 2016 & PECA Grounded</span>
+                  <h4 className="text-base font-bold text-white">Ask About Your Legal Rights</h4>
+                  <span className="text-xs text-[#BCD4D4] font-semibold">Real Punjab Laws — Not Guesswork</span>
                 </div>
                 <div className="p-4 rounded-2xl bg-slate-900 border border-slate-700 space-y-3">
                   <p className="text-xs text-slate-400">Try common queries:</p>
@@ -807,9 +807,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <div className="w-12 h-12 rounded-2xl bg-[#FC7454]/20 text-[#FC7454] mx-auto flex items-center justify-center">
                   <Lock className="w-6 h-6" />
                 </div>
-                <h4 className="text-base font-bold text-white">Client-Side Zero-Knowledge Encryption</h4>
+                <h4 className="text-base font-bold text-white">Your Evidence Is Locked With Your PIN</h4>
                 <p className="text-xs text-slate-400 max-w-xl mx-auto">
-                  Every voice memo, photograph, and timeline record is encrypted locally with your custom 4-digit PIN before storage. No plain-text data ever leaves your device.
+                  Voice memos, photos, and incident logs are encrypted right on your phone. Even if someone steals your device, they cannot access a single file without your secret code.
                 </p>
                 <div className="p-3 rounded-xl bg-slate-950 max-w-md mx-auto font-mono text-[11px] text-[#BCD4D4] border border-[#263842]">
                   AES-GCM-256: 8f9b2a1c0d4e... [KEY DERIVED FROM STEALTH PIN]
@@ -829,9 +829,9 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 <div className="w-12 h-12 rounded-2xl bg-rose-500/20 text-rose-400 mx-auto flex items-center justify-center">
                   <Radio className="w-6 h-6 animate-pulse" />
                 </div>
-                <h4 className="text-base font-bold text-white">Punjab Emergency Dispatch Simulation</h4>
+                <h4 className="text-base font-bold text-white">Emergency SOS — One Tap Changes Everything</h4>
                 <p className="text-xs text-slate-400 max-w-xl mx-auto">
-                  One-tap crisis dispatch transmits real-time coordinates to <strong>Punjab Police 15</strong> and automated emergency SMS to your designated trusted circle.
+                  Tap the SOS button and Mehfooz instantly shares your live location with <strong>Punjab Police 15</strong> and sends an emergency SMS to your trusted contacts.
                 </p>
                 <div className="flex justify-center gap-3 pt-2">
                   <button
