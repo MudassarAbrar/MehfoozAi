@@ -39,6 +39,7 @@ import {
 import { MehfoozLogo } from './common/MehfoozLogo';
 import { AbstractSafetyShieldArt } from './landing/AbstractArt';
 import { PhoneMockupShowcase } from './landing/PhoneMockupShowcase';
+import { SocialLinksRow, AdminContactBox } from './common/OfficialLinks';
 import { AppLanguage, ActiveTab } from '../types';
 
 interface LandingPageProps {
@@ -73,25 +74,11 @@ export const LandingPage: React.FC<LandingPageProps> = ({
     restDelta: 0.001,
   });
 
-  // Top progress bar scale & scroll percentage
-  const scrollLineHeight = useTransform(smoothProgress, [0, 1], ['0%', '100%']);
-
   // Interactive Live Simulator State
   const [simulatorMode, setSimulatorMode] = useState<'routing' | 'legal' | 'vault' | 'sos'>('routing');
   const [simQuery, setSimQuery] = useState<string>('What is Section 4 PPWVA protection order?');
   const [simRouteType, setSimRouteType] = useState<'safest' | 'fastest'>('safest');
   const [simSosArmed, setSimSosArmed] = useState<boolean>(false);
-
-  // Key Milestones along the scroll journey
-  const SCROLL_WAYPOINTS = [
-    { id: 'hero', label: 'Origin', title: 'Mehfooz Mission' },
-    { id: 'interactive-suite', label: 'Experience', title: 'Visual Suite' },
-    { id: 'features', label: 'Security', title: 'Safety Layers' },
-    { id: 'offline-mode', label: 'Offline', title: 'Zero-Signal Mode' },
-    { id: 'simulator', label: 'Engine', title: 'Live Testing' },
-    { id: 'safety-network', label: 'Crisis', title: 'Punjab Helplines' },
-    { id: 'launch', label: 'Access', title: 'Start Protection' },
-  ];
 
   // Statistics
   const STATS = [
@@ -189,7 +176,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       />
 
       {/* ========================================================================= */}
-      {/* 1. STICKY TOP NAVIGATION BAR                                              */}
+      {/* 1. STICKY TOP NAVIGATION BAR (Clean, Spacious & Decluttered)              */}
       {/* ========================================================================= */}
       <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-[#131E24]/95 border-b border-slate-200/80 dark:border-slate-800/80 px-4 sm:px-8 py-3 transition-colors shadow-xs">
         <div className="max-w-7xl mx-auto flex items-center justify-between">
@@ -198,32 +185,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             <MehfoozLogo variant="horizontal" size="md" showUrdu={true} />
           </div>
 
-          {/* Center Navigation Links (Desktop) */}
-          <nav className="hidden md:flex items-center space-x-6 text-xs font-bold text-[#5A6E78] dark:text-slate-300">
-            <a href="#interactive-suite" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
-              Interface Suite
-            </a>
-            <a href="#features" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
-              Security Pillars
-            </a>
-            <a href="#offline-mode" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors flex items-center space-x-1 text-emerald-700 dark:text-emerald-400">
-              <WifiOff className="w-3.5 h-3.5" />
-              <span>Offline Ready</span>
-            </a>
-            <a href="#simulator" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
-              Live Simulator
-            </a>
-            <a href="#safety-network" className="hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-colors">
-              Punjab Helplines
-            </a>
-          </nav>
-
-          {/* Right Controls */}
+          {/* Right Controls: Streamlined, Spacious & Purposeful */}
           <div className="flex items-center space-x-2 sm:space-x-3">
+            {/* Stealth Weather Cover Button */}
+            <button
+              onClick={onOpenWeather}
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-sky-50 dark:hover:bg-sky-950/60 border border-slate-200 dark:border-slate-700 text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-semibold transition cursor-pointer"
+              title="Stealth Weather Station"
+            >
+              <CloudSun className="w-4 h-4 text-amber-500" />
+              <span className="hidden sm:inline">{isUrdu ? 'موسم' : 'Weather'}</span>
+            </button>
+
             {/* Language Switcher */}
             <button
               onClick={() => onLanguageChange(isUrdu ? 'en' : 'ur')}
-              className="px-2.5 py-1.5 rounded-xl bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] text-xs font-bold text-[#1C2C34] dark:text-[#F4F4FC] border border-[#BCD4D4] dark:border-[#263842] transition flex items-center space-x-1 cursor-pointer"
+              className="px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-xs font-bold text-[#1C2C34] dark:text-[#F4F4FC] border border-slate-200 dark:border-slate-700 transition flex items-center space-x-1 cursor-pointer"
+              title={isUrdu ? 'Switch to English' : 'اردو میں تبدیل کریں'}
             >
               <Globe className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
               <span>{isUrdu ? 'English' : 'اردو'}</span>
@@ -238,21 +216,12 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               {themeMode === 'light' ? <Moon className="w-4 h-4 text-[#1C2C34]" /> : <Sun className="w-4 h-4 text-amber-400" />}
             </button>
 
-            {/* Stealth Weather Cover Button */}
-            <button
-              onClick={onOpenWeather}
-              className="hidden sm:flex items-center space-x-1.5 px-3.5 py-2 rounded-xl bg-sky-50 dark:bg-sky-950/60 hover:bg-sky-100 dark:hover:bg-sky-900/80 border border-sky-200 dark:border-sky-800 text-sky-700 dark:text-sky-300 text-xs font-bold transition shadow-xs cursor-pointer"
-            >
-              <CloudSun className="w-4 h-4 text-sky-500" />
-              <span>Weather Cover</span>
-            </button>
-
             {/* Main Launch App CTA */}
             <button
               onClick={() => onLaunchApp('home')}
               className="px-4 sm:px-5 py-2 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FC7454]/20 hover:shadow-lg transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer"
             >
-              <span>Launch Mehfooz</span>
+              <span>{isUrdu ? 'ایپ کھولیں' : 'Launch Mehfooz'}</span>
               <ArrowRight className="w-4 h-4" />
             </button>
           </div>
@@ -260,52 +229,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </header>
 
       {/* ========================================================================= */}
-      {/* 2. PERSISTENT SCROLL-FOLLOWING LIFELINE TRACK (Left / Spine Indicator)    */}
-      {/* ========================================================================= */}
-      {/* On Desktop: Left-fixed aesthetic timeline with the active glowing bead    */}
-      <div className="hidden xl:block fixed left-8 top-32 bottom-20 z-30 pointer-events-none select-none">
-        <div className="relative h-full flex flex-col items-center">
-          {/* Background Track */}
-          <div className="w-[3px] h-full bg-slate-200/80 dark:bg-slate-800/80 rounded-full" />
-
-          {/* Active Animated Progress Line */}
-          <motion.div
-            className="absolute top-0 w-[3px] bg-gradient-to-b from-[#FC7454] via-[#FC7C54] to-[#BCD4D4] rounded-full shadow-[0_0_12px_rgba(252,116,84,0.6)]"
-            style={{ height: scrollLineHeight }}
-          />
-
-          {/* Glowing Tracker Bead that follows scroll */}
-          <motion.div
-            className="absolute -left-[6.5px] w-4 h-4 rounded-full bg-white dark:bg-[#18242A] border-2 border-[#FC7454] dark:border-[#FC7C54] shadow-[0_0_14px_#FC7454] flex items-center justify-center pointer-events-auto"
-            style={{
-              top: scrollLineHeight,
-              transform: 'translateY(-50%)',
-            }}
-          >
-            <div className="w-1.5 h-1.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54] animate-ping" />
-          </motion.div>
-
-          {/* Waypoint markers */}
-          <div className="absolute inset-0 flex flex-col justify-between py-4 pointer-events-auto">
-            {SCROLL_WAYPOINTS.map((wp, idx) => (
-              <a
-                key={wp.id}
-                href={`#${wp.id}`}
-                className="group flex items-center space-x-3 -ml-2 text-left transition-transform hover:scale-105"
-                title={wp.title}
-              >
-                <div className="w-3.5 h-3.5 rounded-full bg-white dark:bg-[#18242A] border-2 border-slate-300 dark:border-slate-700 group-hover:border-[#FC7454] group-hover:bg-[#ECF4F4] dark:group-hover:bg-[#263842] transition shadow-xs" />
-                <span className="opacity-0 group-hover:opacity-100 transition-opacity bg-white/95 dark:bg-[#18242A]/95 backdrop-blur-md px-2.5 py-1 rounded-lg border border-[#BCD4D4]/60 dark:border-slate-800 text-[10px] font-bold text-[#1C2C34] dark:text-white shadow-xs whitespace-nowrap">
-                  {wp.label} • {wp.title}
-                </span>
-              </a>
-            ))}
-          </div>
-        </div>
-      </div>
-
-      {/* ========================================================================= */}
-      {/* 3. HERO SECTION WITH ANIMATED LINE ART LOGO & SCROLL CONNECTOR            */}
+      {/* 2. HERO SECTION WITH ANIMATED LINE ART LOGO & QUICK EXPLORATION BAR       */}
       {/* ========================================================================= */}
       <section id="hero" className="relative pt-8 pb-20 sm:pt-16 sm:pb-28 overflow-hidden">
         {/* Abstract Background Layer in Soft Palette */}
@@ -393,22 +317,74 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               ))}
             </motion.div>
 
-            {/* Scroll Down Visual Pulse Anchor */}
+            {/* Relocated Section Directory & Quick-Jump Navigation (Adjusted from the header) */}
             <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 1.5 }}
-              className="pt-10 flex flex-col items-center space-y-2 text-[#FC7454] dark:text-[#FC7C54]"
+              initial={{ opacity: 0, y: 15 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 1.4 }}
+              className="pt-8 pb-2"
             >
-              <span className="text-[11px] font-extrabold uppercase tracking-widest text-[#5A6E78] dark:text-slate-400">
-                Scroll to Explore Lifeline
-              </span>
-              <div className="w-5 h-9 rounded-full border-2 border-[#FC7454] dark:border-[#FC7C54] flex items-start justify-center p-1">
-                <motion.div
-                  animate={{ y: [0, 14, 0] }}
-                  transition={{ duration: 1.6, repeat: Infinity, ease: 'easeInOut' }}
-                  className="w-1.5 h-1.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54]"
-                />
+              <div className="inline-flex flex-wrap items-center justify-center gap-2 p-1.5 rounded-2xl bg-white/80 dark:bg-[#18242A]/80 backdrop-blur-md border border-slate-200/80 dark:border-slate-800 shadow-xs">
+                <a
+                  href="#interactive-suite"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
+                >
+                  <Layers className="w-3.5 h-3.5 text-[#FC7454] group-hover:scale-110 transition-transform" />
+                  <span>{isUrdu ? 'انٹرفیس سویٹ' : 'Interface Suite'}</span>
+                </a>
+                <a
+                  href="#features"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
+                >
+                  <ShieldCheck className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4] group-hover:scale-110 transition-transform" />
+                  <span>{isUrdu ? 'حفاظتی ستون' : 'Security Pillars'}</span>
+                </a>
+                <a
+                  href="#offline-mode"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-emerald-700 dark:text-emerald-400 bg-emerald-50/80 dark:bg-emerald-950/40 hover:bg-emerald-100 dark:hover:bg-emerald-900/60 transition-all group"
+                >
+                  <WifiOff className="w-3.5 h-3.5 text-emerald-600 group-hover:scale-110 transition-transform" />
+                  <span>{isUrdu ? 'آف لائن موڈ' : 'Offline Ready'}</span>
+                </a>
+                <a
+                  href="#simulator"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
+                >
+                  <Compass className="w-3.5 h-3.5 text-amber-500 group-hover:scale-110 transition-transform" />
+                  <span>{isUrdu ? 'لائیو سمیلیٹر' : 'Live Simulator'}</span>
+                </a>
+                <a
+                  href="#safety-network"
+                  className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
+                >
+                  <PhoneCall className="w-3.5 h-3.5 text-[#FC7454] group-hover:scale-110 transition-transform" />
+                  <span>{isUrdu ? 'پنجاب ہیلپ لائنز' : 'Punjab Helplines'}</span>
+                </a>
+              </div>
+            </motion.div>
+
+            {/* Live Security Verification Indicator (Animated Modern Radar Badge) */}
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: 1.5 }}
+              className="pt-4 flex flex-col items-center justify-center"
+            >
+              <div className="flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-slate-100/90 dark:bg-[#18242A]/90 border border-slate-200 dark:border-slate-800 text-[11px] font-medium text-[#5A6E78] dark:text-slate-300 shadow-2xs">
+                <span className="relative flex h-2 w-2">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500"></span>
+                </span>
+                <span>
+                  {isUrdu 
+                    ? 'پنجاب سیف سٹیز اور پی پی ڈبلیو وی اے 2016 فعال نیٹ ورک' 
+                    : 'Punjab Safe Cities Authority & PPWVA Active Grid'
+                  }
+                </span>
+                <span className="text-slate-300 dark:text-slate-700">•</span>
+                <span className="text-emerald-600 dark:text-emerald-400 font-bold">
+                  {isUrdu ? '100% زیرو نالج انکرپٹڈ' : 'Zero-Knowledge Encrypted'}
+                </span>
               </div>
             </motion.div>
 
@@ -964,10 +940,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
       </section>
 
       {/* ========================================================================= */}
-      {/* 8. FOOTER CALL TO ACTION                                                  */}
+      {/* 8. FOOTER CALL TO ACTION & OFFICIAL LINKS                                 */}
       {/* ========================================================================= */}
       <footer id="launch" className="border-t border-[#BCD4D4]/60 dark:border-slate-800 bg-white dark:bg-[#131E24] py-12 px-4 sm:px-8">
-        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-6">
+        <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-start md:items-center justify-between gap-6">
           <div className="flex flex-col items-center md:items-start space-y-2">
             <MehfoozLogo variant="horizontal" size="md" showUrdu={true} />
             <p className="text-xs text-[#5A6E78] dark:text-slate-400 max-w-sm text-center md:text-left">
@@ -991,6 +967,23 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               <span>Launch Mehfooz App</span>
               <ArrowRight className="w-4 h-4" />
             </button>
+          </div>
+        </div>
+
+        {/* Official Channels & Help Desk Support Section */}
+        <div className="max-w-7xl mx-auto mt-8 pt-8 border-t border-slate-100 dark:border-slate-800 grid grid-cols-1 md:grid-cols-2 gap-6 items-center">
+          <div>
+            <div className="text-xs font-bold text-[#1C2C34] dark:text-slate-200 mb-2">
+              Help Desk Support & Official Contact:
+            </div>
+            <AdminContactBox compact={false} />
+          </div>
+
+          <div className="flex flex-col md:items-end justify-center">
+            <div className="text-xs font-bold text-[#1C2C34] dark:text-slate-200 mb-2">
+              Follow & Connect on Official Socials:
+            </div>
+            <SocialLinksRow size="md" showLabels={true} />
           </div>
         </div>
 

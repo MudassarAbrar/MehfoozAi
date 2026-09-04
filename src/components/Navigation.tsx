@@ -23,11 +23,22 @@ import {
   CloudSun,
   ShieldCheck,
   ChevronDown,
-  BookOpen
+  BookOpen,
+  SlidersHorizontal,
+  X,
+  ExternalLink,
+  Mail,
+  Copy,
+  Check,
+  Twitter,
+  Linkedin,
+  Instagram,
+  Sparkles
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLogo } from './common/AppLogo';
 import { PWAInstallButton } from './common/PWAInstallButton';
+import { SocialLinksRow, AdminContactBox, OFFICIAL_LINKS } from './common/OfficialLinks';
 import { ActiveTab, AppLanguage, UserProfile } from '../types';
 
 interface NavigationProps {
@@ -69,6 +80,7 @@ export const Navigation: React.FC<NavigationProps> = ({
 }) => {
   const isUrdu = language === 'ur';
   const [isMoreMenuOpen, setIsMoreMenuOpen] = useState<boolean>(false);
+  const [isSupportModalOpen, setIsSupportModalOpen] = useState<boolean>(false);
 
   interface NavItem {
     id: ActiveTab;
@@ -106,165 +118,223 @@ export const Navigation: React.FC<NavigationProps> = ({
 
   return (
     <>
-      {/* 1. TOP HEADER / BRAND & SAFETY BAR */}
-      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-[#12141C]/95 border-b border-slate-200/80 dark:border-slate-800/80 px-2 sm:px-4 py-2 shadow-xs transition-colors w-full overflow-x-clip">
-        <div className="max-w-5xl mx-auto flex items-center justify-between gap-1.5 sm:gap-2">
-          {/* Brand & Weather Cover Stealth Exit */}
-          <div className="flex items-center space-x-1.5 sm:space-x-2.5 min-w-0 flex-shrink-0">
+      {/* 1. TOP HEADER / BRAND & SAFETY BAR (Streamlined & Decluttered) */}
+      <header className="sticky top-0 z-40 backdrop-blur-md bg-white/95 dark:bg-[#12141C]/95 border-b border-slate-200/80 dark:border-slate-800/80 px-3 sm:px-6 py-2.5 shadow-xs transition-colors w-full overflow-x-clip">
+        <div className="max-w-5xl mx-auto flex items-center justify-between gap-2">
+          {/* Brand & Stealth Weather Disguise */}
+          <div className="flex items-center space-x-2 sm:space-x-3 min-w-0 flex-shrink-0">
+            {/* Quick Exit Weather Disguise (Vital Safety Requirement) */}
             <button
               id="nav-quick-exit-btn"
               onClick={onQuickExit}
-              className="flex items-center space-x-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-semibold transition group shadow-2xs flex-shrink-0 cursor-pointer"
+              className="flex items-center space-x-1.5 px-2.5 py-1.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-semibold transition group shadow-2xs flex-shrink-0 cursor-pointer"
               title="Stealth Weather Screen (Esc)"
             >
               <CloudSun className="w-4 h-4 text-[#FC7454] group-hover:scale-110 transition-transform" />
-              <span className="hidden md:inline font-medium">
+              <span className="hidden sm:inline font-medium">
                 {isUrdu ? 'موسم' : 'Weather'}
               </span>
-              <span className="hidden sm:inline md:hidden text-[10px] font-bold">Esc</span>
+              <span className="text-[10px] font-mono px-1 py-0.2 rounded bg-white dark:bg-slate-800 text-slate-500 dark:text-slate-400 border border-slate-200 dark:border-slate-700">Esc</span>
             </button>
 
             {/* App Logo */}
             <div 
               onClick={() => onSelectTab('landing')}
               className="cursor-pointer group flex items-center flex-shrink-0"
-              title="View Landing Page & Tour"
+              title="Mehfooz (محفوظ) - Return to Overview"
             >
               <AppLogo variant="horizontal" size="sm" showUrdu={true} className="scale-95 sm:scale-100 origin-left" />
             </div>
-
-            {/* Product Landing Tour Pill */}
-            <button
-              onClick={() => onSelectTab('landing')}
-              className="hidden xl:flex items-center space-x-1 px-2.5 py-1 rounded-full bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] border border-[#BCD4D4] dark:border-[#263842] text-[11px] font-bold text-[#1C2C34] dark:text-[#F4F4FC] transition shadow-2xs whitespace-nowrap flex-shrink-0 cursor-pointer"
-            >
-              <span>Product Tour</span>
-            </button>
           </div>
 
-          {/* Right Action Controls */}
-          <div className="flex items-center space-x-1 sm:space-x-1.5 flex-shrink-0">
-            {/* Legal Suite Quick Dropdown */}
-            <div className="relative">
-              <button
-                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
-                className="flex items-center space-x-1 px-2 py-1.5 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-medium border border-slate-200 dark:border-slate-700 transition shadow-2xs flex-shrink-0 whitespace-nowrap cursor-pointer"
-                title="Legal Suite"
-              >
-                <Scale className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
-                <span className="hidden md:inline">Legal</span>
-                <ChevronDown className="w-3 h-3 text-[#5A6E78] dark:text-slate-400" />
-              </button>
-
-              <AnimatePresence>
-                {isMoreMenuOpen && (
-                  <motion.div
-                    initial={{ opacity: 0, y: 5 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    exit={{ opacity: 0, y: 5 }}
-                    className="absolute right-0 mt-2 w-52 bg-white dark:bg-[#18242A] border border-[#BCD4D4]/60 dark:border-slate-700 rounded-2xl shadow-xl p-1.5 z-50 space-y-0.5"
-                  >
-                    {LEGAL_SUITE.map((sub) => {
-                      const Icon = sub.icon;
-                      const isSubActive = activeTab === sub.id;
-                      return (
-                        <button
-                          key={sub.id}
-                          onClick={() => {
-                            onSelectTab(sub.id);
-                            setIsMoreMenuOpen(false);
-                          }}
-                          className={`w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-medium transition whitespace-nowrap cursor-pointer ${
-                            isSubActive
-                              ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] font-bold border border-[#BCD4D4] dark:border-[#263842]'
-                              : 'text-[#1C2C34] dark:text-slate-200 hover:bg-[#F4F4F4] dark:hover:bg-[#263842]/60'
-                          }`}
-                        >
-                          <div className="flex items-center space-x-2">
-                            <Icon className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
-                            <span>{isUrdu ? sub.labelUrdu : sub.label}</span>
-                          </div>
-                          {sub.badge !== undefined && sub.badge > 0 && (
-                            <span className="px-1.5 py-0.2 rounded-full bg-[#FC7454] text-white text-[9px] font-bold">
-                              {sub.badge}
-                            </span>
-                          )}
-                        </button>
-                      );
-                    })}
-
-                    {onOpenOfflineCorpus && (
-                      <button
-                        onClick={() => {
-                          onOpenOfflineCorpus();
-                          setIsMoreMenuOpen(false);
-                        }}
-                        className="w-full flex items-center justify-between px-3 py-2 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842]/60 transition whitespace-nowrap border-t border-slate-100 dark:border-slate-800 mt-1 pt-1.5 cursor-pointer"
-                      >
-                        <div className="flex items-center space-x-2">
-                          <BookOpen className="w-3.5 h-3.5 text-[#FC7454]" />
-                          <span>{isUrdu ? 'آف لائن قوانین (Corpus)' : 'Offline Legal Corpus'}</span>
-                        </div>
-                        <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1 rounded">Offline</span>
-                      </button>
-                    )}
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-
-            {/* PWA Install Button (Safe offline installation) */}
-            <PWAInstallButton language={language} variant="badge" />
-
-            {/* Direct Emergency SOS 15 */}
+          {/* Right Action Controls: Highly focused and uncluttered */}
+          <div className="flex items-center space-x-2 flex-shrink-0">
+            {/* 1. Direct Emergency SOS 15 */}
             <button
               id="nav-crisis-btn"
               onClick={onOpenCrisis}
-              className="flex items-center space-x-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#ECF4F4] dark:bg-[#18242A] hover:bg-[#C4DCDC] dark:hover:bg-[#263842] text-[#FC7454] dark:text-[#FC7C54] text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap border border-[#BCD4D4] dark:border-slate-700 cursor-pointer"
+              className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs font-bold transition shadow-xs flex-shrink-0 whitespace-nowrap cursor-pointer"
               title="Police Helpline 15"
             >
-              <PhoneCall className="w-3.5 h-3.5 animate-pulse text-[#FC7454]" />
+              <PhoneCall className="w-3.5 h-3.5 animate-pulse text-white" />
               <span>15</span>
-              <span className="hidden sm:inline font-bold">SOS</span>
+              <span className="font-extrabold">SOS</span>
             </button>
 
-            {/* Theme toggle */}
-            <button
-              id="nav-theme-toggle-btn"
-              onClick={() => onThemeChange(themeMode === 'light' ? 'dark' : 'light')}
-              className="w-8 h-8 flex items-center justify-center rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs border border-slate-200 dark:border-slate-700 transition flex-shrink-0 cursor-pointer"
-              title={themeMode === 'light' ? 'Switch to Dark Mode' : 'Switch to Light Mode'}
-            >
-              {themeMode === 'light' ? (
-                <Moon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
-              ) : (
-                <Sun className="w-3.5 h-3.5 text-amber-400" />
-              )}
-            </button>
-
-            {/* Language Switcher */}
+            {/* 2. Language Switcher: Simple one-touch accessibility */}
             <button
               id="nav-language-btn"
               onClick={() => onLanguageChange(language === 'en' ? 'ur' : 'en')}
-              className="h-8 px-2 flex items-center space-x-1 rounded-xl bg-slate-50 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex-shrink-0 whitespace-nowrap cursor-pointer"
+              className="h-8 px-2.5 flex items-center space-x-1.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] text-xs font-bold border border-slate-200 dark:border-slate-700 transition flex-shrink-0 whitespace-nowrap cursor-pointer"
+              title={language === 'en' ? 'اردو میں تبدیل کریں' : 'Switch to English'}
             >
               <Languages className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4]" />
               <span>{language === 'en' ? 'اردو' : 'EN'}</span>
             </button>
 
-            {/* Inspector */}
-            <button
-              id="nav-inspector-btn"
-              onClick={onToggleInspector}
-              className={`w-8 h-8 flex items-center justify-center rounded-xl border text-xs transition flex-shrink-0 cursor-pointer ${
-                inspectorOpen 
-                  ? 'bg-[#ECF4F4] dark:bg-[#18242A] border-[#BCD4D4] dark:border-slate-700 text-[#FC7454] dark:text-[#FC7C54]' 
-                  : 'bg-slate-50 dark:bg-[#18242A] border-slate-200 dark:border-slate-700 text-[#5A6E78] dark:text-slate-400'
-              }`}
-              title="Telemetry Inspector"
-            >
-              <TerminalSquare className="w-4 h-4" />
-            </button>
+            {/* 3. Unified Hub Menu Button */}
+            <div className="relative">
+              <button
+                id="nav-hub-menu-btn"
+                onClick={() => setIsMoreMenuOpen(!isMoreMenuOpen)}
+                className={`h-8 px-2.5 flex items-center space-x-1.5 rounded-xl border text-xs font-semibold transition flex-shrink-0 whitespace-nowrap cursor-pointer ${
+                  isMoreMenuOpen
+                    ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#FC7454] border-[#BCD4D4] dark:border-slate-600'
+                    : 'bg-slate-100 dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] border-slate-200 dark:border-slate-700'
+                }`}
+                title="Suite Menu & Support"
+              >
+                <SlidersHorizontal className="w-3.5 h-3.5" />
+                <span className="hidden sm:inline font-medium">{isUrdu ? 'مینو' : 'Menu'}</span>
+                <ChevronDown className={`w-3 h-3 transition-transform ${isMoreMenuOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              {/* Floating Hub Popover */}
+              <AnimatePresence>
+                {isMoreMenuOpen && (
+                  <>
+                    {/* Backdrop */}
+                    <div 
+                      className="fixed inset-0 z-40" 
+                      onClick={() => setIsMoreMenuOpen(false)} 
+                    />
+
+                    <motion.div
+                      initial={{ opacity: 0, y: 8, scale: 0.98 }}
+                      animate={{ opacity: 1, y: 0, scale: 1 }}
+                      exit={{ opacity: 0, y: 8, scale: 0.98 }}
+                      transition={{ duration: 0.15 }}
+                      className="absolute right-0 mt-2 w-80 sm:w-88 max-h-[85vh] overflow-y-auto bg-white dark:bg-[#18242A] border border-slate-200 dark:border-slate-700 rounded-2xl shadow-2xl p-3 z-50 space-y-3"
+                    >
+                      {/* Section 1: Quick Settings (Theme, Inspector, PWA) */}
+                      <div>
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400 px-1 mb-1.5">
+                          {isUrdu ? 'سیٹنگز اور ٹولز' : 'Quick Settings'}
+                        </div>
+                        <div className="grid grid-cols-2 gap-1.5">
+                          {/* Theme Mode Toggle */}
+                          <button
+                            onClick={() => onThemeChange(themeMode === 'light' ? 'dark' : 'light')}
+                            className="flex items-center justify-between p-2 rounded-xl bg-slate-50 dark:bg-[#121A1E] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-[#1C2C34] dark:text-[#F4F4FC] transition cursor-pointer"
+                          >
+                            <span className="flex items-center gap-1.5">
+                              {themeMode === 'light' ? <Moon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" /> : <Sun className="w-3.5 h-3.5 text-amber-400" />}
+                              <span>{themeMode === 'light' ? 'Dark' : 'Light'}</span>
+                            </span>
+                            <span className="text-[10px] text-[#5A6E78] dark:text-slate-400">{themeMode === 'light' ? 'Off' : 'On'}</span>
+                          </button>
+
+                          {/* Telemetry Inspector */}
+                          <button
+                            onClick={() => {
+                              onToggleInspector();
+                              setIsMoreMenuOpen(false);
+                            }}
+                            className={`flex items-center justify-between p-2 rounded-xl border text-xs font-semibold transition cursor-pointer ${
+                              inspectorOpen
+                                ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#FC7454] border-[#BCD4D4] dark:border-slate-600'
+                                : 'bg-slate-50 dark:bg-[#121A1E] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border-slate-200/80 dark:border-slate-700/80 text-[#1C2C34] dark:text-[#F4F4FC]'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <TerminalSquare className="w-3.5 h-3.5" />
+                              <span>Inspector</span>
+                            </span>
+                            <span className="text-[10px] text-[#5A6E78] dark:text-slate-400">{inspectorOpen ? 'Open' : 'Logs'}</span>
+                          </button>
+                        </div>
+
+                        {/* PWA Install & Safety Guide */}
+                        <div className="mt-1.5 flex items-center gap-1.5">
+                          <PWAInstallButton language={language} variant="badge" className="w-full justify-center" />
+                          <button
+                            onClick={() => {
+                              onOpenOnboarding();
+                              setIsMoreMenuOpen(false);
+                            }}
+                            className="w-full py-1.5 px-2 rounded-xl bg-slate-50 dark:bg-[#121A1E] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-[#1C2C34] dark:text-[#F4F4FC] flex items-center justify-center gap-1.5 transition cursor-pointer"
+                          >
+                            <ShieldCheck className="w-3.5 h-3.5 text-[#FC7454]" />
+                            <span>{isUrdu ? 'رہنما گائیڈ' : 'Safety Guide'}</span>
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Section 2: Legal & Protection Suite */}
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400 px-1 mb-1.5">
+                          {isUrdu ? 'قانونی اور حفاظتی ٹولز' : 'Legal & Protection Suite'}
+                        </div>
+                        <div className="space-y-1">
+                          {LEGAL_SUITE.map((sub) => {
+                            const Icon = sub.icon;
+                            const isSubActive = activeTab === sub.id;
+                            return (
+                              <button
+                                key={sub.id}
+                                onClick={() => {
+                                  onSelectTab(sub.id);
+                                  setIsMoreMenuOpen(false);
+                                }}
+                                className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
+                                  isSubActive
+                                    ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] font-bold border border-[#BCD4D4] dark:border-[#263842]'
+                                    : 'text-[#1C2C34] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#263842]/60'
+                                }`}
+                              >
+                                <div className="flex items-center space-x-2">
+                                  <Icon className="w-3.5 h-3.5 text-[#FC7454] dark:text-[#BCD4D4]" />
+                                  <span>{isUrdu ? sub.labelUrdu : sub.label}</span>
+                                </div>
+                                {sub.badge !== undefined && sub.badge > 0 && (
+                                  <span className="px-1.5 py-0.2 rounded-full bg-[#FC7454] text-white text-[9px] font-bold">
+                                    {sub.badge}
+                                  </span>
+                                )}
+                              </button>
+                            );
+                          })}
+
+                          {onOpenOfflineCorpus && (
+                            <button
+                              onClick={() => {
+                                onOpenOfflineCorpus();
+                                setIsMoreMenuOpen(false);
+                              }}
+                              className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842]/60 transition cursor-pointer"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <BookOpen className="w-3.5 h-3.5 text-emerald-600 dark:text-emerald-400" />
+                                <span>{isUrdu ? 'آف لائن قوانین (Corpus)' : 'Offline Legal Corpus'}</span>
+                              </div>
+                              <span className="text-[9px] font-bold text-emerald-600 bg-emerald-50 dark:bg-emerald-950/40 px-1.5 py-0.2 rounded">Zero-Net</span>
+                            </button>
+                          )}
+                        </div>
+                      </div>
+
+                      {/* Section 3: Official Social Channels & Admin Support */}
+                      <div className="border-t border-slate-100 dark:border-slate-800 pt-2">
+                        <div className="text-[11px] font-bold uppercase tracking-wider text-[#5A6E78] dark:text-slate-400 px-1 mb-1.5">
+                          {isUrdu ? 'رابطہ اور سوشل چینلز' : 'Official Channels & Admin'}
+                        </div>
+
+                        {/* Admin Email Box with 1-click copy */}
+                        <AdminContactBox language={language} compact={true} className="mb-2" />
+
+                        {/* Social Links Row */}
+                        <div className="flex items-center justify-between px-1">
+                          <span className="text-[11px] text-[#5A6E78] dark:text-slate-400">
+                            {isUrdu ? 'ہمیں فالو کریں:' : 'Follow Mehfooz:'}
+                          </span>
+                          <SocialLinksRow size="sm" />
+                        </div>
+                      </div>
+                    </motion.div>
+                  </>
+                )}
+              </AnimatePresence>
+            </div>
           </div>
         </div>
       </header>
@@ -302,13 +372,23 @@ export const Navigation: React.FC<NavigationProps> = ({
             })}
           </div>
 
-          <button
-            onClick={onOpenOnboarding}
-            className="text-xs font-bold text-[#1C2C34] dark:text-slate-300 hover:text-[#FC7454] dark:hover:text-[#FC7C54] flex items-center space-x-1 cursor-pointer transition-colors"
-          >
-            <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
-            <span>Safety Guide</span>
-          </button>
+          <div className="flex items-center space-x-3">
+            <button
+              onClick={() => setIsSupportModalOpen(true)}
+              className="text-xs font-bold text-[#1C2C34] dark:text-slate-300 hover:text-[#FC7454] dark:hover:text-[#FC7C54] flex items-center space-x-1.5 cursor-pointer transition-colors"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#FC7454]" />
+              <span>{isUrdu ? 'رابطہ و سوشل' : 'Admin & Socials'}</span>
+            </button>
+
+            <button
+              onClick={onOpenOnboarding}
+              className="text-xs font-bold text-[#1C2C34] dark:text-slate-300 hover:text-[#FC7454] dark:hover:text-[#FC7C54] flex items-center space-x-1 cursor-pointer transition-colors"
+            >
+              <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
+              <span>Safety Guide</span>
+            </button>
+          </div>
         </div>
       </nav>
 
@@ -352,6 +432,103 @@ export const Navigation: React.FC<NavigationProps> = ({
           })}
         </div>
       </nav>
+
+      {/* 4. OFFICIAL LINKS & ADMIN SUPPORT MODAL */}
+      <AnimatePresence>
+        {isSupportModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 10 }}
+              className="bg-white dark:bg-[#18242A] border border-slate-200 dark:border-slate-700 rounded-3xl p-6 max-w-md w-full shadow-2xl relative"
+            >
+              <button
+                onClick={() => setIsSupportModalOpen(false)}
+                className="absolute top-4 right-4 p-1.5 rounded-full hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-500 dark:text-slate-400 transition cursor-pointer"
+              >
+                <X className="w-5 h-5" />
+              </button>
+
+              <div className="mb-4">
+                <div className="flex items-center gap-2 mb-1">
+                  <Sparkles className="w-5 h-5 text-[#FC7454]" />
+                  <h3 className="text-lg font-bold text-[#1C2C34] dark:text-[#F4F4FC]">
+                    {isUrdu ? 'رابطہ اور آفیشل لنکس' : 'Official Channels & Admin'}
+                  </h3>
+                </div>
+                <p className="text-xs text-[#5A6E78] dark:text-slate-400">
+                  {isUrdu 
+                    ? 'محفوظ اے آئی پلیٹ فارم کے بارے میں مدد یا فیڈبیک کے لیے ایڈمن سے رابطہ کریں یا ہمارے سوشل ہینڈلز فالو کریں۔'
+                    : 'Connect directly with the Mehfooz administration or follow our official social handles for protection updates.'
+                  }
+                </p>
+              </div>
+
+              {/* Admin Email Box */}
+              <div className="mb-4">
+                <AdminContactBox language={language} />
+              </div>
+
+              {/* Social Channels */}
+              <div className="p-4 rounded-2xl bg-slate-50 dark:bg-[#121A1E] border border-slate-200/80 dark:border-slate-800">
+                <div className="text-xs font-bold text-[#1C2C34] dark:text-slate-200 mb-2">
+                  {isUrdu ? 'آفیشل سوشل ہینڈلز' : 'Official Social Profiles'}
+                </div>
+                <div className="space-y-2">
+                  <a
+                    href={OFFICIAL_LINKS.twitter}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 transition group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Twitter className="w-4 h-4 text-[#1DA1F2]" />
+                      <span className="text-xs font-semibold text-[#1C2C34] dark:text-slate-200">Twitter / X (@MehfoozAii)</span>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white" />
+                  </a>
+
+                  <a
+                    href={OFFICIAL_LINKS.linkedin}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 transition group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Linkedin className="w-4 h-4 text-[#0A66C2]" />
+                      <span className="text-xs font-semibold text-[#1C2C34] dark:text-slate-200">LinkedIn (Mehfooz AI)</span>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white" />
+                  </a>
+
+                  <a
+                    href={OFFICIAL_LINKS.instagram}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-between p-2.5 rounded-xl bg-white dark:bg-[#18242A] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200 dark:border-slate-700 transition group"
+                  >
+                    <div className="flex items-center gap-2.5">
+                      <Instagram className="w-4 h-4 text-[#E4405F]" />
+                      <span className="text-xs font-semibold text-[#1C2C34] dark:text-slate-200">Instagram (@mehfoozai)</span>
+                    </div>
+                    <ExternalLink className="w-3.5 h-3.5 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white" />
+                  </a>
+                </div>
+              </div>
+
+              <div className="mt-4 flex justify-end">
+                <button
+                  onClick={() => setIsSupportModalOpen(false)}
+                  className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold transition cursor-pointer"
+                >
+                  {isUrdu ? 'بند کریں' : 'Close'}
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 };
