@@ -1,0 +1,146 @@
+version: 1
+
+scope:
+  include:
+    - "MehfoozAi/src/**"
+    - "MehfoozAi/server.ts"
+    - "MehfoozAi/index.html"
+    - "MehfoozAi/package.json"
+  exclude:
+    - "MehfoozAi/bun.lock"
+    - "MehfoozAi/node_modules/**"
+    - "MehfoozAi/dist/**"
+
+repowiki:
+  template: "architecture"
+
+  notes:
+    - text: >
+        Mehfooz (محفوظ) / SafePath is a privacy-preserving women's safety SPA
+        targeting Punjab, Pakistan. It has 6 core pillars: Stealth Weather Cover,
+        Safe Corridor Navigation, Punjab AI Legal Advisor (RAG), Zero-Knowledge
+        Incident Vault, Silent Destination Check-In, and Crisis SOS Engine.
+    - text: >
+        The app disguises itself as a Tuscany meteorological station on launch.
+        Double-tap on temperature or long-press (2.5s) on background unlocks the
+        real app via PIN. Pressing Esc or double-tapping the logo triggers a
+        panic escape back to the weather screen.
+    - text: >
+        All incident evidence is encrypted client-side with AES-GCM-256 via Web
+        Crypto API. Key derivation uses PBKDF2 with 100,000 iterations. Plaintext
+        never leaves the browser unencrypted — this is a zero-knowledge design.
+    - text: >
+        The server (Express + Helmet) proxies Gemini API calls for the grounded
+        RAG legal advisor. It uses model fallback chain: gemini-2.5-flash →
+        gemini-2.0-flash → gemini-1.5-flash. Rate limits: 120 req/15min global,
+        30 req/5min AI orchestrator, 20 req/10min complaint handoff.
+    - text: >
+        Legal corpus is grounded in Punjab-specific statutes: PPWVA 2016,
+        PECA 2016, Pakistan Penal Code (PPC §354A, §509), and Protection Against
+        Harassment of Women at Workplace Act 2010. Never invent non-Punjab laws.
+
+  documents:
+    - title: "System Architecture Overview"
+      goal: >
+        High-level architecture diagram and data flow: client SPA → Express
+        server → Gemini API, plus client-side crypto vault and browser APIs.
+      parent: ""
+
+    - title: "Frontend Application Layer"
+      goal: >
+        App.tsx routing, state management, component tree, and module switching
+        logic. How the six pillars are composed into a single SPA.
+      parent: "System Architecture Overview"
+
+    - title: "Stealth Weather Cover Module"
+      goal: >
+        WeatherCover.tsx + weather/ subdirectory. Disguise rendering, stealth
+        triggers (double-tap, long-press, Esc), PIN pad, station switching.
+      parent: "System Architecture Overview"
+
+    - title: "Safe Corridor Navigation Module"
+      goal: >
+        SafeNavigation.tsx. Safety score formula (Lighting 0.35 + CCTV 0.30 +
+        Safe Havens 0.20 + Crowd 0.15), map rendering, safe haven pins, audit
+        submission flow.
+      parent: "System Architecture Overview"
+
+    - title: "AI Legal Advisor (RAG) Module"
+      goal: >
+        LegalAssistant.tsx + server.ts /api/orchestrate + data/legalCorpus.ts +
+        utils/orchestrator.ts. Grounded RAG pipeline, citation retrieval, Gemini
+        model fallback chain, bilingual (Urdu/English) response generation,
+        prompt injection defense.
+      parent: "System Architecture Overview"
+
+    - title: "Zero-Knowledge Incident Vault Module"
+      goal: >
+        IncidentVault.tsx + utils/crypto.ts. AES-GCM-256 encryption flow,
+        PBKDF2 key derivation, IndexedDB/LocalStorage persistence, audio
+        recording via MediaRecorder, evidence export.
+      parent: "System Architecture Overview"
+
+    - title: "Silent Check-In & SOS Engine"
+      goal: >
+        SilentCheckIn.tsx + CrisisModal.tsx + ActiveAlerts.tsx. Journey timer
+        countdown, grace period logic, auto-SMS dispatch with GPS coordinates,
+        one-tap SOS hold-to-activate, helpline telephony integration.
+      parent: "System Architecture Overview"
+
+    - title: "Server & Security Layer"
+      goal: >
+        server.ts deep dive: Express middleware stack (Helmet, rate limiting,
+        input sanitization), /api/orchestrate endpoint, /api/mock-handoff
+        endpoint, error handling, production vs dev mode.
+      parent: ""
+
+    - title: "Data Layer & Legal Corpus"
+      goal: >
+        data/legalCorpus.ts and data/supportDirectory.ts. Structure of the
+        statutory knowledge base, citation schema, support directory entries,
+        and helpline contact data.
+      parent: ""
+
+    - title: "UI Primitives & Shared Components"
+      goal: >
+        components/ui/, components/common/, components/landing/. Design tokens,
+        reusable primitives, SVG botanical/logo art, landing page showcase,
+        phone mockup component.
+      parent: ""
+
+    - title: "Auth, Onboarding & User Profile"
+      goal: >
+        AuthModal.tsx + OnboardingModal.tsx + UserProfile.tsx + utils/auth.ts.
+        Authentication flow, PIN-based access control, first-time onboarding,
+        user profile management.
+      parent: ""
+
+    - title: "Complaint Builder & Official Handoff"
+      goal: >
+        ComplaintBuilder.tsx + /api/mock-handoff. Formal complaint letter
+        generation, PSCA tracking number assignment, district code routing,
+        export formats.
+      parent: ""
+
+knowledgecard:
+  notes:
+    - text: >
+        The project uses React 19 (not 18 despite what README says), Vite 6.x,
+        Tailwind CSS v4 with @tailwindcss/vite plugin, and motion/react (v12+)
+        for animations — not framer-motion.
+    - text: >
+        server.ts is both the Express backend AND the Vite dev server host.
+        `npm run dev` runs `tsx server.ts` which starts Express + Vite
+        middleware mode together on port 3000.
+    - text: >
+        The build pipeline uses esbuild to bundle server.ts into a single CJS
+        file (dist/server.cjs) for production. The Vite build handles the SPA
+        frontend separately.
+    - text: >
+        Types are centralized in src/types.ts — all module interfaces, component
+        props, and data shapes are defined there. Import from types.ts rather
+        than redefining inline types.
+    - text: >
+        The GEMINI_API_KEY is loaded via dotenv from .env file. Without it, the
+        server returns a fallback flag and the client uses its local deterministic
+        legal engine from data/legalCorpus.ts.

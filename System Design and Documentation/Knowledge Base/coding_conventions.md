@@ -1,0 +1,6 @@
+- All shared interfaces, enums, and data shapes are defined once in `src/types.ts` and imported by components and utilities instead of being redeclared inline.
+- Server routes are protected by composable middleware: `supabaseAuthOptional` for public-or-authenticated paths and `requireSupabaseAuth` for user-scoped mutations, applied as route-level middleware before the handler body.
+- Every incoming request body is validated at the top of its handler with explicit type checks and length caps (e.g., query ≤ 3000 chars, district/category truncated to fixed lengths) returning structured `{ error, code }` JSON on failure.
+- Rate limiting is applied per-route group using named `rateLimit` instances (global `/api/`, AI orchestrator 30/5min, handoff 20/10min) with custom `code` and `message` payloads.
+- External integrations (Gemini, Supabase, Twilio, Resend) are guarded by feature flags (`getGeminiClient()`, `isSupabaseServerConfigured()`, `isSmsConfigured()`, `isEmailConfigured()`) so the app degrades gracefully to deterministic/local fallbacks when credentials are missing.
+- Frontend routing is implemented as a single `activeTab` string state in `App.tsx` with conditional JSX blocks per tab value rather than a router library, keeping the SPA lightweight and avoiding client-side routing overhead.

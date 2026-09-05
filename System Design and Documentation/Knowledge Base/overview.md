@@ -1,0 +1,1 @@
+A privacy-first legal navigation and safety app for women in Punjab, Pakistan, combining a React 19/Vite frontend with an Express server that routes AI-powered legal queries, complaint handoffs, and Supabase-backed auth.
