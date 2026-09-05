@@ -319,7 +319,7 @@ function AppInner() {
   }
 
   return (
-    <div className={`min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] text-[#1C2C34] dark:text-[#F4F4FC] flex flex-col font-sans selection:bg-[#FC7454] selection:text-white transition-colors duration-200 overflow-x-hidden max-w-full ${isUrdu ? 'font-urdu' : ''}`}>
+    <div className={`min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] text-[#1C2C34] dark:text-[#F4F4FC] flex flex-col font-sans selection:bg-[#FC7454] selection:text-white transition-colors duration-200 max-w-full ${isUrdu ? 'font-urdu' : ''}`}>
       {/* 1. Header & Ergonomic Navigation Bar */}
       <Navigation
         activeTab={activeTab}

@@ -113,6 +113,9 @@ export const Navigation: React.FC<NavigationProps> = ({
   const SETTINGS_ITEMS = [
     { id: 'profile', label: 'Profile & Account', labelUrdu: 'پروفائل اور اکاؤنٹ', icon: User },
     { id: 'vault', label: 'Private Vault', labelUrdu: 'پرائیویٹ والٹ', icon: Lock },
+    { id: 'profile' as ActiveTab, label: 'App Password', labelUrdu: 'ایپ پاس ورڈ', icon: Lock, isPasswordLink: true, passwordType: 'app' },
+    { id: 'profile' as ActiveTab, label: 'Vault Password', labelUrdu: 'والٹ پاس ورڈ', icon: Lock, isPasswordLink: true, passwordType: 'vault' },
+    { id: 'profile' as ActiveTab, label: 'Email & Password', labelUrdu: 'ای میل اور پاس ورڈ', icon: Mail, isPasswordLink: true, passwordType: 'email' },
   ];
 
   // Secondary Legal & Vault items accessible via top bar or dropdown
@@ -229,11 +232,11 @@ export const Navigation: React.FC<NavigationProps> = ({
                           <span>{isUrdu ? 'سیٹنگز' : 'Settings'}</span>
                         </div>
                         <div className="space-y-1">
-                          {SETTINGS_ITEMS.map(item => {
+                          {SETTINGS_ITEMS.map((item, idx) => {
                             const Icon = item.icon;
                             return (
                               <button
-                                key={item.id}
+                                key={`${item.id}-${idx}`}
                                 onClick={() => { onSelectTab(item.id); setIsMoreMenuOpen(false); }}
                                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                                   activeTab === item.id

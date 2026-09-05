@@ -494,7 +494,7 @@ app.get('/api/conversations', requireSupabaseAuth, async (req: Request, res: Res
       .select('id, title, language, message_count, last_message_at, created_at')
       .eq('user_id', authed.supabaseUserId!)
       .order('last_message_at', { ascending: false })
-      .limit(50);
+      .limit(20);
 
     if (error) {
       return res.status(500).json({ error: error.message, code: 'CONVERSATIONS_LOAD_FAILED' });

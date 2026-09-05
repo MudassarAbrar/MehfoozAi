@@ -33,6 +33,7 @@ import { logApiActivity } from './apiActivity.js';
 import {
   sendSms,
   sendCheckInAlert,
+  sendJourneyStartAlert,
   formatEmergencyMessage,
   normalizePhone,
   SmsDispatchResult
@@ -130,10 +131,12 @@ export function registerCheckInRoutes(app: Express): void {
         .select('full_name, safe_nickname')
         .eq('id', authed.supabaseUserId!)
         .maybeSingle();
-      const displayName = (profile as Record<string, unknown> | null)?.full_name
+      const displayName = String(
+        (profile as Record<string, unknown> | null)?.full_name
         || (profile as Record<string, unknown> | null)?.safe_nickname
         || authed.supabaseUserEmail
-        || 'A Mehfooz user';
+        || 'A Mehfooz user'
+      );
 
       const expectedArrival = new Date(Date.now() + minutes * 60000).toISOString();
       const { data, error } = await userClient
@@ -170,6 +173,20 @@ export function registerCheckInRoutes(app: Express): void {
         responsePreview: data
       });
 
+      // #19, #21: Auto-dispatch SMS + WhatsApp to contacts on journey start
+      const journeyAlerts = await sendJourneyStartAlert(
+        safeContacts,
+        {
+          userName: displayName,
+          destination: safeDestination,
+          expectedMinutes: minutes,
+          lat: typeof lat === 'number' ? lat : null,
+          lng: typeof lng === 'number' ? lng : null,
+          userId: authed.supabaseUserId,
+          accessToken: authed.supabaseAccessToken
+        }
+      );
+
       return res.json({
         success: true,
         checkIn: {
@@ -177,6 +194,12 @@ export function registerCheckInRoutes(app: Express): void {
           expectedArrival: (data as Record<string, unknown>).expected_arrival,
           gracePeriodMinutes: (data as Record<string, unknown>).grace_period_minutes,
           status: (data as Record<string, unknown>).status
+        },
+        journeyAlerts: {
+          smsDispatched: journeyAlerts.sms.filter(r => r.success).length,
+          whatsappDispatched: journeyAlerts.whatsapp.filter(r => r.success).length,
+          smsSimulated: journeyAlerts.sms.some(r => r.simulated),
+          whatsappSimulated: journeyAlerts.whatsapp.some(r => r.simulated)
         }
       });
     } catch (err: any) {

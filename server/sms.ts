@@ -293,6 +293,97 @@ export async function sendEmergencyAlert(
   return results;
 }
 
+/** Send WhatsApp via Twilio (#21). Same Messages API, prefixed with whatsapp:. */
+export async function sendWhatsApp(
+  to: string,
+  body: string,
+  ctx: SmsDispatchContext = {}
+): Promise<SmsDispatchResult> {
+  const normalized = normalizePhone(to);
+  if (!normalized) {
+    return { success: false, status: 'invalid_number', messageId: '', to, simulated: false, error: 'Invalid phone.' };
+  }
+
+  const client = getTwilioClient();
+  const waFrom = process.env.TWILIO_WHATSAPP_FROM || process.env.TWILIO_FROM_NUMBER;
+
+  if (!client || !waFrom) {
+    // Simulated WhatsApp when Twilio or WhatsApp number not configured
+    const result: SmsDispatchResult = {
+      success: true, status: 'simulated',
+      messageId: `wa-sim-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      to: `whatsapp:${normalized}`, simulated: true
+    };
+    console.log(`[Mehfooz WhatsApp — SIMULATED] to=${normalized} reason=${ctx.reason || 'unspecified'}`);
+    void logApiActivity({
+      endpoint: 'twilio:whatsapp', method: 'POST', targetService: 'twilio' as const,
+      userId: ctx.userId ?? null, accessToken: ctx.accessToken ?? null,
+      status: 'success', statusCode: 200, durationMs: 0,
+      requestPreview: { to: `whatsapp:${normalized}`, body: body.slice(0, 160), reason: ctx.reason },
+      responsePreview: { simulated: true, messageId: result.messageId }
+    });
+    return result;
+  }
+
+  try {
+    const message = await client.messages.create({
+      to: `whatsapp:${normalized}`,
+      from: `whatsapp:${waFrom}`,
+      body
+    });
+    const result: SmsDispatchResult = {
+      success: true, status: 'dispatched', messageId: message.sid,
+      to: `whatsapp:${normalized}`, simulated: false
+    };
+    void logApiActivity({
+      endpoint: 'twilio:whatsapp', method: 'POST', targetService: 'twilio' as const,
+      userId: ctx.userId ?? null, accessToken: ctx.accessToken ?? null,
+      status: 'success', statusCode: 201, durationMs: 0,
+      requestPreview: { to: `whatsapp:${normalized}`, body: body.slice(0, 160), reason: ctx.reason },
+      responsePreview: { sid: message.sid, status: message.status }
+    });
+    return result;
+  } catch (err: any) {
+    const msg = err?.message || 'WhatsApp dispatch failed';
+    const result: SmsDispatchResult = {
+      success: false, status: 'failed', messageId: `wa-err-${Date.now()}`,
+      to: `whatsapp:${normalized}`, simulated: false, error: msg
+    };
+    void logApiActivity({
+      endpoint: 'twilio:whatsapp', method: 'POST', targetService: 'twilio' as const,
+      userId: ctx.userId ?? null, accessToken: ctx.accessToken ?? null,
+      status: 'failed', statusCode: 502, durationMs: 0,
+      errorMessage: msg, responsePreview: { error: msg }
+    });
+    return result;
+  }
+}
+
+/** Send both SMS + WhatsApp when a journey/check-in starts (#19, #21). */
+export async function sendJourneyStartAlert(
+  contacts: SmsContact[],
+  params: {
+    userName: string;
+    destination: string;
+    expectedMinutes: number;
+    lat?: number | null;
+    lng?: number | null;
+  } & SmsDispatchContext
+): Promise<{ sms: SmsDispatchResult[]; whatsapp: SmsDispatchResult[] }> {
+  const eta = new Date(Date.now() + params.expectedMinutes * 60000)
+    .toLocaleTimeString('en-PK', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Karachi' });
+  const mapLink = formatMapsLink(params.lat, params.lng);
+  const body = `[Mehfooz Safety] ${params.userName} started a journey to ${params.destination}. ETA: ${eta} (${params.expectedMinutes} min).${mapLink ? ` Live: ${mapLink}` : ''} You will be alerted if she does not arrive on time.`;
+
+  const sms: SmsDispatchResult[] = [];
+  const whatsapp: SmsDispatchResult[] = [];
+  for (const c of contacts) {
+    sms.push(await sendSms(c.phone, body, { userId: params.userId, accessToken: params.accessToken, reason: 'journey_start_sms' }));
+    whatsapp.push(await sendWhatsApp(c.phone, body, { userId: params.userId, accessToken: params.accessToken, reason: 'journey_start_whatsapp' }));
+  }
+  return { sms, whatsapp };
+}
+
 export async function sendCheckInAlert(
   contacts: SmsContact[],
   params: {
