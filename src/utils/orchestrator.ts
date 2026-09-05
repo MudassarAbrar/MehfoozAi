@@ -217,7 +217,7 @@ export async function processSafetyOrchestration(
     return generateClientGroundedResponse(userQuery, effectiveLang, intent, risk, relevantCitations);
   }
 
-  // 7. Attempt server-side Gemini RAG endpoint (prioritizing gemini-2.5-flash) with graceful fallback
+  // 7. Attempt server-side Gemini RAG endpoint (prioritizing gemini-3.1-flash-lite) with graceful fallback
   try {
     const res = await fetch('/api/orchestrate', {
       method: 'POST',
@@ -249,7 +249,7 @@ export async function processSafetyOrchestration(
           sourceReferences: serverData.sourceReferences?.length ? serverData.sourceReferences : relevantCitations,
           confidence: serverData.confidence || 0.95,
           disclaimerRequired: true,
-          modelUsed: serverData.modelUsed || 'gemini-2.5-flash',
+          modelUsed: serverData.modelUsed || 'gemini-3.1-flash-lite',
           isAiGenerated: true,
           suggestedActions: [
             { label: isUrdu ? 'پرائیویٹ نوٹ میں محفوظ کریں' : 'Save this to Private Notes', labelUrdu: 'اسے پرائیویٹ نوٹ میں محفوظ کریں', action: 'open_vault' },

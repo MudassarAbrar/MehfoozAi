@@ -30,7 +30,7 @@ export function getAgentConfig(): AgentConfig {
   if (cachedConfig) return cachedConfig;
 
   const apiKey = process.env.GEMINI_API_KEY || null;
-  const primaryModel = process.env.GEMINI_AGENT_MODEL || 'gemini-2.5-flash';
+  const primaryModel = process.env.GEMINI_AGENT_MODEL || 'gemini-3.1-flash-lite';
   const fallbackRaw = process.env.GEMINI_FALLBACK_MODELS || '';
   const fallbackModels = fallbackRaw
     .split(',')
