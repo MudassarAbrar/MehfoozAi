@@ -120,29 +120,9 @@ function AppInner() {
       if (cancelled) return;
       if (authUser) {
         setUser(authUser);
-      } else if (!getStoredProfile()) {
-        // No auth session found — provide a demo profile for offline preview
-        setUser({
-          id: 'demo-user-1',
-          fullName: 'Fatima Noor',
-          safeNickname: 'Fatima',
-          email: 'fatima.noor@example.pk',
-          phone: '+92 300 1234567',
-          district: 'Lahore',
-          emergencyContactName: 'Tulsi (Mom)',
-          emergencyContactPhone: '+92 300 9876543',
-          emergencyContacts: [
-            { id: 'c1', name: 'Tulsi (Mom)', relation: 'Mother', phone: '+92 300 9876543', isDefaultNotified: true },
-            { id: 'c2', name: 'Gopal (Brother)', relation: 'Brother', phone: '+92 321 4567890', isDefaultNotified: true }
-          ],
-          preferredLanguage: 'en',
-          themeMode: 'light',
-          stealthPin: '1520',
-          discreetNotifications: true,
-          quickExitHotkey: 'Escape',
-          createdAt: new Date().toISOString(),
-          lastLoginAt: new Date().toISOString()
-        });
+      } else {
+        // No auth session — keep user null so the landing page gates behind auth
+        setUser(null);
       }
       setIsAuthLoading(false);
     }).catch(() => {
@@ -226,23 +206,7 @@ function AppInner() {
 
   const isUrdu = language === 'ur';
 
-  // Render Weather Cover if stealth locked
-  if (!isUnlocked) {
-    return (
-      <WeatherCover
-        onUnlock={() => {
-          setIsUnlocked(true);
-          addAuditLog('stealth_unlocked', 'PIN verified to reveal SafePath / Mehfooz');
-        }}
-        onDirectSos={() => {
-          setIsCrisisModalOpen(true);
-          addAuditLog('stealth_direct_sos', 'Direct SOS triggered from weather cover');
-        }}
-      />
-    );
-  }
-
-  // Demo mode handler — bypasses real onboarding
+  // Demo mode handler — bypasses real onboarding (MUST be before early returns — Rules of Hooks)
   const handleDemoMode = useCallback(() => {
     const demoUser: UserProfile = {
       id: 'demo-user-1',
@@ -274,35 +238,59 @@ function AppInner() {
   // Auth success handler — triggers onboarding for new real users
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
     setUser(authedUser);
-    // Mark that this user needs onboarding (phone, address, parent, passwords)
     setNeedsOnboarding(true);
   }, []);
 
   // Onboarding complete — enter the weather cover (stealth layer)
-  // User must enter their app password via Settings → Help → Password to unlock
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);
-    setIsUnlocked(false); // Lock into weather cover — user enters via Settings → Help → Password
+    setIsUnlocked(false);
   }, []);
 
-  // Render Landing Page when no authenticated user or explicitly navigating to landing
-  if (activeTab === 'landing' && !user) {
+  // Render Weather Cover if stealth locked
+  if (!isUnlocked) {
     return (
-      <LandingPage
-        onLaunchApp={() => setIsAuthModalOpen(true)}
-        onOpenWeather={() => {
-          setIsUnlocked(false);
-          setActiveTab('home');
+      <WeatherCover
+        onUnlock={() => {
+          setIsUnlocked(true);
+          addAuditLog('stealth_unlocked', 'PIN verified to reveal SafePath / Mehfooz');
         }}
-        language={language}
-        onLanguageChange={setLanguage}
-        themeMode={themeMode}
-        onThemeChange={setThemeMode}
+        onDirectSos={() => {
+          setIsCrisisModalOpen(true);
+          addAuditLog('stealth_direct_sos', 'Direct SOS triggered from weather cover');
+        }}
       />
     );
   }
 
-  // Also show landing if explicitly navigated back (e.g. logo click)
+  // Render Landing Page when no authenticated user or explicitly navigating to landing
+  if (activeTab === 'landing' && !user) {
+    return (
+      <>
+        <LandingPage
+          onLaunchApp={() => setIsAuthModalOpen(true)}
+          onOpenWeather={() => {
+            setIsUnlocked(false);
+            setActiveTab('home');
+          }}
+          language={language}
+          onLanguageChange={setLanguage}
+          themeMode={themeMode}
+          onThemeChange={setThemeMode}
+        />
+        <AuthModal
+          isOpen={isAuthModalOpen}
+          onClose={() => setIsAuthModalOpen(false)}
+          language={language}
+          onSuccess={(authedUser) => setUser(authedUser)}
+          onAuthSuccess={handleAuthSuccess}
+          onDemoMode={handleDemoMode}
+        />
+      </>
+    );
+  }
+
+  // Also show landing if explicitly navigated back (e.g. logo click) — user already authenticated
   if (activeTab === 'landing' && user) {
     return (
       <LandingPage
