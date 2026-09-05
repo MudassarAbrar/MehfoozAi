@@ -215,15 +215,6 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             >
               {themeMode === 'light' ? <Moon className="w-4 h-4 text-[#1C2C34]" /> : <Sun className="w-4 h-4 text-amber-400" />}
             </button>
-
-            {/* Main Launch App CTA */}
-            <button
-              onClick={() => onLaunchApp('home')}
-              className="px-4 sm:px-5 py-2 rounded-xl bg-[#FC7454] hover:bg-[#FC7C54] text-white text-xs sm:text-sm font-bold shadow-md shadow-[#FC7454]/20 hover:shadow-lg transition-all flex items-center space-x-1.5 active:scale-95 cursor-pointer"
-            >
-              <span>{isUrdu ? 'ایپ کھولیں' : 'Launch Mehfooz'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
           </div>
         </div>
       </header>
