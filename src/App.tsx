@@ -64,6 +64,11 @@ function AppInner() {
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
+  const [passwordChangeTarget, setPasswordChangeTarget] = useState<'app' | 'vault' | null>(null);
+  const [pwNew, setPwNew] = useState('');
+  const [pwConfirm, setPwConfirm] = useState('');
+  const [pwError, setPwError] = useState<string | null>(null);
+  const [pwSuccess, setPwSuccess] = useState(false);
 
   // User Profile State — start with null (loading), populate via initializeAuth()
   const [user, setUser] = useState<UserProfile | null>(() => {
@@ -325,6 +330,14 @@ function AppInner() {
         inspectorOpen={isInspectorOpen}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
         onOpenOfflineCorpus={() => setIsOfflineCorpusOpen(true)}
+        onChangePassword={(target) => {
+          if (target === 'email') {
+            setIsAuthModalOpen(true);
+          } else {
+            setPasswordChangeTarget(target);
+            setPwNew(''); setPwConfirm(''); setPwError(null); setPwSuccess(false);
+          }
+        }}
       />
 
       {/* 2. Main View Router */}
@@ -486,6 +499,60 @@ function AppInner() {
         onAuthSuccess={handleAuthSuccess}
         onDemoMode={handleDemoMode}
       />
+
+      {/* Password Change Modal (Settings → App/Vault Password) */}
+      {passwordChangeTarget && (
+        <div className="fixed inset-0 z-[60] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4" onClick={() => setPasswordChangeTarget(null)}>
+          <div className="w-full max-w-sm bg-white dark:bg-[#18242A] rounded-2xl shadow-2xl p-5 border border-slate-200 dark:border-slate-700" onClick={e => e.stopPropagation()}>
+            <h3 className="text-sm font-bold text-[#1C2C34] dark:text-white mb-1">
+              {passwordChangeTarget === 'app' ? 'Change App Password' : 'Change Vault Password'}
+            </h3>
+            <p className="text-xs text-[#5A6E78] dark:text-slate-400 mb-4">
+              {passwordChangeTarget === 'app'
+                ? 'This password unlocks the protected app through the weather cover interface.'
+                : 'This password protects your encrypted Private Vault.'}
+            </p>
+            {pwError && <div className="p-2 mb-3 rounded-lg bg-rose-50 dark:bg-rose-950/30 border border-rose-200 dark:border-rose-800 text-xs text-rose-700 dark:text-rose-400 font-medium">{pwError}</div>}
+            {pwSuccess && <div className="p-2 mb-3 rounded-lg bg-emerald-50 dark:bg-emerald-950/30 border border-emerald-200 dark:border-emerald-800 text-xs text-emerald-700 dark:text-emerald-400 font-medium">Password updated successfully!</div>}
+            <div className="space-y-3">
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] dark:text-slate-300 mb-1">New Password</label>
+                <input type="password" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwError(null); setPwSuccess(false); }} placeholder="Minimum 6 characters" className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-[#1C2C34] dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+              <div>
+                <label className="block text-xs font-medium text-[#1C2C34] dark:text-slate-300 mb-1">Confirm Password</label>
+                <input type="password" value={pwConfirm} onChange={e => { setPwConfirm(e.target.value); setPwError(null); setPwSuccess(false); }} placeholder="Re-enter password" className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-[#1C2C34] dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+              </div>
+            </div>
+            <div className="flex space-x-2 mt-4">
+              <button onClick={() => setPasswordChangeTarget(null)} className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-[#1C2C34] dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition cursor-pointer">Cancel</button>
+              <button
+                onClick={() => {
+                  if (pwNew.length < 6) { setPwError('Password must be at least 6 characters'); return; }
+                  if (pwNew !== pwConfirm) { setPwError('Passwords do not match'); return; }
+                  if (passwordChangeTarget === 'app') {
+                    // Save as stealth PIN
+                    try {
+                      const updated = user ? { ...user, stealthPin: pwNew } : null;
+                      if (updated) {
+                        setUser(updated);
+                        localStorage.setItem('mehfooz_profile_cache_v1', JSON.stringify(updated));
+                      }
+                    } catch {}
+                  } else {
+                    // Save vault password
+                    try { localStorage.setItem('mehfooz_vault_pw_hash', pwNew); } catch {}
+                  }
+                  setPwSuccess(true);
+                  setPwError(null);
+                  setTimeout(() => setPasswordChangeTarget(null), 1500);
+                }}
+                className="flex-1 py-2.5 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold transition cursor-pointer"
+              >Save</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* 5. Immediate Safety Crisis Modal */}
       <CrisisModal

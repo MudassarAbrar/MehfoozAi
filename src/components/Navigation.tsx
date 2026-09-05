@@ -59,6 +59,7 @@ interface NavigationProps {
   inspectorOpen: boolean;
   onOpenOnboarding: () => void;
   onOpenOfflineCorpus?: () => void;
+  onChangePassword?: (target: 'app' | 'vault' | 'email') => void;
   draftCount?: number;
   vaultCount?: number;
 }
@@ -78,6 +79,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   inspectorOpen,
   onOpenOnboarding,
   onOpenOfflineCorpus,
+  onChangePassword,
   draftCount = 0,
   vaultCount = 0,
 }) => {
@@ -237,7 +239,19 @@ export const Navigation: React.FC<NavigationProps> = ({
                             return (
                               <button
                                 key={`${item.id}-${idx}`}
-                                onClick={() => { onSelectTab(item.id); setIsMoreMenuOpen(false); }}
+                                onClick={() => {
+                                  if (item.isPasswordLink && item.passwordType) {
+                                    // Password management buttons — open dedicated flow
+                                    if (item.passwordType === 'email') {
+                                      onOpenAuthModal();
+                                    } else {
+                                      onChangePassword?.(item.passwordType as 'app' | 'vault');
+                                    }
+                                  } else {
+                                    onSelectTab(item.id);
+                                  }
+                                  setIsMoreMenuOpen(false);
+                                }}
                                 className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium transition cursor-pointer ${
                                   activeTab === item.id
                                     ? 'bg-[#ECF4F4] dark:bg-[#263842] text-[#1C2C34] dark:text-[#F4F4FC] font-bold border border-[#BCD4D4] dark:border-[#263842]'
