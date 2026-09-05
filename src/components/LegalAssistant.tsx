@@ -169,7 +169,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   // 3. Voice Mode state
   const [isVoiceRecording, setIsVoiceRecording] = useState(false);
   const [speechTranscript, setSpeechTranscript] = useState('');
+  const [voiceError, setVoiceError] = useState<string | null>(null);
   const recognitionRef = useRef<any>(null);
+  const shouldKeepListeningRef = useRef(false);
+  const restartCountRef = useRef(0);
+  const restartTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const accumulatedFinalRef = useRef('');
+  const MAX_RESTARTS = 5;
+  const RESTART_DELAY_MS = 300;
 
   // 4. Photo Evidence state
   const [attachedPhotos, setAttachedPhotos] = useState<string[]>([]);
@@ -180,9 +187,13 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   // ── M.6–M.8: Voice cleanup on unmount ──────────────────────────────────────
   useEffect(() => {
     return () => {
-      // Stop speech recognition if active
+      shouldKeepListeningRef.current = false;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (recognitionRef.current) {
-        try { recognitionRef.current.stop(); } catch {}
+        try { recognitionRef.current.abort(); } catch {}
         recognitionRef.current = null;
       }
       // Stop any active speech synthesis
@@ -263,28 +274,41 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   // Handle Speech Recognition
   const handleToggleVoiceRecording = () => {
     if (isVoiceRecording) {
+      shouldKeepListeningRef.current = false;
+      if (restartTimerRef.current) {
+        clearTimeout(restartTimerRef.current);
+        restartTimerRef.current = null;
+      }
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try { recognitionRef.current.stop(); } catch {}
       }
       setIsVoiceRecording(false);
+      setVoiceError(null);
       return;
     }
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert(isUrdu ? 'براؤزر میں وائس ریکگنیشن سپورٹ دستیاب نہیں ہے۔' : 'Speech recognition is not supported in this browser.');
+      setVoiceError(isUrdu ? 'براؤزر میں وائس ریکگنیشن سپورٹ دستیاب نہیں ہے۔' : 'Speech recognition not supported. Use Chrome or Edge.');
       return;
     }
 
     try {
+      accumulatedFinalRef.current = '';
+      restartCountRef.current = 0;
+      setVoiceError(null);
+      setSpeechTranscript('');
+      shouldKeepListeningRef.current = true;
+
       const recognition = new SpeechRecognition();
-      recognition.continuous = true; // #23: Do NOT auto-stop after 6 seconds
+      recognition.continuous = true;
       recognition.interimResults = true;
       recognition.lang = isUrdu ? 'ur-PK' : 'en-US';
 
       recognition.onstart = () => {
         setIsVoiceRecording(true);
-        setSpeechTranscript('');
+        setVoiceError(null);
+        restartCountRef.current = 0;
         onLogAudit?.('voice_input_started', `Started voice recording (${recognition.lang})`);
       };
 
@@ -292,30 +316,76 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         let interim = '';
         for (let i = event.resultIndex; i < event.results.length; ++i) {
           if (event.results[i].isFinal) {
-            const finalTranscript = event.results[i][0].transcript;
-            setInputText(prev => (prev ? `${prev} ${finalTranscript}` : finalTranscript));
-            setSpeechTranscript(finalTranscript);
+            accumulatedFinalRef.current += (accumulatedFinalRef.current ? ' ' : '') + event.results[i][0].transcript;
           } else {
             interim += event.results[i][0].transcript;
-            setSpeechTranscript(interim);
           }
         }
+        setInputText(accumulatedFinalRef.current + (interim ? ' ' + interim : ''));
+        setSpeechTranscript(interim || accumulatedFinalRef.current.split(' ').slice(-6).join(' ') || '');
       };
 
       recognition.onerror = (event: any) => {
-        console.warn('Speech recognition error:', event.error);
-        setIsVoiceRecording(false);
+        const err: string = event.error;
+        const fatalErrors = ['not-allowed', 'service-not-allowed', 'audio-capture'];
+        if (fatalErrors.includes(err)) {
+          shouldKeepListeningRef.current = false;
+          setIsVoiceRecording(false);
+          const msgs: Record<string, string> = {
+            'not-allowed': isUrdu
+              ? 'مائیکروفون کی اجازت نہیں ملی۔ براہ کرم براؤزر سیٹنگز میں مائیکروفون آن کریں۔'
+              : 'Microphone access denied. Please allow microphone in browser settings.',
+            'service-not-allowed': isUrdu
+              ? 'وائس سروس دستیاب نہیں ہے۔'
+              : 'Speech service not allowed in browser settings.',
+            'audio-capture': isUrdu
+              ? 'کوئی مائیکروفون نہیں ملا۔ براہ کرم مائیکروفون کنیکٹ کریں۔'
+              : 'No microphone found. Please connect a microphone.',
+          };
+          setVoiceError(msgs[err] || `Voice error: ${err}`);
+          onLogAudit?.('voice_fatal_error', err);
+          return;
+        }
+        if (err === 'network') {
+          setVoiceError(isUrdu ? 'نیٹ ورک خراب — دوبارہ کوشش کریں' : 'Network error — speech API unreachable. Check connection.');
+          onLogAudit?.('voice_network_error', 'Network error during speech recognition');
+        }
       };
 
       recognition.onend = () => {
-        setIsVoiceRecording(false);
+        if (!shouldKeepListeningRef.current) {
+          setIsVoiceRecording(false);
+          return;
+        }
+        if (restartCountRef.current >= MAX_RESTARTS) {
+          shouldKeepListeningRef.current = false;
+          setIsVoiceRecording(false);
+          setVoiceError(isUrdu
+            ? 'وائس ریکگنیشن بار بار ناکام ہوئی۔ دوبارہ کوشش کریں۔'
+            : 'Voice recognition failed repeatedly. Please try again.');
+          onLogAudit?.('voice_restart_limit', `Hit ${MAX_RESTARTS} restarts`);
+          return;
+        }
+        restartCountRef.current += 1;
+        restartTimerRef.current = setTimeout(() => {
+          if (!shouldKeepListeningRef.current) return;
+          try {
+            recognition.start();
+          } catch (e: any) {
+            console.warn('Restart failed:', e?.message || e);
+            shouldKeepListeningRef.current = false;
+            setIsVoiceRecording(false);
+          }
+        }, RESTART_DELAY_MS);
       };
 
       recognitionRef.current = recognition;
       recognition.start();
     } catch (err) {
       console.error('Error starting speech recognition:', err);
+      shouldKeepListeningRef.current = false;
       setIsVoiceRecording(false);
+      setVoiceError(isUrdu ? 'وائس ریکگنیشن شروع نہیں ہو سکی' : 'Could not start voice recognition.');
     }
   };
 
@@ -1075,18 +1145,26 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
 
           {/* Active Voice Recording Indicator (#24: Stop Recording button) */}
           {isVoiceRecording && (
-            <div className="flex items-center space-x-2 px-3 py-2 rounded-xl bg-[#ECF4F4] border border-[#FC7454]/40 text-xs font-bold text-[#FC7454]">
-              <Mic className="w-3.5 h-3.5 animate-pulse" />
-              <span className="flex-1">{isUrdu ? 'ریکارڈنگ جاری... بولیں' : 'Recording... Speak freely'}</span>
-              {speechTranscript && (
+            <div className={`flex items-center space-x-2 px-3 py-2 rounded-xl text-xs font-bold ${
+              voiceError
+                ? 'bg-rose-50 border border-rose-200 text-rose-600'
+                : 'bg-[#ECF4F4] border border-[#FC7454]/40 text-[#FC7454]'
+            }`}>
+              <Mic className={`w-3.5 h-3.5 ${voiceError ? '' : 'animate-pulse'}`} />
+              <span className="flex-1">
+                {voiceError
+                  ? voiceError
+                  : (isUrdu ? 'ریکارڈنگ جاری... بولیں' : 'Recording... Speak freely')}
+              </span>
+              {!voiceError && speechTranscript && (
                 <span className="text-[10px] text-[#5A6E78] max-w-[120px] truncate hidden sm:inline">{speechTranscript}</span>
               )}
               <button
                 onClick={handleToggleVoiceRecording}
                 className="ml-2 px-3 py-1 rounded-lg bg-[#FC7454] text-white text-xs font-black hover:bg-[#FC7C54] transition cursor-pointer flex items-center gap-1"
               >
-                <MicOff className="w-3 h-3" />
-                <span>{isUrdu ? 'روکیں' : 'Stop'}</span>
+                {voiceError ? <X className="w-3 h-3" /> : <MicOff className="w-3 h-3" />}
+                <span>{voiceError ? (isUrdu ? 'بند کریں' : 'Dismiss') : (isUrdu ? 'روکیں' : 'Stop')}</span>
               </button>
             </div>
           )}

@@ -242,7 +242,7 @@ export async function sendComplaintEmail(
 
   try {
     const { data, error } = await client.emails.send({
-      from: process.env.EMAIL_FROM || 'Mehfooz Legal Protection <onboarding@resend.dev>',
+      from: process.env.EMAIL_FROM || 'Mehfooz Legal Protection <no-reply@mudassirbaig.me>',
       to: [to],
       ...(replyTo ? { replyTo } : {}),
       subject,
