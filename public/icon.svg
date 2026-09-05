@@ -1,47 +1,33 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
   <defs>
-    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
-      <stop offset="0%" stop-color="#FC7454" />
-      <stop offset="100%" stop-color="#E55938" />
+    <linearGradient id="skyBg" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#6BB5F0" />
+      <stop offset="100%" stop-color="#4A90D9" />
     </linearGradient>
-    <linearGradient id="shieldGrad" x1="0%" y1="0%" x2="0%" y2="100%">
-      <stop offset="0%" stop-color="#FFFFFF" />
-      <stop offset="100%" stop-color="#ECF4F4" />
-    </linearGradient>
-    <filter id="softShadow" x="-10%" y="-10%" width="120%" height="120%">
-      <feDropShadow dx="0" dy="8" stdDeviation="16" flood-color="#000000" flood-opacity="0.18" />
+    <filter id="softGlow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="4" stdDeviation="8" flood-color="#000000" flood-opacity="0.12" />
     </filter>
   </defs>
 
-  <!-- Background rounded canvas -->
-  <rect width="512" height="512" rx="112" fill="url(#bgGrad)" />
+  <!-- Sky-blue rounded background -->
+  <rect width="512" height="512" rx="112" fill="url(#skyBg)" />
 
-  <!-- Protective Outer Shield Halo -->
-  <path d="M256 72 C334 72, 396 112, 408 184 C414 276, 350 376, 256 432 C162 376, 98 276, 104 184 C116 112, 178 72, 256 72 Z"
-        fill="none" stroke="#FFFFFF" stroke-width="12" stroke-linecap="round" stroke-linejoin="round" opacity="0.4" />
+  <!-- Sun (behind cloud) -->
+  <circle cx="320" cy="176" r="72" fill="#FFD93D" />
+  <circle cx="320" cy="176" r="56" fill="#FFE066" />
 
-  <!-- Main Shield -->
-  <path d="M256 96 C322 96, 376 132, 386 196 C392 274, 336 360, 256 410 C176 360, 120 274, 126 196 C136 132, 190 96, 256 96 Z"
-        fill="url(#shieldGrad)" filter="url(#softShadow)" />
+  <!-- Cloud -->
+  <g filter="url(#softGlow)">
+    <circle cx="210" cy="260" r="64" fill="white" />
+    <circle cx="280" cy="240" r="72" fill="white" />
+    <circle cx="340" cy="268" r="52" fill="white" />
+    <rect x="178" y="260" width="200" height="64" rx="8" fill="white" />
+  </g>
 
-  <!-- Shield Core Details in Brand Neutral (#1C2C34) and Coral (#FC7454) -->
-  <!-- Scales of Justice & Safety Heart Emblem -->
-  <!-- Center Pillar / Balance Beam -->
-  <path d="M256 160 L256 312" stroke="#1C2C34" stroke-width="14" stroke-linecap="round" />
-  <path d="M196 196 L316 196" stroke="#1C2C34" stroke-width="14" stroke-linecap="round" />
-
-  <!-- Left Scale Pan -->
-  <path d="M196 196 L174 246" stroke="#1C2C34" stroke-width="8" stroke-linecap="round" />
-  <path d="M196 196 L218 246" stroke="#1C2C34" stroke-width="8" stroke-linecap="round" />
-  <path d="M160 248 Q196 264 232 248 Z" fill="#FC7454" />
-
-  <!-- Right Scale Pan -->
-  <path d="M316 196 L294 246" stroke="#1C2C34" stroke-width="8" stroke-linecap="round" />
-  <path d="M316 196 L338 246" stroke="#1C2C34" stroke-width="8" stroke-linecap="round" />
-  <path d="M280 248 Q316 264 352 248 Z" fill="#FC7454" />
-
-  <!-- Protective Heart & Beacon at Center Bottom -->
-  <circle cx="256" cy="156" r="14" fill="#FC7454" />
-  <path d="M256 320 C256 320, 224 290, 224 272 C224 256, 238 248, 256 262 C274 248, 288 256, 288 272 C288 290, 256 320, 256 320 Z"
-        fill="#FC7454" />
+  <!-- Raindrops -->
+  <g opacity="0.7">
+    <ellipse cx="220" cy="370" rx="6" ry="14" fill="#B8D8F8" />
+    <ellipse cx="270" cy="390" rx="6" ry="14" fill="#B8D8F8" />
+    <ellipse cx="320" cy="374" rx="6" ry="14" fill="#B8D8F8" />
+  </g>
 </svg>

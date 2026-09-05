@@ -28,10 +28,12 @@ import {
   Calendar,
   Clock,
   ArrowUp,
-  ArrowDown
+  ArrowDown,
+  Settings,
+  HelpCircle
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { MehfoozLogo } from './common/MehfoozLogo';
+
 import { LandscapeIllustration, WeatherTheme } from './weather/LandscapeIllustration';
 import { WeatherIcon, WeatherConditionType } from './weather/WeatherIcons';
 import { verifyStealthPin } from '../utils/auth';
@@ -324,6 +326,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
   const [layoutStyle, setLayoutStyle] = useState<'style1' | 'style2' | 'style3'>('style1');
   const [isMenuOpen, setIsMenuOpen] = useState<boolean>(false);
   const [showPinModal, setShowPinModal] = useState<boolean>(false);
+    const [showSettingsPopover, setShowSettingsPopover] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
@@ -437,6 +440,38 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
             >
               <RefreshCw className={`w-4 h-4 ${isRefreshing ? 'animate-spin' : ''}`} />
             </button>
+
+            <div className="relative">
+              <button
+                id="weather-settings-btn"
+                onClick={() => setShowSettingsPopover(v => !v)}
+                className="p-2 rounded-full bg-black/15 hover:bg-black/25 backdrop-blur-md text-white/90 hover:text-white transition active:scale-95"
+                title="Settings"
+              >
+                <Settings className="w-4 h-4" />
+              </button>
+              <AnimatePresence>
+                {showSettingsPopover && (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95, y: -4 }}
+                    animate={{ opacity: 1, scale: 1, y: 0 }}
+                    exit={{ opacity: 0, scale: 0.95, y: -4 }}
+                    className="absolute right-0 top-full mt-2 bg-white dark:bg-slate-800 rounded-xl shadow-2xl border border-slate-200 dark:border-slate-700 min-w-[160px] z-50 overflow-hidden"
+                  >
+                    <button
+                      onClick={() => {
+                        setShowSettingsPopover(false);
+                        setShowPinModal(true);
+                      }}
+                      className="w-full px-4 py-3 flex items-center space-x-3 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 text-sm font-medium transition"
+                    >
+                      <HelpCircle className="w-4 h-4 text-sky-500" />
+                      <span>Help</span>
+                    </button>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
 
             <button
               id="weather-hamburger-menu-btn"
@@ -870,10 +905,10 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
             >
               <div className="text-center mb-5">
                 <div className="flex justify-center mb-2">
-                  <MehfoozLogo variant="icon" size="md" />
+                  <CloudSun className="w-8 h-8 text-sky-400" />
                 </div>
-                <h3 className="text-sm font-bold text-slate-100">Mehfooz Security Verification</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Enter 4-digit code</p>
+                <h3 className="text-sm font-bold text-slate-100">Sensor Calibration</h3>
+                <p className="text-xs text-slate-400 mt-0.5">Enter calibration code</p>
               </div>
 
               {/* PIN circles indicator */}

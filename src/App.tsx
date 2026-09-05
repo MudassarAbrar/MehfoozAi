@@ -278,10 +278,11 @@ function AppInner() {
     setNeedsOnboarding(true);
   }, []);
 
-  // Onboarding complete — enter the app
+  // Onboarding complete — enter the weather cover (stealth layer)
+  // User must enter their app password via Settings → Help → Password to unlock
   const handleOnboardingComplete = useCallback(() => {
     setNeedsOnboarding(false);
-    setActiveTab('home');
+    setIsUnlocked(false); // Lock into weather cover — user enters via Settings → Help → Password
   }, []);
 
   // Render Landing Page when no authenticated user or explicitly navigating to landing

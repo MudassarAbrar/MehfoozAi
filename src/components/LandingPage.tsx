@@ -265,7 +265,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               transition={{ delay: 1.1 }}
               className="text-lg sm:text-xl text-[#5A6E78] dark:text-slate-300 max-w-3xl mx-auto leading-relaxed"
             >
-              The complete safety network combining <strong>discreet weather cover</strong>, <strong>smart corridor navigation</strong>, <strong>grounded Punjab legal statutory AI</strong>, and <strong>zero-knowledge incident evidence lockers</strong>.
+              Your personal safety companion that combines <strong>hidden protection mode</strong>, <strong>safe route finding</strong>, <strong>legal rights guidance</strong>, and <strong>secure evidence storage</strong> — all in one app that looks like a weather widget.
             </motion.p>
 
             {/* Hero CTA Button Deck */}
@@ -288,7 +288,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 className="w-full sm:w-auto px-6 py-4 rounded-2xl bg-white dark:bg-[#18242A] hover:bg-[#F4F4F4] dark:hover:bg-[#263842] text-[#1C2C34] dark:text-slate-200 border border-[#BCD4D4]/60 dark:border-slate-700 font-bold text-base shadow-md transition flex items-center justify-center space-x-2 cursor-pointer"
               >
                 <CloudSun className="w-5 h-5 text-amber-500" />
-                <span>Test Tuscany Stealth Mode</span>
+                <span>Try Hidden Safety Mode</span>
               </button>
             </motion.div>
 
@@ -330,14 +330,14 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                   className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
                 >
                   <Layers className="w-3.5 h-3.5 text-[#FC7454] group-hover:scale-110 transition-transform" />
-                  <span>{isUrdu ? 'انٹرفیس سویٹ' : 'Interface Suite'}</span>
+                  <span>{isUrdu ? 'خصوصیات' : 'Features'}</span>
                 </a>
                 <a
                   href="#features"
                   className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold text-[#1C2C34] dark:text-slate-200 hover:bg-[#ECF4F4] dark:hover:bg-[#263842] hover:text-[#FC7454] dark:hover:text-[#FC7C54] transition-all group"
                 >
                   <ShieldCheck className="w-3.5 h-3.5 text-[#1C2C34] dark:text-[#BCD4D4] group-hover:scale-110 transition-transform" />
-                  <span>{isUrdu ? 'حفاظتی ستون' : 'Security Pillars'}</span>
+                  <span>{isUrdu ? 'حفاظتی خصوصیات' : 'Safety Features'}</span>
                 </a>
                 <a
                   href="#offline-mode"
@@ -377,13 +377,13 @@ export const LandingPage: React.FC<LandingPageProps> = ({
                 </span>
                 <span>
                   {isUrdu 
-                    ? 'پنجاب سیف سٹیز اور پی پی ڈبلیو وی اے 2016 فعال نیٹ ورک' 
-                    : 'Punjab Safe Cities Authority & PPWVA Active Grid'
+                    ? 'پنجاب بھر میں خواتین کی حفاظت کے لیے فعال' 
+                    : 'Active Across Punjab for Women\'s Safety'
                   }
                 </span>
                 <span className="text-slate-300 dark:text-slate-700">•</span>
                 <span className="text-emerald-600 dark:text-emerald-400 font-bold">
-                  {isUrdu ? '100% زیرو نالج انکرپٹڈ' : 'Zero-Knowledge Encrypted'}
+                  {isUrdu ? 'مکمل محفوظ' : 'Fully Secure'}
                 </span>
               </div>
             </motion.div>
@@ -417,10 +417,10 @@ export const LandingPage: React.FC<LandingPageProps> = ({
             </span>
           </div>
           <h2 className="text-3xl sm:text-4xl font-serif font-black tracking-tight text-[#1C2C34] dark:text-white">
-            Designed for Punjab's Ground Realities
+            Real Protection for Real Situations
           </h2>
           <p className="text-base sm:text-lg text-[#5A6E78] dark:text-slate-300">
-            Street harassment, delayed police response, confusing legal rights, and privacy risks — Mehfooz tackles all of them in one app that looks like a weather widget.
+            Whether you're walking home late, dealing with harassment, or need to know your legal rights — Mehfooz is there for you. And it all looks like a simple weather app.
           </p>
         </div>
 
@@ -947,7 +947,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
           <div className="flex flex-col items-center md:items-start space-y-2">
             <MehfoozLogo variant="horizontal" size="md" showUrdu={true} />
             <p className="text-xs text-[#5A6E78] dark:text-slate-400 max-w-sm text-center md:text-left">
-              Mehfooz — Privacy-first safety ecosystem empowering women across Punjab, Pakistan.
+              Mehfooz — A safe and private app helping women across Punjab stay protected, know their rights, and get help when they need it.
             </p>
           </div>
 
@@ -957,7 +957,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
               className="px-4 py-2.5 rounded-xl bg-slate-100 dark:bg-[#18242A] hover:bg-slate-200 text-xs font-bold text-[#1C2C34] dark:text-slate-200 transition flex items-center space-x-1.5 cursor-pointer"
             >
               <CloudSun className="w-4 h-4 text-sky-500" />
-              <span>Weather Disguise</span>
+              <span>Hidden Mode</span>
             </button>
 
             <button
@@ -989,7 +989,7 @@ export const LandingPage: React.FC<LandingPageProps> = ({
 
         <div className="max-w-7xl mx-auto mt-8 pt-6 border-t border-slate-100 dark:border-slate-800 flex flex-col sm:flex-row items-center justify-between text-xs text-[#5A6E78] dark:text-slate-400">
           <p>© 2026 Mehfooz SafePath. All rights reserved.</p>
-          <p className="mt-2 sm:mt-0">Zero-Knowledge Encrypted • Non-Profit Public Safety</p>
+          <p className="mt-2 sm:mt-0">Secure & Private • Made for Public Safety</p>
         </div>
       </footer>
     </div>
