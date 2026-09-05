@@ -428,6 +428,24 @@ export async function initializeAuth(): Promise<UserProfile | null> {
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;
     try {
+      // Handle email confirmation redirect — Supabase sends #access_token=... in the URL hash
+      const hash = window.location.hash;
+      if (hash && hash.includes('access_token=')) {
+        const params = new URLSearchParams(hash.replace('#', ''));
+        const accessToken = params.get('access_token');
+        const refreshToken = params.get('refresh_token');
+        if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({
+            access_token: accessToken,
+            refresh_token: refreshToken,
+          });
+          if (!error) {
+            // Clean up the URL hash so it doesn't persist on refresh
+            window.history.replaceState(null, '', window.location.pathname);
+          }
+        }
+      }
+
       const { data } = await supabase.auth.getSession();
       if (!data.session?.user) {
         clearProfileCache();
@@ -544,6 +562,7 @@ export async function signUpUser(params: {
       email: normalizedEmail,
       password: params.password,
       options: {
+        emailRedirectTo: window.location.origin,
         data: {
           full_name: params.fullName.trim(),
           district: params.district,

@@ -117,16 +117,23 @@ function AppInner() {
   }, [themeMode]);
 
   // Restore authentication session on mount (Supabase or legacy localStorage).
-  // Falls back to a demo profile only when Supabase is not configured AND no
-  // cached session exists, preserving the seamless interactive preview.
+  // Also handles email confirmation redirect (#access_token=...&type=signup).
   useEffect(() => {
     let cancelled = false;
+    // Detect if this is an email confirmation redirect
+    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
+    const isEmailConfirmation = hashParams.get('type') === 'signup';
+
     void initializeAuth().then(authUser => {
       if (cancelled) return;
       if (authUser) {
         setUser(authUser);
+        // If user arrived from email confirmation, skip landing and go straight to onboarding
+        if (isEmailConfirmation) {
+          setNeedsOnboarding(true);
+          setActiveTab('home');
+        }
       } else {
-        // No auth session — keep user null so the landing page gates behind auth
         setUser(null);
       }
       setIsAuthLoading(false);
