@@ -618,7 +618,7 @@ The `vercel.json` configuration:
 <b>Mudassar Abrar</b><br>
 <i>Lead Developer & Architect</i><br><br>
 <a href="https://github.com/MudassarAbrar"><img src="https://img.shields.io/badge/GitHub-000?style=flat-square&logo=github&logoColor=white" /></a>
-<a href="https://www.linkedin.com/in/mudassar-abrar"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+<a href="https://www.linkedin.com/in/muhammad-mudassir-abrar-baig-65aa38338"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
 <a href="https://x.com/MehfoozAii"><img src="https://img.shields.io/badge/X-000?style=flat-square&logo=x&logoColor=white" /></a>
 </td>
 <td align="center" width="33%">
