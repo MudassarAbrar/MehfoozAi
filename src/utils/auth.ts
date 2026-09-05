@@ -424,6 +424,67 @@ export async function verifyStealthPin(pin: string): Promise<boolean> {
   }
 }
 
+/**
+ * Reset the stealth PIN — used by the "Forgot Password" recovery flow.
+ * If a Supabase session exists, the email is verified against the logged-in
+ * user before the new PIN hash is persisted to both localStorage and Supabase.
+ * In legacy mode, only the email match against the cached profile is checked.
+ */
+export async function resetStealthPin(
+  email: string,
+  newPin: string
+): Promise<{ success: boolean; error?: string }> {
+  if (newPin.length < 6) {
+    return { success: false, error: 'New password must be at least 6 characters.' };
+  }
+
+  const normalizedEmail = email.trim().toLowerCase();
+
+  if (isSupabaseMode()) {
+    const supabase = getSupabase()!;
+    const { data } = await supabase.auth.getSession();
+    const user = data.session?.user;
+    if (user) {
+      // Verify the email matches the logged-in user
+      if (user.email?.toLowerCase() !== normalizedEmail) {
+        return { success: false, error: 'Email does not match the registered account.' };
+      }
+      const pinSalt = generateRandomSalt();
+      const pinHash = await hashPin(newPin, pinSalt);
+      const { error } = await supabase
+        .from('profiles')
+        .update({ stealth_pin_hash: pinHash, pin_salt: pinSalt })
+        .eq('id', user.id);
+      if (error) {
+        return { success: false, error: 'Failed to update password on server.' };
+      }
+      cachePinLocally(pinHash, pinSalt);
+      // Also update the cached profile
+      const profile = getStoredProfile();
+      if (profile) {
+        profile.stealthPin = newPin;
+        cacheProfile(profile);
+      }
+      return { success: true };
+    }
+  }
+
+  // Legacy / no-session mode: verify email against cached profile
+  const profile = getStoredProfile();
+  if (!profile) {
+    return { success: false, error: 'No account found on this device.' };
+  }
+  if (profile.email?.toLowerCase() !== normalizedEmail) {
+    return { success: false, error: 'Email does not match the registered account.' };
+  }
+  const pinSalt = generateRandomSalt();
+  const pinHash = await hashPin(newPin, pinSalt);
+  cachePinLocally(pinHash, pinSalt);
+  profile.stealthPin = newPin;
+  cacheProfile(profile);
+  return { success: true };
+}
+
 export async function initializeAuth(): Promise<UserProfile | null> {
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;

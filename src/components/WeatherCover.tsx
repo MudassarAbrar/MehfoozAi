@@ -17,6 +17,7 @@ import {
   Wind,
   Droplets,
   Eye,
+  EyeOff,
   Compass,
   Gauge,
   ShieldCheck,
@@ -30,13 +31,15 @@ import {
   ArrowUp,
   ArrowDown,
   Settings,
-  HelpCircle
+  HelpCircle,
+  KeyRound,
+  ArrowLeft
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 
 import { LandscapeIllustration, WeatherTheme } from './weather/LandscapeIllustration';
 import { WeatherIcon, WeatherConditionType } from './weather/WeatherIcons';
-import { verifyStealthPin } from '../utils/auth';
+import { verifyStealthPin, resetStealthPin, getStoredProfile } from '../utils/auth';
 
 interface WeatherCoverProps {
   onUnlock: () => void;
@@ -329,6 +332,16 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
     const [showSettingsPopover, setShowSettingsPopover] = useState<boolean>(false);
   const [pinInput, setPinInput] = useState<string>('');
   const [pinError, setPinError] = useState<boolean>(false);
+  const [pinVerifying, setPinVerifying] = useState<boolean>(false);
+  const [showPinText, setShowPinText] = useState<boolean>(false);
+  // Forgot-password recovery flow state
+  const [showForgotPin, setShowForgotPin] = useState<boolean>(false);
+  const [forgotEmail, setForgotEmail] = useState<string>('');
+  const [forgotNewPin, setForgotNewPin] = useState<string>('');
+  const [forgotConfirmPin, setForgotConfirmPin] = useState<string>('');
+  const [forgotStep, setForgotStep] = useState<'email' | 'newpin'>('email');
+  const [forgotError, setForgotError] = useState<string | null>(null);
+  const [forgotSuccess, setForgotSuccess] = useState<boolean>(false);
   const [isExpanded, setIsExpanded] = useState<boolean>(false);
   const [tempUnit, setTempUnit] = useState<'C' | 'F'>('C');
   // Long-press stealth unlock removed (#37) — access via Settings → Help → Password
@@ -351,29 +364,72 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
 
 
 
-  const handlePinDigit = (digit: string) => {
-    if (pinInput.length < 4) {
-      const nextPin = pinInput + digit;
-      setPinInput(nextPin);
-      if (nextPin.length === 4) {
-        // Verified against the salted stealth-PIN hash (Supabase mode) or
-        // the profile PIN (legacy). No universal fallback codes exist — the
-        // long-press gesture remains the designed recovery unlock.
-        void verifyStealthPin(nextPin).then(valid => {
-          if (valid) {
-            setShowPinModal(false);
-            setPinInput('');
-            onUnlock();
-          } else {
-            setPinError(true);
-            setTimeout(() => {
-              setPinInput('');
-              setPinError(false);
-            }, 600);
-          }
-        });
+  /** Verify the password entered in the Sensor Calibration modal. */
+  const handlePasswordSubmit = () => {
+    if (!pinInput.trim() || pinVerifying) return;
+    setPinVerifying(true);
+    void verifyStealthPin(pinInput).then(valid => {
+      if (valid) {
+        setShowPinModal(false);
+        setPinInput('');
+        onUnlock();
+      } else {
+        setPinError(true);
+        setTimeout(() => {
+          setPinInput('');
+          setPinError(false);
+        }, 800);
       }
+      setPinVerifying(false);
+    });
+  };
+
+  /** Handle the forgot-password recovery flow. */
+  const handleForgotEmailSubmit = async () => {
+    setForgotError(null);
+    const email = forgotEmail.trim().toLowerCase();
+    if (!email) { setForgotError('Please enter your registered email.'); return; }
+    // Pre-fill from cached profile if available
+    const profile = getStoredProfile();
+    if (profile?.email && profile.email.toLowerCase() !== email) {
+      setForgotError('Email does not match the registered account.');
+      return;
     }
+    setForgotStep('newpin');
+  };
+
+  const handleForgotPinReset = async () => {
+    setForgotError(null);
+    if (forgotNewPin.length < 6) {
+      setForgotError('Password must be at least 6 characters.');
+      return;
+    }
+    if (forgotNewPin !== forgotConfirmPin) {
+      setForgotError('Passwords do not match.');
+      return;
+    }
+    const result = await resetStealthPin(forgotEmail, forgotNewPin);
+    if (result.success) {
+      setForgotSuccess(true);
+      setForgotError(null);
+    } else {
+      setForgotError(result.error || 'Failed to reset password.');
+    }
+  };
+
+  const closePinModal = () => {
+    setShowPinModal(false);
+    setShowForgotPin(false);
+    setPinInput('');
+    setPinError(false);
+    setPinVerifying(false);
+    setShowForgotPin(false);
+    setForgotEmail('');
+    setForgotNewPin('');
+    setForgotConfirmPin('');
+    setForgotStep('email');
+    setForgotError(null);
+    setForgotSuccess(false);
   };
 
   const handleRefresh = () => {
@@ -893,7 +949,7 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
         )}
       </AnimatePresence>
 
-      {/* 6. COVERT STEALTH PIN KEYPAD MODAL */}
+      {/* 6. COVERT STEALTH PIN MODAL — password text input + forgot password */}
       <AnimatePresence>
         {showPinModal && (
           <div className="fixed inset-0 z-50 bg-slate-950/80 backdrop-blur-md flex items-center justify-center p-4">
@@ -903,51 +959,189 @@ export const WeatherCover: React.FC<WeatherCoverProps> = ({
               exit={{ scale: 0.9, opacity: 0 }}
               className="w-full max-w-xs bg-slate-900 border border-slate-700/80 rounded-3xl p-6 shadow-2xl text-white"
             >
-              <div className="text-center mb-5">
-                <div className="flex justify-center mb-2">
-                  <CloudSun className="w-8 h-8 text-sky-400" />
-                </div>
-                <h3 className="text-sm font-bold text-slate-100">Sensor Calibration</h3>
-                <p className="text-xs text-slate-400 mt-0.5">Enter calibration code</p>
-              </div>
+              {/* ====== MAIN PASSWORD ENTRY ====== */}
+              {!showForgotPin && (
+                <>
+                  <div className="text-center mb-5">
+                    <div className="flex justify-center mb-2">
+                      <CloudSun className="w-8 h-8 text-sky-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-100">Sensor Calibration</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Enter calibration code</p>
+                  </div>
 
-              {/* PIN circles indicator */}
-              <div className="flex justify-center space-x-3 mb-6">
-                {[0, 1, 2, 3].map((idx) => (
-                  <div
-                    key={idx}
-                    className={`w-3.5 h-3.5 rounded-full border transition-all ${
-                      pinInput.length > idx
-                        ? pinError
-                          ? 'bg-rose-500 border-rose-400'
-                          : 'bg-[#FC7454] border-[#FC7454] scale-110'
-                        : 'border-slate-600 bg-slate-800'
-                    }`}
-                  />
-                ))}
-              </div>
+                  {/* Error message */}
+                  {pinError && (
+                    <div className="mb-3 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-400 text-center font-medium">
+                      Incorrect password. Try again.
+                    </div>
+                  )}
 
-              {/* Keypad Grid */}
-              <div className="grid grid-cols-3 gap-2.5">
-                {['1', '2', '3', '4', '5', '6', '7', '8', '9', 'C', '0', '✕'].map((key) => (
+                  {/* Password text input */}
+                  <div className="relative mb-4">
+                    <Lock className="absolute left-3 top-2.5 w-4 h-4 text-slate-500" />
+                    <input
+                      type={showPinText ? 'text' : 'password'}
+                      value={pinInput}
+                      onChange={e => setPinInput(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handlePasswordSubmit(); }}
+                      placeholder="Enter your password"
+                      autoFocus
+                      className="w-full pl-9 pr-10 py-2.5 bg-slate-800/80 border border-slate-600/50 rounded-2xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-[#FC7454]/60 transition-colors"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPinText(!showPinText)}
+                      className="absolute right-3 top-2.5 text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                    >
+                      {showPinText ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                    </button>
+                  </div>
+
+                  {/* Submit button */}
                   <button
-                    key={key}
-                    onClick={() => {
-                      if (key === 'C') {
-                        setPinInput('');
-                      } else if (key === '✕') {
-                        setShowPinModal(false);
-                        setPinInput('');
-                      } else {
-                        handlePinDigit(key);
-                      }
-                    }}
-                    className="h-12 rounded-2xl bg-slate-800/90 hover:bg-slate-700 active:bg-[#FC7454] active:text-[#1C2C34] text-sm font-semibold text-slate-200 transition-colors flex items-center justify-center cursor-pointer"
+                    onClick={handlePasswordSubmit}
+                    disabled={!pinInput.trim() || pinVerifying}
+                    className="w-full py-2.5 rounded-2xl bg-[#FC7454] hover:bg-[#e8654a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-white transition-colors cursor-pointer"
                   >
-                    {key}
+                    {pinVerifying ? 'Verifying…' : 'Unlock'}
                   </button>
-                ))}
-              </div>
+
+                  {/* Cancel */}
+                  <button
+                    onClick={closePinModal}
+                    className="w-full mt-2 py-2 rounded-2xl text-xs text-slate-500 hover:text-slate-300 transition-colors cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+
+                  {/* Forgot password link */}
+                  <div className="mt-3 pt-3 border-t border-slate-700/60 text-center">
+                    <button
+                      onClick={() => setShowForgotPin(true)}
+                      className="text-xs text-sky-400 hover:text-sky-300 flex items-center justify-center gap-1 mx-auto cursor-pointer transition-colors"
+                    >
+                      <KeyRound className="w-3 h-3" />
+                      Forgot password?
+                    </button>
+                  </div>
+                </>
+              )}
+
+              {/* ====== FORGOT PASSWORD FLOW ====== */}
+              {showForgotPin && !forgotSuccess && forgotStep === 'email' && (
+                <>
+                  <div className="text-center mb-4">
+                    <div className="flex justify-center mb-2">
+                      <KeyRound className="w-7 h-7 text-sky-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-100">Reset Password</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Enter your registered email</p>
+                  </div>
+
+                  {forgotError && (
+                    <div className="mb-3 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-400 text-center font-medium">
+                      {forgotError}
+                    </div>
+                  )}
+
+                  <input
+                    type="email"
+                    value={forgotEmail}
+                    onChange={e => setForgotEmail(e.target.value)}
+                    onKeyDown={e => { if (e.key === 'Enter') handleForgotEmailSubmit(); }}
+                    placeholder="your@email.com"
+                    autoFocus
+                    className="w-full px-3 py-2.5 bg-slate-800/80 border border-slate-600/50 rounded-2xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500/60 transition-colors mb-4"
+                  />
+
+                  <button
+                    onClick={handleForgotEmailSubmit}
+                    disabled={!forgotEmail.trim()}
+                    className="w-full py-2.5 rounded-2xl bg-sky-500 hover:bg-sky-400 disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-white transition-colors cursor-pointer"
+                  >
+                    Continue
+                  </button>
+
+                  <button
+                    onClick={() => { setShowForgotPin(false); setForgotError(null); }}
+                    className="w-full mt-2 py-2 text-xs text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" /> Back
+                  </button>
+                </>
+              )}
+
+              {showForgotPin && !forgotSuccess && forgotStep === 'newpin' && (
+                <>
+                  <div className="text-center mb-4">
+                    <div className="flex justify-center mb-2">
+                      <Lock className="w-7 h-7 text-sky-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-100">Set New Password</h3>
+                    <p className="text-xs text-slate-400 mt-0.5">Minimum 6 characters</p>
+                  </div>
+
+                  {forgotError && (
+                    <div className="mb-3 p-2 rounded-xl bg-rose-500/15 border border-rose-500/30 text-xs text-rose-400 text-center font-medium">
+                      {forgotError}
+                    </div>
+                  )}
+
+                  <div className="space-y-3 mb-4">
+                    <input
+                      type="password"
+                      value={forgotNewPin}
+                      onChange={e => setForgotNewPin(e.target.value)}
+                      placeholder="New password (min 6 chars)"
+                      autoFocus
+                      className="w-full px-3 py-2.5 bg-slate-800/80 border border-slate-600/50 rounded-2xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500/60 transition-colors"
+                    />
+                    <input
+                      type="password"
+                      value={forgotConfirmPin}
+                      onChange={e => setForgotConfirmPin(e.target.value)}
+                      onKeyDown={e => { if (e.key === 'Enter') handleForgotPinReset(); }}
+                      placeholder="Confirm new password"
+                      className="w-full px-3 py-2.5 bg-slate-800/80 border border-slate-600/50 rounded-2xl text-sm text-slate-100 placeholder:text-slate-500 focus:outline-none focus:border-sky-500/60 transition-colors"
+                    />
+                  </div>
+
+                  <button
+                    onClick={handleForgotPinReset}
+                    disabled={forgotNewPin.length < 6 || forgotNewPin !== forgotConfirmPin}
+                    className="w-full py-2.5 rounded-2xl bg-[#FC7454] hover:bg-[#e8654a] disabled:opacity-40 disabled:cursor-not-allowed text-sm font-bold text-white transition-colors cursor-pointer"
+                  >
+                    Reset Password
+                  </button>
+
+                  <button
+                    onClick={() => { setForgotStep('email'); setForgotError(null); setForgotNewPin(''); setForgotConfirmPin(''); }}
+                    className="w-full mt-2 py-2 text-xs text-slate-500 hover:text-slate-300 flex items-center justify-center gap-1 cursor-pointer transition-colors"
+                  >
+                    <ArrowLeft className="w-3 h-3" /> Back
+                  </button>
+                </>
+              )}
+
+              {showForgotPin && forgotSuccess && (
+                <>
+                  <div className="text-center mb-4">
+                    <div className="flex justify-center mb-2">
+                      <ShieldCheck className="w-8 h-8 text-green-400" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-100">Password Reset!</h3>
+                    <p className="text-xs text-slate-400 mt-1">Your calibration code has been updated. You can now unlock with the new password.</p>
+                  </div>
+
+                  <button
+                    onClick={closePinModal}
+                    className="w-full py-2.5 rounded-2xl bg-green-500 hover:bg-green-400 text-sm font-bold text-white transition-colors cursor-pointer"
+                  >
+                    Done
+                  </button>
+                </>
+              )}
             </motion.div>
           </div>
         )}
