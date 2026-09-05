@@ -128,10 +128,11 @@ function AppInner() {
       if (cancelled) return;
       if (authUser) {
         setUser(authUser);
-        // If user arrived from email confirmation, skip landing and go straight to onboarding
+        // If user arrived from email confirmation, show onboarding to set PIN/passwords
         if (isEmailConfirmation) {
           setNeedsOnboarding(true);
           setActiveTab('home');
+          setIsUnlocked(true); // Unlock first so onboarding modal renders
         }
       } else {
         setUser(null);
@@ -251,6 +252,8 @@ function AppInner() {
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
     setUser(authedUser);
     setNeedsOnboarding(true);
+    setIsUnlocked(true); // Unlock so the onboarding modal renders
+    setActiveTab('home'); // Navigate to home where onboarding modal lives
   }, []);
 
   // Onboarding complete — enter the weather cover (stealth layer)

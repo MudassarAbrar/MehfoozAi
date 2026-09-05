@@ -58,9 +58,11 @@ export const AuthModal: React.FC<AuthModalProps> = ({
   language,
   initialMode = 'login',
 }) => {
-  const handleSuccess = (user: UserProfile) => {
+  const handleSuccess = (user: UserProfile, isSignup: boolean = false) => {
     onSuccess(user);
-    onAuthSuccess?.(user);
+    if (isSignup) {
+      onAuthSuccess?.(user);
+    }
   };
   const isUrdu = language === 'ur';
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
@@ -122,7 +124,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
       if (mode === 'login') {
         const result = await loginUser(email, password);
         if (result.success && result.user) {
-          handleSuccess(result.user);
+          handleSuccess(result.user, false);
           onClose();
         } else {
           setErrorMessage(result.error || 'Login failed.');
@@ -146,7 +148,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
         });
 
         if (result.success && result.user) {
-          handleSuccess(result.user);
+          handleSuccess(result.user, true);
           onClose();
         } else {
           setErrorMessage(result.error || 'Registration failed.');
