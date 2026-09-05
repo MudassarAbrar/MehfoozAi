@@ -428,21 +428,21 @@ export async function initializeAuth(): Promise<UserProfile | null> {
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;
     try {
-      // Handle email confirmation redirect — Supabase sends #access_token=... in the URL hash
+      // Supabase client is created with detectSessionInUrl: true, so the SDK
+      // has already consumed the #access_token=... hash and established the
+      // session before this code runs. No manual hash parsing needed.
+
+      // Belt-and-suspenders: if the SDK did NOT consume the hash (older SDK
+      // version or edge case), attempt manual session restoration as a fallback.
       const hash = window.location.hash;
-      if (hash && hash.includes('access_token=')) {
-        const params = new URLSearchParams(hash.replace('#', ''));
-        const accessToken = params.get('access_token');
-        const refreshToken = params.get('refresh_token');
-        if (accessToken && refreshToken) {
-          const { error } = await supabase.auth.setSession({
-            access_token: accessToken,
-            refresh_token: refreshToken,
-          });
-          if (!error) {
-            // Clean up the URL hash so it doesn't persist on refresh
-            window.history.replaceState(null, '', window.location.pathname);
-          }
+      if (hash && hash.includes('access_token=') && hash.includes('refresh_token=')) {
+        const params = new URLSearchParams(hash.substring(1));
+        const at = params.get('access_token');
+        const rt = params.get('refresh_token');
+        if (at && rt) {
+          await supabase.auth.setSession({ access_token: at, refresh_token: rt });
+          // Clean the URL regardless of outcome — tokens must never persist in the URL.
+          window.history.replaceState(null, '', window.location.pathname);
         }
       }
 
@@ -578,6 +578,9 @@ export async function signUpUser(params: {
     }
     if (!data.session || !data.user) {
       // Email confirmation is enabled on the project — account exists but is locked.
+      // Set a sessionStorage flag so the app can show a helpful error if the
+      // verification callback later fails to establish a session.
+      try { sessionStorage.setItem('mehfooz_pending_email_verify', 'true'); } catch {}
       return { success: false, error: 'Account created. Please confirm your email address (check your inbox), then sign in.' };
     }
 
@@ -658,6 +661,26 @@ export async function signUpUser(params: {
   localStorage.setItem(STORAGE_SESSION_KEY, normalizedEmail);
 
   return { success: true, user: newProfile };
+}
+
+/**
+ * Returns true when the authenticated Supabase user has NOT yet completed
+ * onboarding.  Detection signal: the local PIN hash cache is empty (PIN is
+ * only written during onboarding step 6) AND there is no cached profile.
+ * This correctly identifies:
+ *   – Fresh email-verification users (first time ever)
+ *   – Users who signed up but closed before finishing onboarding
+ * Returning users who already completed onboarding will have the PIN hash
+ * cached from loadFullProfile(), so this returns false for them.
+ */
+export function needsOnboardingAfterAuth(): boolean {
+  if (!isSupabaseMode()) return false;
+  const pinHash = localStorage.getItem(PIN_HASH_CACHE_KEY);
+  const cached = getStoredProfile();
+  // If we already have a cached profile AND a PIN hash, onboarding is done.
+  if (pinHash && cached) return false;
+  // If Supabase session exists but no PIN hash, user hasn't set their stealth PIN yet.
+  return !pinHash;
 }
 
 export function logoutUser(): void {

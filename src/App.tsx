@@ -4,8 +4,10 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
+import { AlertTriangle } from 'lucide-react';
 import { AppLanguage, AuditLogEntry, ComplaintDraft, VaultRecord, UserProfile, ActiveTab } from './types';
-import { getStoredProfile, getStoredSessionToken, initializeAuth } from './utils/auth';
+import { getStoredProfile, getStoredSessionToken, initializeAuth, needsOnboardingAfterAuth } from './utils/auth';
+import { getSupabase } from './utils/supabase';
 
 // Stealth & Crisis
 import { WeatherCover } from './components/WeatherCover';
@@ -76,6 +78,7 @@ function AppInner() {
     return getStoredProfile();
   });
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [authVerificationError, setAuthVerificationError] = useState<string | null>(null);
 
   // Cross-component legal handoff state
   const [vaultDraftNote, setVaultDraftNote] = useState<{ title: string; note: string } | null>(null);
@@ -117,32 +120,73 @@ function AppInner() {
   }, [themeMode]);
 
   // Restore authentication session on mount (Supabase or legacy localStorage).
-  // Also handles email confirmation redirect (#access_token=...&type=signup).
+  // The Supabase client (detectSessionInUrl: true) has already consumed the
+  // #access_token=... hash and established the session BEFORE React mounts,
+  // so we cannot parse the hash here. Instead, we detect new signups by
+  // checking whether the user has completed onboarding (PIN hash cache).
   useEffect(() => {
     let cancelled = false;
-    // Detect if this is an email confirmation redirect
-    const hashParams = new URLSearchParams(window.location.hash.replace('#', ''));
-    const isEmailConfirmation = hashParams.get('type') === 'signup';
 
     void initializeAuth().then(authUser => {
       if (cancelled) return;
       if (authUser) {
         setUser(authUser);
-        // If user arrived from email confirmation, show onboarding to set PIN/passwords
-        if (isEmailConfirmation) {
+        // Detect new signup: user has a Supabase session but no PIN hash yet
+        // (PIN is only written during onboarding step 6). This correctly
+        // identifies email-verification users and users who signed up but
+        // closed before finishing onboarding.
+        if (needsOnboardingAfterAuth()) {
           setNeedsOnboarding(true);
           setActiveTab('home');
-          setIsUnlocked(true); // Unlock first so onboarding modal renders
+          setIsUnlocked(true); // Unlock so the onboarding modal renders
         }
       } else {
         setUser(null);
+        // If no session was established but a signup was recently attempted,
+        // show a helpful message so the user knows what happened.
+        const pendingSignup = sessionStorage.getItem('mehfooz_pending_email_verify');
+        if (pendingSignup) {
+          sessionStorage.removeItem('mehfooz_pending_email_verify');
+          setAuthVerificationError(
+            'Email verification could not be completed. The link may have expired or is invalid. Please sign up again or log in.'
+          );
+        }
       }
       setIsAuthLoading(false);
     }).catch(() => {
       if (cancelled) return;
       setIsAuthLoading(false);
     });
-    return () => { cancelled = true; };
+
+    // Supabase auth state listener — catches SIGNED_IN events that fire
+    // when the SDK processes an email verification callback. This acts as
+    // a safety net if the session was established after React mounted.
+    const supabase = getSupabase();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    let authSubscription: any = null;
+    if (supabase) {
+      const { data } = supabase.auth.onAuthStateChange((event) => {
+        if (event === 'SIGNED_IN' && !cancelled) {
+          // Re-check: if user now has a session but hasn't onboarded, trigger onboarding
+          void initializeAuth().then(u => {
+            if (cancelled || !u) return;
+            setUser(u);
+            if (needsOnboardingAfterAuth()) {
+              setNeedsOnboarding(true);
+              setActiveTab('home');
+              setIsUnlocked(true);
+            }
+            setIsAuthLoading(false);
+          });
+        }
+      });
+      authSubscription = data.subscription;
+    }
+
+    return () => {
+      cancelled = true;
+      authSubscription?.unsubscribe();
+    };
   }, []);
 
   // Pre-cache Punjab Support Directory & Legal Corpus for zero-network incidents
@@ -282,8 +326,26 @@ function AppInner() {
   if (activeTab === 'landing' && !user) {
     return (
       <>
+        {authVerificationError && (
+          <div className="fixed top-0 left-0 right-0 z-50 bg-rose-50 border-b border-rose-200 px-4 py-3 flex items-center justify-between text-sm text-rose-700 font-medium shadow-sm">
+            <div className="flex items-center space-x-2 max-w-2xl">
+              <AlertTriangle className="w-4 h-4 flex-shrink-0" />
+              <span>{authVerificationError}</span>
+            </div>
+            <button
+              onClick={() => setAuthVerificationError(null)}
+              className="ml-4 px-2 py-1 rounded-lg hover:bg-rose-100 text-rose-500 font-bold text-xs cursor-pointer"
+            >
+              Dismiss
+            </button>
+          </div>
+        )}
         <LandingPage
-          onLaunchApp={() => setIsAuthModalOpen(true)}
+          onLaunchApp={() => {
+            setIsAuthModalOpen(true);
+            // Clear verification error when user opens the auth modal
+            if (authVerificationError) setAuthVerificationError(null);
+          }}
           onOpenWeather={() => {
             setIsUnlocked(false);
             setActiveTab('home');
