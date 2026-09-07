@@ -275,3 +275,190 @@ export async function sendComplaintEmail(
     return result;
   }
 }
+
+/** Sends a welcome & profile creation email via Resend. */
+export async function sendWelcomeEmail(email: string, fullName: string): Promise<EmailDispatchResult> {
+  const startedAt = Date.now();
+  const to = email.trim();
+  const subject = `Welcome to Mehfooz — Profile Created (${fullName})`;
+
+  const html = `
+  <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 24px; color: #1c2c34;">
+    <div style="text-align: center; padding-bottom: 16px; border-bottom: 1px solid #f1f5f9;">
+      <h1 style="color: #1c2c34; font-size: 22px; font-weight: bold; margin: 0;">Mehfooz (محفوظ)</h1>
+      <p style="color: #6b7280; font-size: 13px; margin-top: 4px;">Safe, Legal Information &amp; Protection System for Punjab</p>
+    </div>
+    
+    <div style="padding: 20px 0;">
+      <h2 style="font-size: 16px; color: #1c2c34; margin-top: 0;">Welcome, ${escapeHtml(fullName)}!</h2>
+      <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">
+        Your secure profile has been created. Mehfooz provides end-to-end encrypted incident logs, safe check-in routes, grounded Punjab legal guidance, and direct support directory access.
+      </p>
+      <div style="background-color: #ecf4f4; border: 1px solid #bcd4d4; border-radius: 12px; padding: 16px; margin: 16px 0;">
+        <p style="margin: 0; font-size: 13px; font-weight: bold; color: #1c2c34;">Account Registration Summary:</p>
+        <p style="margin: 6px 0 0 0; font-size: 13px; color: #4b5563;">• Email: <strong>${escapeHtml(to)}</strong></p>
+        <p style="margin: 4px 0 0 0; font-size: 13px; color: #4b5563;">• Status: Active &amp; Secured with Client-Side Encryption</p>
+      </div>
+      <p style="font-size: 13px; color: #6b7280; line-height: 1.5;">
+        If you did not request this account, please disregard this email.
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center; font-size: 11px; color: #9ca3af;">
+      Mehfooz • Government of Punjab Protection Framework Compliant • Emergency Police: 15
+    </div>
+  </div>
+  `;
+
+  const baseLog = {
+    endpoint: 'resend:welcome',
+    method: 'POST',
+    targetService: 'resend' as const,
+    userId: null,
+    accessToken: null,
+    requestPreview: { to, subject }
+  };
+
+  const client = getResendClient();
+  if (!client) {
+    const result: EmailDispatchResult = {
+      success: true, status: 'simulated', messageId: `sim-welcome-${Date.now()}`, to, simulated: true
+    };
+    void logApiActivity({
+      ...baseLog, status: 'success', statusCode: 200, durationMs: Date.now() - startedAt,
+      responsePreview: { simulated: true }
+    });
+    return result;
+  }
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: process.env.EMAIL_FROM || 'Mehfooz Legal Protection <no-reply@mudassirbaig.me>',
+      to: [to],
+      subject,
+      html
+    });
+
+    if (error) throw new Error(error.message);
+
+    const result: EmailDispatchResult = {
+      success: true, status: 'dispatched', messageId: data?.id || `resend-${Date.now()}`, to, simulated: false
+    };
+    void logApiActivity({
+      ...baseLog, status: 'success', statusCode: 200, durationMs: Date.now() - startedAt,
+      responsePreview: { messageId: result.messageId }
+    });
+    return result;
+  } catch (err: any) {
+    const msg = err?.message || 'Failed to send welcome email';
+    console.error('[Mehfooz Welcome Email Error]:', msg);
+    const result: EmailDispatchResult = {
+      success: false, status: 'failed', messageId: `err-${Date.now()}`, to, simulated: false, error: msg
+    };
+    void logApiActivity({
+      ...baseLog, status: 'failed', statusCode: 502, durationMs: Date.now() - startedAt,
+      errorMessage: msg
+    });
+    return result;
+  }
+}
+
+/** Sends a formal Account Confirmation Email with verification action link via Resend. */
+export async function sendConfirmationEmail(email: string, fullName: string, confirmUrl?: string): Promise<EmailDispatchResult> {
+  const startedAt = Date.now();
+  const to = email.trim();
+  const subject = `[ACTION REQUIRED] Confirm Your Mehfooz Account — Email Verification`;
+
+  const link = confirmUrl || `${process.env.VITE_APP_URL || 'https://mehfooz-legal-navigator.vercel.app'}#login`;
+
+  const html = `
+  <div style="font-family: system-ui, -apple-system, sans-serif; max-width: 600px; margin: 0 auto; background: #ffffff; border: 1px solid #e2e8f0; border-radius: 16px; padding: 28px; color: #1c2c34;">
+    <div style="text-align: center; padding-bottom: 20px; border-bottom: 1px solid #f1f5f9;">
+      <h1 style="color: #1c2c34; font-size: 24px; font-weight: bold; margin: 0;">Mehfooz (محفوظ)</h1>
+      <p style="color: #fc7454; font-size: 12px; font-weight: bold; text-transform: uppercase; letter-spacing: 0.5px; margin-top: 4px;">Account Verification Required</p>
+    </div>
+    
+    <div style="padding: 24px 0;">
+      <h2 style="font-size: 18px; color: #1c2c34; margin-top: 0;">Hello, ${escapeHtml(fullName)}!</h2>
+      <p style="font-size: 14px; color: #4b5563; line-height: 1.6;">
+        Thank you for creating an account with <strong>Mehfooz</strong>. To activate your profile and start using end-to-end encrypted legal tools, please confirm your email address below:
+      </p>
+      
+      <div style="text-align: center; margin: 28px 0;">
+        <a href="${link}" style="display: inline-block; background-color: #1c2c34; color: #ffffff; font-size: 14px; font-weight: bold; text-decoration: none; padding: 14px 28px; border-radius: 12px;">
+          Confirm Email &amp; Activate Profile
+        </a>
+      </div>
+
+      <div style="background-color: #f8fafc; border: 1px solid #e2e8f0; border-radius: 12px; padding: 16px; margin: 20px 0; font-size: 12px; color: #64748b;">
+        <p style="margin: 0; font-weight: bold; color: #1c2c34;">Registration Details:</p>
+        <p style="margin: 4px 0 0 0;">• Email: <strong>${escapeHtml(to)}</strong></p>
+        <p style="margin: 4px 0 0 0;">• Verification Status: Pending Confirmation</p>
+      </div>
+
+      <p style="font-size: 12px; color: #94a3b8; line-height: 1.5;">
+        If the button above does not work, copy and paste this verification URL into your browser:<br />
+        <a href="${link}" style="color: #fc7454; word-break: break-all;">${link}</a>
+      </p>
+    </div>
+
+    <div style="border-top: 1px solid #f1f5f9; padding-top: 16px; text-align: center; font-size: 11px; color: #9ca3af;">
+      Mehfooz • Government of Punjab Protection Framework Compliant • Emergency Police: 15
+    </div>
+  </div>
+  `;
+
+  const baseLog = {
+    endpoint: 'resend:confirmation',
+    method: 'POST',
+    targetService: 'resend' as const,
+    userId: null,
+    accessToken: null,
+    requestPreview: { to, subject }
+  };
+
+  const client = getResendClient();
+  if (!client) {
+    const result: EmailDispatchResult = {
+      success: true, status: 'simulated', messageId: `sim-confirm-${Date.now()}`, to, simulated: true
+    };
+    void logApiActivity({
+      ...baseLog, status: 'success', statusCode: 200, durationMs: Date.now() - startedAt,
+      responsePreview: { simulated: true }
+    });
+    return result;
+  }
+
+  try {
+    const { data, error } = await client.emails.send({
+      from: process.env.EMAIL_FROM || 'Mehfooz Legal Protection <no-reply@mudassirbaig.me>',
+      to: [to],
+      subject,
+      html
+    });
+
+    if (error) throw new Error(error.message);
+
+    const result: EmailDispatchResult = {
+      success: true, status: 'dispatched', messageId: data?.id || `resend-${Date.now()}`, to, simulated: false
+    };
+    void logApiActivity({
+      ...baseLog, status: 'success', statusCode: 200, durationMs: Date.now() - startedAt,
+      responsePreview: { messageId: result.messageId }
+    });
+    return result;
+  } catch (err: any) {
+    const msg = err?.message || 'Failed to send confirmation email';
+    console.error('[Mehfooz Confirmation Email Error]:', msg);
+    const result: EmailDispatchResult = {
+      success: false, status: 'failed', messageId: `err-${Date.now()}`, to, simulated: false, error: msg
+    };
+    void logApiActivity({
+      ...baseLog, status: 'failed', statusCode: 502, durationMs: Date.now() - startedAt,
+      errorMessage: msg
+    });
+    return result;
+  }
+}
+
+

@@ -238,7 +238,7 @@ async function executePrepareComplaintDraft(
       status: 'draft',
       category,
       district,
-      summary_plain: `${category} | ${district} | draft`
+      summary_plain: incidentSummary.trim() ? incidentSummary.trim() : `${category} | ${district} | draft`
     })
     .select('id, tracking_number')
     .single();
@@ -252,7 +252,20 @@ async function executePrepareComplaintDraft(
     success: true,
     complaintId: row.id,
     trackingNumber: row.tracking_number,
-    message: 'Complaint draft created. You can review and edit it before sending.'
+    message: 'Complaint draft created. You can review and edit it before sending.',
+    uiActions: [
+      {
+        action: 'open_complaint_builder',
+        payload: {
+          complaintId: row.id,
+          trackingNumber: row.tracking_number,
+          category,
+          incidentSummary,
+          district,
+          requestedSupport
+        }
+      }
+    ]
   };
 }
 

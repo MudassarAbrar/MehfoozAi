@@ -21,7 +21,8 @@ import {
   ChevronUp,
   AlertCircle,
   Eye,
-  Radio
+  Radio,
+  X
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { ActiveAlertItem, AppLanguage, UserProfile } from '../types';
@@ -29,8 +30,8 @@ import { ActiveAlertItem, AppLanguage, UserProfile } from '../types';
 interface ActiveAlertsProps {
   language: AppLanguage;
   user: UserProfile | null;
-  onStartNavigation: () => void;
-  onOpenReportModal: () => void;
+  onStartNavigation: (locationName?: string) => void;
+  onOpenReportModal?: () => void;
 }
 
 export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
@@ -44,6 +45,10 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
   const [expandedAlertIds, setExpandedAlertIds] = useState<Set<string>>(new Set());
   const [upvotedAlerts, setUpvotedAlerts] = useState<Record<string, boolean>>({});
   const [copiedToast, setCopiedToast] = useState<string | null>(null);
+  const [isHazardModalOpen, setIsHazardModalOpen] = useState(false);
+  const [hazardLocation, setHazardLocation] = useState('');
+  const [hazardCategory, setHazardCategory] = useState<'harassment' | 'suspicious' | 'lighting' | 'other'>('harassment');
+  const [hazardDetails, setHazardDetails] = useState('');
 
   const [alerts, setAlerts] = useState<ActiveAlertItem[]>([
     {
@@ -58,7 +63,7 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
       taglineUrdu: 'کھوکھے کے پاس سے نہ گزریں • مرکزی روشن سڑک اختیار کریں',
       timeAgo: '12 min ago',
       distanceKm: 0.3,
-      locationName: 'Mirpur Road / Near City College Crossing',
+      locationName: 'Mall Road / Near Punjab University Campus, Lahore',
       district: user?.district || 'Lahore',
       description: 'Multiple women reported verbal harassment near the tea stall. Group of 3-4 men making inappropriate comments. Avoid this area if possible.',
       descriptionUrdu: 'چائے کے کھوکھے کے قریب 3 سے 4 افراد کی جانب سے آوازیں کسنے کی اطلاع ملی ہے۔ ممکن ہو تو اس راستے سے گریز کریں۔',
@@ -169,7 +174,7 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
             </div>
           </div>
           <button
-            onClick={onOpenReportModal}
+            onClick={() => setIsHazardModalOpen(true)}
             className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold shadow-xs transition flex items-center space-x-1.5 whitespace-nowrap flex-shrink-0 cursor-pointer"
           >
             <Plus className="w-3.5 h-3.5 text-[#BCD4D4]" />
@@ -417,7 +422,7 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
 
                         <div className="flex items-center space-x-2">
                           <button
-                            onClick={onStartNavigation}
+                            onClick={() => onStartNavigation(alert.locationName)}
                             className="px-4 py-2 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white text-xs font-bold shadow-xs transition flex items-center space-x-1.5 cursor-pointer whitespace-nowrap"
                           >
                             <Navigation className="w-3.5 h-3.5 text-[#BCD4D4]" />
@@ -439,7 +444,7 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
                         <div className="flex items-center space-x-2">
                           <span className="flex items-center space-x-1 text-emerald-600 font-bold">
                             <CheckCircle2 className="w-3.5 h-3.5" />
-                            <span>{isUrdu ? 'تصدیق شدہ' : 'Verified'}</span>
+                            <span>{isUrdu ? 'تصدیق شدہ (ڈیمو ڈیٹا)' : 'Verified (Demo Data)'}</span>
                           </span>
                           <span>•</span>
                           <span className="text-[#5A6E78] font-medium">
@@ -485,6 +490,125 @@ export const ActiveAlerts: React.FC<ActiveAlertsProps> = ({
           );
         })}
       </div>
+
+      {/* Dedicated Hazard Report Modal */}
+      <AnimatePresence>
+        {isHazardModalOpen && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-lg bg-white rounded-3xl p-6 border border-slate-200 shadow-xl space-y-4 text-[#1C2C34]"
+            >
+              <div className="flex items-center justify-between border-b border-slate-100 pb-3">
+                <div className="flex items-center space-x-2 font-bold text-[#1C2C34]">
+                  <AlertTriangle className="w-5 h-5 text-[#FC7454]" />
+                  <span>{isUrdu ? 'نئے خطرے یا سڑک کے الرٹ کی رپورٹ' : 'Report Street Safety Hazard'}</span>
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setIsHazardModalOpen(false)}
+                  className="p-1 rounded-xl text-slate-400 hover:text-[#1C2C34] hover:bg-slate-100 transition"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <form
+                onSubmit={(e) => {
+                  e.preventDefault();
+                  if (!hazardLocation.trim() || !hazardDetails.trim()) return;
+                  const newAlert: ActiveAlertItem = {
+                    id: `alert-${Date.now()}`,
+                    type: hazardCategory === 'lighting' ? 'suspicious' : hazardCategory,
+                    title: hazardCategory === 'harassment' ? 'Harassment Advisory' : hazardCategory === 'lighting' ? 'Dark Streetlight Blackout' : 'Street Hazard Alert',
+                    titleUrdu: isUrdu ? 'کمیونٹی الرٹ' : 'Community Safety Signal',
+                    severity: 'high',
+                    tag: 'Community Reported',
+                    tagline: hazardDetails.slice(0, 50),
+                    timeAgo: 'Just now',
+                    distanceKm: 0.2,
+                    locationName: hazardLocation.trim(),
+                    district: user?.district || 'Lahore',
+                    description: hazardDetails.trim(),
+                    affectedWomenCount: 1,
+                    verifiedCount: 1,
+                    reporterName: user?.fullName || 'Verified Member'
+                  };
+                  setAlerts([newAlert, ...alerts]);
+                  setIsHazardModalOpen(false);
+                  setHazardLocation('');
+                  setHazardDetails('');
+                  setCopiedToast(isUrdu ? 'خطرے کی رپورٹ شائع ہو گئی!' : 'Hazard report published successfully!');
+                  setTimeout(() => setCopiedToast(null), 3000);
+                }}
+                className="space-y-3.5 text-xs"
+              >
+                <div>
+                  <label className="block font-bold text-[#1C2C34] mb-1">
+                    {isUrdu ? 'مقام / علاقہ *' : 'Location / Area Name *'}
+                  </label>
+                  <input
+                    type="text"
+                    required
+                    value={hazardLocation}
+                    onChange={(e) => setHazardLocation(e.target.value)}
+                    placeholder="e.g. MM Alam Road near Main Market, Lahore"
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
+                  />
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#1C2C34] mb-1">
+                    {isUrdu ? 'خطرے کی نوعیت *' : 'Hazard Type *'}
+                  </label>
+                  <select
+                    value={hazardCategory}
+                    onChange={(e) => setHazardCategory(e.target.value as any)}
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
+                  >
+                    <option value="harassment">{isUrdu ? 'ہراسانی / آوازیں کسنا' : 'Harassment / Verbal Misbehavior'}</option>
+                    <option value="suspicious">{isUrdu ? 'مشکوک افراد / گروہ' : 'Suspicious Loitering / Unregistered Bike'}</option>
+                    <option value="lighting">{isUrdu ? 'بند اسٹریٹ لائٹس / تاریکی' : 'Streetlight Blackout / Unlit Stretch'}</option>
+                    <option value="other">{isUrdu ? 'دیگر خطرہ' : 'Other Safety Concern'}</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block font-bold text-[#1C2C34] mb-1">
+                    {isUrdu ? 'تفصیل بیان کریں *' : 'Describe Details *'}
+                  </label>
+                  <textarea
+                    rows={3}
+                    required
+                    value={hazardDetails}
+                    onChange={(e) => setHazardDetails(e.target.value)}
+                    placeholder="Provide specific details to alert fellow women commuters..."
+                    className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
+                  />
+                </div>
+
+                <div className="flex items-center justify-end space-x-2 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setIsHazardModalOpen(false)}
+                    className="px-4 py-2 rounded-xl bg-slate-100 text-[#5A6E78] font-bold hover:bg-slate-200 cursor-pointer"
+                  >
+                    {isUrdu ? 'منسوخ' : 'Cancel'}
+                  </button>
+                  <button
+                    type="submit"
+                    className="px-5 py-2.5 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold shadow-xs cursor-pointer"
+                  >
+                    {isUrdu ? 'رپورٹ شائع کریں' : 'Submit Alert'}
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

@@ -33,9 +33,8 @@ export function getAgentConfig(): AgentConfig {
   const primaryModel = process.env.GEMINI_AGENT_MODEL || 'gemini-3.1-flash-lite';
   const fallbackRaw = process.env.GEMINI_FALLBACK_MODELS || '';
   const fallbackModels = fallbackRaw
-    .split(',')
-    .map(m => m.trim())
-    .filter(Boolean);
+    ? fallbackRaw.split(',').map(m => m.trim()).filter(Boolean)
+    : ['gemini-3.6-flash', 'gemini-flash-latest'];
 
   cachedConfig = {
     apiKey,

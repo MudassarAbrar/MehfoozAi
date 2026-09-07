@@ -151,6 +151,12 @@ export const AgentActionCard: React.FC<AgentActionCardProps> = ({
         {displayData.complaintCategory && (
           <DetailRow label={isUrdu ? 'زمرہ' : 'Category'} value={displayData.complaintCategory.replace(/_/g, ' ')} />
         )}
+        {displayData.district && (
+          <DetailRow label={isUrdu ? 'ضلع' : 'District'} value={displayData.district} />
+        )}
+        {displayData.incidentSummary && (
+          <DetailRow label={isUrdu ? 'خلاصہ' : 'Summary'} value={displayData.incidentSummary} />
+        )}
         {displayData.incidentType && (
           <DetailRow label={isUrdu ? 'واقعہ کی قسم' : 'Incident Type'} value={displayData.incidentType.replace(/_/g, ' ')} />
         )}

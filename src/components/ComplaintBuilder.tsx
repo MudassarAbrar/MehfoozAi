@@ -41,6 +41,7 @@ import { getStoredProfile, getAuthHeaders } from '../utils/auth';
 import { persistComplaintDrafts } from '../utils/dataService';
 import { exportComplaintToPDF } from '../utils/pdfExport';
 import { ExportPdfModal } from './ExportPdfModal';
+import { validateAndSanitizeTextInput, validateFileUpload, sanitizeFileName } from '../utils/security';
 
 export interface SupportChannelOption {
   id: SupportChannelType;
@@ -334,6 +335,7 @@ interface ComplaintBuilderProps {
   onDraftCreated: (draft: ComplaintDraft) => void;
   onOpenCrisis: () => void;
   onLogAudit?: (event: string, detail: string) => void;
+  onBack?: () => void;
 }
 
 const PUNJAB_DISTRICTS: PunjabDistrict[] = [
@@ -360,43 +362,117 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
   initialPhotos = [],
   onDraftCreated,
   onOpenCrisis,
-  onLogAudit
+  onLogAudit,
+  onBack
 }) => {
-  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
-  const [category, setCategory] = useState<IncidentCategory>('domestic_violence');
-  const [district, setDistrict] = useState<PunjabDistrict>('Lahore');
-  const [isSituationOngoing, setIsSituationOngoing] = useState(true);
-  const [incidentDate, setIncidentDate] = useState(new Date().toISOString().split('T')[0]);
-  const [incidentTime, setIncidentTime] = useState('14:00');
-  const [locationDetails, setLocationDetails] = useState('Lahore, Punjab');
-  const [rawUserWords, setRawUserWords] = useState(initialSummary);
-  const [structuredSummary, setStructuredSummary] = useState('');
-  const [requestedSupport, setRequestedSupport] = useState<SupportChannelType | 'ai_recommendation'>('police_support');
-  const [customChannelName, setCustomChannelName] = useState('');
-  const [customChannelContact, setCustomChannelContact] = useState('');
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(() => {
+    const saved = localStorage.getItem('mehfooz_complaint_step');
+    if (saved) {
+      const parsed = parseInt(saved, 10);
+      if (parsed >= 1 && parsed <= 4) return parsed as 1 | 2 | 3 | 4;
+    }
+    return 1;
+  });
+
+  const getSavedProgress = () => {
+    const progress = localStorage.getItem('mehfooz_complaint_progress');
+    if (progress) {
+      try {
+        return JSON.parse(progress);
+      } catch (e) {
+        return null;
+      }
+    }
+    return null;
+  };
+  const savedData = getSavedProgress();
+
+  const [category, setCategory] = useState<IncidentCategory>(
+    savedData?.category || (initialCategory as IncidentCategory) || 'domestic_violence'
+  );
+  const [district, setDistrict] = useState<PunjabDistrict>(savedData?.district || 'Lahore');
+  const [isSituationOngoing, setIsSituationOngoing] = useState(savedData?.isSituationOngoing ?? true);
+  const [incidentDate, setIncidentDate] = useState(savedData?.incidentDate || new Date().toISOString().split('T')[0]);
+  const [incidentTime, setIncidentTime] = useState(savedData?.incidentTime || '14:00');
+  const [locationDetails, setLocationDetails] = useState(savedData?.locationDetails || 'Lahore, Punjab');
+  const [rawUserWords, setRawUserWords] = useState(savedData?.rawUserWords ?? initialSummary);
+  const [structuredSummary, setStructuredSummary] = useState(savedData?.structuredSummary || '');
+  const [requestedSupport, setRequestedSupport] = useState<SupportChannelType | 'ai_recommendation'>(
+    savedData?.requestedSupport || 'police_support'
+  );
+  const [customChannelName, setCustomChannelName] = useState(savedData?.customChannelName || '');
+  const [customChannelContact, setCustomChannelContact] = useState(savedData?.customChannelContact || '');
   const [isRecommendingChannel, setIsRecommendingChannel] = useState(false);
   const [channelRecommendationError, setChannelRecommendationError] = useState<string | null>(null);
-  const [aiRecommendation, setAiRecommendation] = useState<{
-    recommendedChannel: string;
-    recommendedChannelTitle: string;
-    recommendedChannelTitleUrdu?: string;
-    urgencyLevel: 'immediate' | 'high' | 'standard';
-    rationale: string;
-    rationaleUrdu?: string;
-    applicableLaw: string;
-    authorityPowers: string;
-    suggestedNextStep?: string;
-    recommendedAt?: string;
-  } | null>(null);
+  const [aiRecommendation, setAiRecommendation] = useState(savedData?.aiRecommendation || null);
 
   // Attached photos, upload, and user approval state
-  const [photos, setPhotos] = useState<string[]>(initialPhotos);
+  const [photos, setPhotos] = useState<string[]>(savedData?.photos || initialPhotos);
+
+  React.useEffect(() => {
+    if (initialSummary && !savedData?.rawUserWords) {
+      setRawUserWords(initialSummary);
+    }
+  }, [initialSummary]);
+
+  React.useEffect(() => {
+    if (initialCategory && !savedData?.category) {
+      setCategory(initialCategory as IncidentCategory);
+    }
+  }, [initialCategory]);
+
+  React.useEffect(() => {
+    if (initialPhotos && initialPhotos.length > 0 && !savedData?.photos) {
+      setPhotos(initialPhotos);
+    }
+  }, [initialPhotos]);
+
+  // Persist state changes to localStorage
+  useEffect(() => {
+    localStorage.setItem('mehfooz_complaint_step', String(step));
+    const progressData = {
+      category,
+      district,
+      isSituationOngoing,
+      incidentDate,
+      incidentTime,
+      locationDetails,
+      rawUserWords,
+      structuredSummary,
+      requestedSupport,
+      customChannelName,
+      customChannelContact,
+      aiRecommendation,
+      photos
+    };
+    localStorage.setItem('mehfooz_complaint_progress', JSON.stringify(progressData));
+  }, [
+    step,
+    category,
+    district,
+    isSituationOngoing,
+    incidentDate,
+    incidentTime,
+    locationDetails,
+    rawUserWords,
+    structuredSummary,
+    requestedSupport,
+    customChannelName,
+    customChannelContact,
+    aiRecommendation,
+    photos
+  ]);
   const [userApprovedPhotos, setUserApprovedPhotos] = useState<boolean>(true);
   const [isUploadingPhotos, setIsUploadingPhotos] = useState(false);
   const [previewPhotoUrl, setPreviewPhotoUrl] = useState<string | null>(null);
   const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
   const [isDragOver, setIsDragOver] = useState(false);
   const fileInputRef = React.useRef<HTMLInputElement | null>(null);
+
+  // AI Narrative rewrite & security state
+  const [isRewritingNarrative, setIsRewritingNarrative] = useState(false);
+  const [narrativeValidationError, setNarrativeValidationError] = useState<string | null>(null);
+  const [narrativeRewriteNotice, setNarrativeRewriteNotice] = useState<string | null>(null);
 
   const [safeContactMethod, setSafeContactMethod] = useState('');
   const [explicitConsent, setExplicitConsent] = useState(false);
@@ -418,17 +494,89 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
 
   const isUrdu = language === 'ur';
 
-  // Import from vault notes if passed
+  // Import from vault notes if passed with input sanitization
   useEffect(() => {
     if (importedRecords.length > 0) {
-      const combined = importedRecords.map(r => `[${r.incidentDate} at ${r.incidentTime}]: ${r.title} - ${r.note}`).join('\n\n');
+      const combined = importedRecords.map(r => {
+        const cleanTitle = validateAndSanitizeTextInput(r.title).sanitized;
+        const cleanNote = validateAndSanitizeTextInput(r.note).sanitized;
+        return `[${r.incidentDate} at ${r.incidentTime}]: ${cleanTitle} - ${cleanNote}`;
+      }).join('\n\n');
       setRawUserWords(combined);
       setCategory(importedRecords[0].category);
-      if (importedRecords[0].location) setLocationDetails(importedRecords[0].location);
+      if (importedRecords[0].location) {
+        setLocationDetails(validateAndSanitizeTextInput(importedRecords[0].location).sanitized);
+      }
     }
   }, [importedRecords]);
 
-  // Handle Photo Uploads with client-side compression
+  // Handle Narrative text change with code injection validation
+  const handleNarrativeChange = (text: string) => {
+    setNarrativeRewriteNotice(null);
+    const validation = validateAndSanitizeTextInput(text);
+    if (!validation.isValid) {
+      setNarrativeValidationError(validation.error || 'Security Warning: Code snippets or script tags detected. Please enter narrative text only.');
+    } else {
+      setNarrativeValidationError(null);
+    }
+    setRawUserWords(text);
+  };
+
+  // AI Narrative Polish & Rewrite
+  const handleRewriteNarrative = async () => {
+    if (!rawUserWords || !rawUserWords.trim()) {
+      setNarrativeValidationError(isUrdu ? 'براہ کرم پہلے کچھ متن لکھیں۔' : 'Please enter some narrative text first before requesting AI rewrite.');
+      return;
+    }
+
+    const validation = validateAndSanitizeTextInput(rawUserWords);
+    if (!validation.isValid) {
+      setNarrativeValidationError(validation.error || 'Code snippets or script tags detected. Please enter text only.');
+      return;
+    }
+
+    setIsRewritingNarrative(true);
+    setNarrativeValidationError(null);
+    setNarrativeRewriteNotice(null);
+
+    try {
+      const res = await fetch('/api/rewrite-narrative', {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({
+          narrative: rawUserWords,
+          category,
+          language
+        })
+      });
+
+      const data = await res.json();
+      if (res.ok && data.success && data.polishedNarrative) {
+        setRawUserWords(data.polishedNarrative);
+        setNarrativeRewriteNotice(isUrdu ? '✨ AI نے متن کو نکھار دیا!' : `✨ AI polished description: ${data.summaryOfFixes || 'Fixed typos and formatted into clear formal statement.'}`);
+        onLogAudit?.('narrative_rewritten_by_ai', 'Polished incident narrative using AI');
+      } else {
+        throw new Error(data.error || 'Rewrite service unavailable');
+      }
+    } catch (err) {
+      console.warn('AI rewrite network warning, applying client polish fallback:', err);
+      // Client-side fallback polish
+      const cleanedTokens = rawUserWords.split(/\s+/).filter(t => {
+        if (t.length > 6 && !/[aeiouyAEIOUY]/i.test(t)) return false;
+        return true;
+      });
+      let polished = cleanedTokens.join(' ');
+      polished = polished.replace(/(^\s*|[.!?]\s+)([a-z])/g, (m, p1, p2) => p1 + p2.toUpperCase());
+      if (polished && !/[.!?]$/.test(polished)) polished += '.';
+      
+      setRawUserWords(polished);
+      setNarrativeRewriteNotice(isUrdu ? '✨ متن کو صاف کر دیا گیا' : '✨ Text formatting and capitalization cleaned.');
+    } finally {
+      setIsRewritingNarrative(false);
+    }
+  };
+
+  // Handle Photo & Document Uploads with deep security validation & magic bytes header check
   const handleFilesUpload = async (fileList: FileList | File[]) => {
     const files = Array.from(fileList);
     if (files.length === 0) return;
@@ -439,27 +587,40 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
     const processedPhotos: string[] = [];
 
     for (const file of files) {
-      if (!file.type.startsWith('image/')) {
-        setPhotoUploadError('Please upload valid image files (JPEG, PNG, WEBP).');
-        continue;
-      }
-      if (file.size > 15 * 1024 * 1024) {
-        setPhotoUploadError('Image exceeds the 15MB file size limit.');
+      // Deep security validation (extension blocklist, MIME type, magic bytes, size)
+      const securityCheck = await validateFileUpload(file);
+      if (!securityCheck.isValid) {
+        setPhotoUploadError(securityCheck.error || 'File failed security verification.');
+        onLogAudit?.('file_security_rejection', `Rejected file: ${file.name} — ${securityCheck.error}`);
         continue;
       }
 
-      try {
-        const compressedDataUri = await compressImageToDataUri(file);
-        processedPhotos.push(compressedDataUri);
-      } catch (err) {
-        console.warn('Image compression error:', err);
+      if (file.type.startsWith('image/')) {
+        try {
+          const compressedDataUri = await compressImageToDataUri(file);
+          processedPhotos.push(compressedDataUri);
+        } catch (err) {
+          console.warn('Image compression error:', err);
+        }
+      } else if (file.type === 'application/pdf') {
+        try {
+          const reader = new FileReader();
+          const pdfDataUri = await new Promise<string>((resolve, reject) => {
+            reader.onload = () => resolve(reader.result as string);
+            reader.onerror = reject;
+            reader.readAsDataURL(file);
+          });
+          processedPhotos.push(pdfDataUri);
+        } catch (pdfErr) {
+          console.warn('PDF read error:', pdfErr);
+        }
       }
     }
 
     if (processedPhotos.length > 0) {
       setPhotos(prev => [...prev, ...processedPhotos]);
       setUserApprovedPhotos(true);
-      onLogAudit?.('photos_attached', `${processedPhotos.length} photo(s) attached to draft`);
+      onLogAudit?.('photos_attached', `${processedPhotos.length} safe file(s) attached to draft`);
     }
     setIsUploadingPhotos(false);
   };
@@ -476,7 +637,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
       allRecords.forEach(rec => {
         if (rec.attachments && Array.isArray(rec.attachments)) {
           rec.attachments.forEach(att => {
-            if (typeof att === 'string' && (att.startsWith('data:image') || att.startsWith('blob:') || att.startsWith('http'))) {
+            if (typeof att === 'string' && (att.startsWith('data:image') || att.startsWith('data:application/pdf') || att.startsWith('blob:') || att.startsWith('http'))) {
               if (!photos.includes(att) && !vaultPhotos.includes(att)) {
                 vaultPhotos.push(att);
               }
@@ -488,9 +649,9 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
       if (vaultPhotos.length > 0) {
         setPhotos(prev => [...prev, ...vaultPhotos]);
         setUserApprovedPhotos(true);
-        onLogAudit?.('vault_photos_imported', `Imported ${vaultPhotos.length} photo(s) from vault`);
+        onLogAudit?.('vault_photos_imported', `Imported ${vaultPhotos.length} safe record file(s) from vault`);
       } else {
-        setPhotoUploadError(isUrdu ? 'والٹ میں کوئی تصویر موجود نہیں ہے۔' : 'No photos found in your saved incident records.');
+        setPhotoUploadError(isUrdu ? 'والٹ میں کوئی تصویر یا دستاویز موجود نہیں ہے۔' : 'No valid photos or documents found in your saved incident records.');
       }
     } catch (err) {
       console.warn('Vault photo import error:', err);
@@ -554,7 +715,13 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
   useEffect(() => {
     if (step === 3 && !structuredSummary) {
       const channelDisplay = getOfficialChannelTitle(requestedSupport, customChannelName);
-      // Synthesize clean fact-based neutral summary
+      // Synthesize clean fact-based neutral summary using strict user inputs
+      const dateDisplay = incidentDate && incidentDate.trim() ? incidentDate : (isSituationOngoing ? 'Ongoing' : 'Not provided');
+      const timeDisplay = incidentTime && incidentTime.trim() ? incidentTime : 'Not provided';
+      const locDisplay = locationDetails && locationDetails.trim() ? locationDetails : 'Not provided';
+      const contactDisplay = safeContactMethod && safeContactMethod.trim() ? safeContactMethod : 'Not provided';
+      const userTextDisplay = rawUserWords && rawUserWords.trim() ? rawUserWords.trim() : 'Not provided';
+
       const generated = `STATEMENT OF INCIDENT / GRIEVANCE (District: ${district}, Punjab)
 
 1. JURISDICTION & APPLICABLE LAWS:
@@ -564,16 +731,16 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
    - Relevant Acts: Punjab Protection of Women Against Violence Act 2016 (PPWVA) / PECA 2016 / Protection Against Harassment of Women at Workplace Act 2010 / Pakistan Penal Code (PPC)
 
 2. CHRONOLOGY OF FACTS:
-   - Incident Date / Period: ${incidentDate || 'Ongoing'} (Approx. ${incidentTime})
-   - Incident Location: ${locationDetails || 'Confidential residential/workplace premises'}
+   - Incident Date / Period: ${dateDisplay} (Time: ${timeDisplay})
+   - Incident Location: ${locDisplay}
    - Ongoing Status: ${isSituationOngoing ? 'Yes, situation is active' : 'Past incident documented'}
 
 3. SUMMARY OF GRIEVANCE:
-   ${rawUserWords || 'The complainant reports an incident of domestic restriction, intimidation, or harassment requiring protective orders and legal intervention under Punjab provincial jurisdiction.'}
+   ${userTextDisplay}
 
 4. RELIEF / SUPPORT REQUESTED:
    - Request filed before: ${channelDisplay}
-   - Safe contact preference: ${safeContactMethod || 'Discreet contact via designated representative'}`;
+   - Safe contact preference: ${contactDisplay}`;
 
       setStructuredSummary(generated);
     }
@@ -804,9 +971,28 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
       {/* Step Progress Bar */}
       <div className="rounded-2xl bg-white border border-[#BCD4D4]/60 p-4 shadow-xs">
         <div className="flex items-center justify-between mb-3 text-xs">
-          <span className="font-bold text-[#1C2C34] uppercase tracking-wider">
-            {isUrdu ? 'شکایت ڈرافٹ معاون • مرحلہ ' + step + ' از 4' : `Complaint Intake Assistant • Step ${step} of 4`}
-          </span>
+          <div className="flex items-center space-x-2.5">
+            {(step > 1 || onBack) && (
+              <button
+                type="button"
+                onClick={() => {
+                  if (step > 1) {
+                    setStep(prev => (prev - 1) as 1 | 2 | 3 | 4);
+                  } else if (onBack) {
+                    onBack();
+                  }
+                }}
+                className="inline-flex items-center space-x-1 px-2.5 py-1 rounded-lg text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors font-medium cursor-pointer"
+                title={isUrdu ? 'واپس جائیں' : 'Go Back'}
+              >
+                <ArrowLeft className="w-3.5 h-3.5" />
+                <span>{isUrdu ? 'واپس' : 'Back'}</span>
+              </button>
+            )}
+            <span className="font-bold text-[#1C2C34] uppercase tracking-wider">
+              {isUrdu ? 'شکایت ڈرافٹ معاون • مرحلہ ' + step + ' از 4' : `Complaint Intake Assistant • Step ${step} of 4`}
+            </span>
+          </div>
           <span className="text-[#5A6E78]">
             {step === 1 && (isUrdu ? 'حفاظتی جانچ و کیٹیگری' : '1. Safety & Category')}
             {step === 2 && (isUrdu ? 'واقعات و تفصیلات' : '2. Facts & Narrative')}
@@ -928,7 +1114,10 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                 <input
                   type="text"
                   value={locationDetails}
-                  onChange={(e) => setLocationDetails(e.target.value)}
+                  onChange={(e) => {
+                    const clean = validateAndSanitizeTextInput(e.target.value).sanitized;
+                    setLocationDetails(clean);
+                  }}
                   placeholder="e.g. Model Town Lahore, workplace office"
                   className="w-full bg-slate-50 border border-slate-200 rounded-xl px-3.5 py-2.5 text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
                 />
@@ -963,17 +1152,51 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
               </div>
             </div>
 
-            {/* Narrative */}
-            <div className="text-xs space-y-1">
-              <label className="block text-[#1C2C34] font-semibold">
-                {isUrdu ? 'اپنے الفاظ میں واقعہ بیان کریں:' : 'Describe the incident in your own words:'}
-              </label>
+            {/* Narrative with AI Rewrite & Anti-Code Injection Guard */}
+            <div className="text-xs space-y-2">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-1.5">
+                <label className="block text-[#1C2C34] font-semibold">
+                  {isUrdu ? 'اپنے الفاظ میں واقعہ بیان کریں:' : 'Describe the incident in your own words:'}
+                </label>
+                <button
+                  type="button"
+                  onClick={handleRewriteNarrative}
+                  disabled={isRewritingNarrative || !rawUserWords.trim()}
+                  className="inline-flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-slate-900 hover:bg-slate-800 text-white text-[11px] font-bold transition shadow-2xs disabled:opacity-50 cursor-pointer self-start sm:self-auto"
+                >
+                  <Sparkles className={`w-3.5 h-3.5 text-amber-400 ${isRewritingNarrative ? 'animate-spin' : ''}`} />
+                  <span>
+                    {isRewritingNarrative 
+                      ? (isUrdu ? 'متن سنوارا جا رہا ہے...' : 'Polishing with AI...') 
+                      : (isUrdu ? '✨ AI سے دوبارہ لکھوائیں' : '✨ Rewrite with AI')}
+                  </span>
+                </button>
+              </div>
+
+              {narrativeValidationError && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-800 font-medium text-[11px] flex items-center space-x-2">
+                  <AlertTriangle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{narrativeValidationError}</span>
+                </motion.div>
+              )}
+
+              {narrativeRewriteNotice && (
+                <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} className="p-2 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 font-medium text-[11px] flex items-center space-x-1.5">
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-600 shrink-0" />
+                  <span>{narrativeRewriteNotice}</span>
+                </motion.div>
+              )}
+
               <textarea
                 rows={5}
                 value={rawUserWords}
-                onChange={(e) => setRawUserWords(e.target.value)}
+                onChange={(e) => handleNarrativeChange(e.target.value)}
                 placeholder="Include what happened, who did it, what threats were made, and whether children are involved. You will be able to review and redact any text in the next step..."
-                className="w-full bg-slate-50 border border-slate-200 rounded-xl p-3.5 text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454] focus:ring-2 focus:ring-[#FC7454]/20"
+                className={`w-full bg-slate-50 border rounded-xl p-3.5 text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:ring-2 ${
+                  narrativeValidationError 
+                    ? 'border-rose-400 focus:ring-rose-200' 
+                    : 'border-slate-200 focus:border-[#FC7454] focus:ring-[#FC7454]/20'
+                }`}
               />
             </div>
 
@@ -1055,7 +1278,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                     <input
                       type="text"
                       value={customChannelName}
-                      onChange={(e) => setCustomChannelName(e.target.value)}
+                      onChange={(e) => setCustomChannelName(validateAndSanitizeTextInput(e.target.value).sanitized)}
                       placeholder="e.g. Shirkat Gah Women's Resource Centre, Lahore Bar Association, or Local Labour Union"
                       className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-xs text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454] focus:ring-1 focus:ring-[#FC7454]"
                     />
@@ -1067,7 +1290,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                     <input
                       type="text"
                       value={customChannelContact}
-                      onChange={(e) => setCustomChannelContact(e.target.value)}
+                      onChange={(e) => setCustomChannelContact(validateAndSanitizeTextInput(e.target.value).sanitized)}
                       placeholder="e.g. Helpline: 042-xxxxxxx or contact@shirkatgah.org"
                       className="w-full bg-white border border-amber-300 rounded-lg px-3 py-2 text-xs text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454] focus:ring-1 focus:ring-[#FC7454]"
                     />
@@ -1165,7 +1388,7 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                 ref={fileInputRef}
                 type="file"
                 multiple
-                accept="image/jpeg,image/png,image/webp,image/jpg"
+                accept="image/jpeg,image/png,image/webp,image/jpg,image/heic,application/pdf"
                 className="hidden"
                 onChange={(e) => {
                   if (e.target.files) {
@@ -1201,11 +1424,11 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
                 </div>
                 <div className="text-xs font-bold text-[#1C2C34]">
                   {isUploadingPhotos 
-                    ? (isUrdu ? 'تصاویر محفوظ کی جا رہی ہیں...' : 'Processing & Compressing Images...')
-                    : (isUrdu ? 'تصاویر اپ لوڈ کرنے کے لیے کلک کریں یا ڈریگ کریں' : 'Click to Upload Images or Drag & Drop Here')}
+                    ? (isUrdu ? 'فائلز محفوظ کی جا رہی ہیں...' : 'Processing & Verifying File Headers...')
+                    : (isUrdu ? 'تصاویر یا پی ڈی ایف اپ لوڈ کرنے کے لیے کلک کریں یا ڈریگ کریں' : 'Click to Upload Safe Images/PDFs or Drag & Drop Here')}
                 </div>
                 <p className="text-[11px] text-[#5A6E78]">
-                  Supports JPEG, PNG, WEBP (up to 15MB each). Images are securely compressed on your device.
+                  Supports JPEG, PNG, WEBP & PDF (up to 15MB each). Executable files (.exe, .bat, .sh) are automatically blocked.
                 </p>
                 <div className="pt-1 flex items-center gap-2">
                   <button
@@ -1342,6 +1565,15 @@ export const ComplaintBuilder: React.FC<ComplaintBuilderProps> = ({
 
               <button
                 onClick={() => {
+                  if (!rawUserWords || rawUserWords.trim().length < 10) {
+                    setNarrativeValidationError(
+                      isUrdu
+                        ? 'براہ کرم واقعہ کی تفصیل کم از کم 10 حروف میں لکھیں تاکہ ڈرافٹ تیار کیا جا سکے۔'
+                        : 'Please describe the incident in your own words (at least 10 characters required) before generating the formal draft.'
+                    );
+                    return;
+                  }
+                  setNarrativeValidationError(null);
                   setStructuredSummary(''); // Force regeneration in step 3
                   setStep(3);
                 }}

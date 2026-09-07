@@ -119,3 +119,24 @@ export async function requireSupabaseAuth(req: Request, res: Response, next: Nex
   authed.supabaseAccessToken = token;
   next();
 }
+
+/** Generates an official Supabase email confirmation action link via admin API when service key is present. */
+export async function generateSupabaseVerificationLink(email: string, redirectTo?: string): Promise<string | null> {
+  if (!isSupabaseServerConfigured()) return null;
+  const key = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
+  if (!key) return null;
+  try {
+    const adminClient = createClient(process.env.SUPABASE_URL!, key);
+    const { data } = await adminClient.auth.admin.generateLink({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+      password: 'TemporaryPassword123!',
+      options: { redirectTo: redirectTo || (process.env.VITE_APP_URL || 'https://mehfooz-legal-navigator.vercel.app') }
+    } as any);
+    return data?.properties?.action_link || null;
+  } catch (err: any) {
+    console.warn('generateSupabaseVerificationLink notice:', err?.message || err);
+    return null;
+  }
+}
+

@@ -13,23 +13,64 @@
 
 import { PUNJAB_LEGAL_CORPUS, LegalArticle, searchLegalCorpus } from '../data/legalCorpus.js';
 import { LegalSourceCitation } from '../types.js';
+import fs from 'fs';
+import path from 'path';
 
 // ─── Configuration ───────────────────────────────────────────────────────────
 
 const EMBEDDING_WEIGHT = 0.6;
 const KEYWORD_WEIGHT = 0.4;
-const EMBEDDING_MODEL = 'gemini-embedding-2';
+
+const CANDIDATE_EMBEDDING_MODELS = [
+  process.env.GEMINI_EMBEDDING_MODEL,
+  'gemini-embedding-2-preview',
+  'gemini-embedding-2',
+  'text-embedding-004'
+].filter(Boolean) as string[];
+
+let activeEmbeddingModel = CANDIDATE_EMBEDDING_MODELS[0] || 'gemini-embedding-2-preview';
 
 interface ArticleEmbedding {
   articleId: string;
   vector: number[];
 }
 
-// ─── Embedding Cache ─────────────────────────────────────────────────────────
+// ─── Persistent Embedding Cache ─────────────────────────────────────────────
 
 let embeddingCache: Map<string, ArticleEmbedding> | null = null;
 let embeddingsReady = false;
 let embeddingsInitPromise: Promise<void> | null = null;
+
+const CACHE_FILE_PATH = path.join(process.cwd(), '.embeddings_cache.json');
+
+function loadDiskCache(): Map<string, ArticleEmbedding> {
+  const cache = new Map<string, ArticleEmbedding>();
+  try {
+    if (fs.existsSync(CACHE_FILE_PATH)) {
+      const raw = fs.readFileSync(CACHE_FILE_PATH, 'utf8');
+      const parsed = JSON.parse(raw);
+      if (Array.isArray(parsed)) {
+        for (const item of parsed) {
+          if (item?.articleId && Array.isArray(item.vector) && item.vector.length > 0) {
+            cache.set(item.articleId, item);
+          }
+        }
+      }
+    }
+  } catch (err: any) {
+    console.debug('[HybridRetriever] Could not read disk cache:', err?.message);
+  }
+  return cache;
+}
+
+function saveDiskCache(cache: Map<string, ArticleEmbedding>): void {
+  try {
+    const data = Array.from(cache.values());
+    fs.writeFileSync(CACHE_FILE_PATH, JSON.stringify(data), 'utf8');
+  } catch (err: any) {
+    console.debug('[HybridRetriever] Could not write disk cache:', err?.message);
+  }
+}
 
 // ─── Cosine Similarity ───────────────────────────────────────────────────────
 
@@ -48,28 +89,97 @@ export function cosineSimilarity(a: number[], b: number[]): number {
   return denom === 0 ? 0 : dot / denom;
 }
 
-// ─── Gemini Embedding Generation ─────────────────────────────────────────────
+// ─── Gemini Embedding Generation with Exponential Backoff ───────────────────
 
-/**
- * Generate embedding vector via Gemini gemini-embedding-2.
- */
-export async function generateEmbedding(ai: any, text: string): Promise<number[] | null> {
-  try {
-    const result = await ai.models.embedContent({ model: EMBEDDING_MODEL, contents: text });
-    return result?.embeddings?.[0]?.values ?? null;
-  } catch (err) {
-    console.warn('[HybridRetriever] Embedding generation failed:', err);
-    return null;
-  }
+function isRateLimitError(err: any): boolean {
+  if (!err) return false;
+  const str = String(err?.message || err?.status || err?.code || JSON.stringify(err)).toLowerCase();
+  return (
+    str.includes('429') ||
+    str.includes('resource_exhausted') ||
+    str.includes('quota') ||
+    str.includes('rate limit') ||
+    str.includes('too many requests')
+  );
 }
 
-// ─── Pre-compute Article Embeddings ──────────────────────────────────────────
+function isModelNotFoundError(err: any): boolean {
+  if (!err) return false;
+  const str = String(err?.message || err?.status || err?.code || JSON.stringify(err)).toLowerCase();
+  return str.includes('404') || str.includes('not found') || str.includes('not supported');
+}
+
+/**
+ * Generate embedding vector via Gemini with automatic rate-limit backoff & model fallback.
+ */
+export async function generateEmbedding(
+  ai: any,
+  text: string,
+  options: { maxRetries?: number } = {}
+): Promise<number[] | null> {
+  const maxRetries = options.maxRetries ?? 3;
+
+  for (let attempt = 0; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await ai.models.embedContent({
+        model: activeEmbeddingModel,
+        contents: text
+      });
+      const vec = result?.embeddings?.[0]?.values ?? null;
+      if (vec && Array.isArray(vec) && vec.length > 0) {
+        return vec;
+      }
+    } catch (err: any) {
+      // Model not found - try next candidate model
+      if (isModelNotFoundError(err)) {
+        const nextModel = CANDIDATE_EMBEDDING_MODELS.find(m => m !== activeEmbeddingModel);
+        if (nextModel) {
+          console.debug(`[HybridRetriever] Model ${activeEmbeddingModel} unavailable, trying fallback ${nextModel}`);
+          activeEmbeddingModel = nextModel;
+          continue;
+        }
+      }
+
+      // Rate limit / 429 Resource Exhausted handling with exponential backoff & jitter
+      if (isRateLimitError(err)) {
+        if (attempt < maxRetries) {
+          const baseBackoff = 2000;
+          const exponentialDelay = baseBackoff * Math.pow(2, attempt);
+          const jitter = Math.floor(Math.random() * 800);
+          const backoffMs = Math.min(16000, exponentialDelay + jitter);
+
+          console.debug(
+            `[HybridRetriever] Embedding rate limit (429) hit. Backing off for ${(backoffMs / 1000).toFixed(1)}s (retry ${attempt + 1}/${maxRetries})...`
+          );
+          await new Promise(r => setTimeout(r, backoffMs));
+          continue;
+        }
+        console.warn(`[HybridRetriever] Embedding rate limit reached after ${maxRetries + 1} attempts. Falling back gracefully to keyword retrieval.`);
+        return null;
+      }
+
+      // Other transient errors
+      if (attempt < maxRetries) {
+        const backoffMs = 1000 * (attempt + 1);
+        await new Promise(r => setTimeout(r, backoffMs));
+        continue;
+      }
+
+      console.warn('[HybridRetriever] Embedding generation deferred:', err?.message || 'API error');
+      return null;
+    }
+  }
+  return null;
+}
+
+// ─── Pre-compute Article Embeddings with Cache & Adaptive Pacing ───────────
 
 /**
  * Pre-compute embeddings for all corpus articles at server startup.
+ * Checks persistent cache first to eliminate unnecessary API requests.
  */
 export async function initializeEmbeddings(ai: any): Promise<void> {
-  if (embeddingsReady && embeddingCache) return;
+  if (embeddingsReady && embeddingCache && embeddingCache.size > 0) return;
   if (embeddingsInitPromise) return embeddingsInitPromise;
 
   embeddingsInitPromise = (async () => {
@@ -78,26 +188,58 @@ export async function initializeEmbeddings(ai: any): Promise<void> {
       if (!unique.has(a.id)) unique.set(a.id, a);
     }
 
-    console.info('[HybridRetriever] Computing embeddings for', unique.size, 'articles...');
-    const cache = new Map<string, ArticleEmbedding>();
-    let ok = 0, fail = 0;
+    // Step 1: Load precomputed vectors from persistent disk cache
+    const cache = loadDiskCache();
+    let fromCache = 0;
+    for (const [id] of unique) {
+      if (cache.has(id)) fromCache++;
+    }
+
+    if (fromCache === unique.size) {
+      embeddingCache = cache;
+      embeddingsReady = true;
+      console.debug(`[HybridRetriever] Ready: all ${unique.size} legal embeddings loaded from cache (zero API calls consumed).`);
+      return;
+    }
+
+    console.debug(`[HybridRetriever] Initializing embeddings (${fromCache} cached, ${unique.size - fromCache} to compute)...`);
+
+    let ok = fromCache;
+    let fail = 0;
+    let newlyComputed = 0;
+    let rateLimitEncountered = false;
 
     for (const [id, art] of unique) {
+      if (cache.has(id)) {
+        continue;
+      }
+
       const text = `${art.actTitle} ${art.section} ${art.title} ${art.fullText} ${art.keywords.join(' ')}`;
-      const vec = await generateEmbedding(ai, text);
+      const vec = await generateEmbedding(ai, text, { maxRetries: 4 });
       if (vec) {
         cache.set(id, { articleId: id, vector: vec });
         ok++;
+        newlyComputed++;
       } else {
         fail++;
+        rateLimitEncountered = true;
       }
-      await new Promise(r => setTimeout(r, 100));
+
+      // Adaptive pacing: If rate limit was hit, allow 1500ms recovery, else 350ms safe pace
+      const delayMs = rateLimitEncountered ? 1500 : 350;
+      await new Promise(r => setTimeout(r, delayMs));
     }
 
     embeddingCache = cache;
-    embeddingsReady = true;
-    console.info(`[HybridRetriever] Ready: ${ok} ok, ${fail} failed / ${unique.size} total`);
+    embeddingsReady = cache.size > 0;
+
+    if (newlyComputed > 0) {
+      saveDiskCache(cache);
+    }
+
+    console.debug(`[HybridRetriever] Ready: ${ok} available (${newlyComputed} newly computed, ${fromCache} cached), ${fail} deferred to keyword fallback / ${unique.size} total`);
   })();
+
   return embeddingsInitPromise;
 }
 
@@ -165,9 +307,9 @@ export async function hybridSearch(query: string, ai?: any, limit: number = 3): 
     return searchLegalCorpus(query, limit);
   }
 
-  const qEmb = await generateEmbedding(ai, query);
+  const qEmb = await generateEmbedding(ai, query, { maxRetries: 2 });
   if (!qEmb) {
-    console.warn('[HybridRetriever] Query embedding failed, keyword fallback');
+    console.debug('[HybridRetriever] Query embedding deferred to grounded keyword search fallback');
     return searchLegalCorpus(query, limit);
   }
 
@@ -216,7 +358,7 @@ export function getRetrieverStatus() {
     embeddingsReady,
     embeddingCount: embeddingCache?.size ?? 0,
     totalArticles: PUNJAB_LEGAL_CORPUS.length,
-    embeddingModel: EMBEDDING_MODEL,
+    embeddingModel: activeEmbeddingModel,
     embeddingWeight: EMBEDDING_WEIGHT,
     keywordWeight: KEYWORD_WEIGHT
   };

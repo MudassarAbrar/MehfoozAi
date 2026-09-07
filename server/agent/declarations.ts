@@ -95,25 +95,25 @@ export const safetyFunctionDeclarations = [
   {
     name: 'prepare_complaint_draft',
     description:
-      'Prepare a complaint draft for user review. This does not send an email.',
+      'Prepare a complaint draft for user review. Synthesize incident_summary directly from the user-provided facts in the conversation without inventing facts.',
     parameters: {
       type: Type.OBJECT,
       properties: {
         category: {
           type: Type.STRING,
-          description: 'Complaint category.'
+          description: 'Complaint category (e.g. workplace_harassment, cyber_blackmail, domestic_violence, physical_violence, psychological_abuse, stalking).'
         },
         incident_summary: {
           type: Type.STRING,
-          description: 'User-approved incident summary.'
+          description: 'A concise, professional, factual incident description synthesized directly from the user-provided facts in the conversation without inventing facts.'
         },
         district: {
           type: Type.STRING,
-          description: 'Punjab district.'
+          description: 'Punjab district (e.g. Lahore, Rawalpindi, Multan).'
         },
         requested_support: {
           type: Type.STRING,
-          description: 'Requested support or remedy.'
+          description: 'Requested support or remedy (e.g. inquiry committee action, protection order, FIA investigation).'
         }
       },
       required: ['category', 'incident_summary']

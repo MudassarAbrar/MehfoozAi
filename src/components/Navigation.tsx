@@ -58,6 +58,7 @@ interface NavigationProps {
   onToggleInspector: () => void;
   inspectorOpen: boolean;
   onOpenOnboarding: () => void;
+  onOpenSafetyGuide?: () => void;
   onOpenOfflineCorpus?: () => void;
   onChangePassword?: (target: 'app' | 'vault' | 'email') => void;
   draftCount?: number;
@@ -78,6 +79,7 @@ export const Navigation: React.FC<NavigationProps> = ({
   onToggleInspector,
   inspectorOpen,
   onOpenOnboarding,
+  onOpenSafetyGuide,
   onOpenOfflineCorpus,
   onChangePassword,
   draftCount = 0,
@@ -100,14 +102,12 @@ export const Navigation: React.FC<NavigationProps> = ({
   const PRIMARY_NAV: NavItem[] = [
     { id: 'home', label: 'Home', labelUrdu: 'ہوم', icon: Home },
     { id: 'assistant', label: 'AI Legal', labelUrdu: 'قانونی AI', icon: Scale, highlight: true },
-    { id: 'navigate', label: 'Safe Corridor', labelUrdu: 'محفوظ راستہ', icon: NavIcon },
-    { id: 'checkin', label: 'Check-In', labelUrdu: 'چیک ان', icon: Clock },
-    { id: 'alerts', label: 'Alerts', labelUrdu: 'الرٹس', icon: AlertTriangle, badge: 2 },
+    { id: 'checkin', label: 'Safe Check-In', labelUrdu: 'محفوظ چیک ان', icon: Clock },
+    { id: 'community', label: 'Community', labelUrdu: 'کمیونٹی', icon: HeartHandshake },
   ];
 
   const DESKTOP_EXTRA_NAV: NavItem[] = [
     { id: 'contacts', label: 'Contacts', labelUrdu: 'رابطے', icon: Users },
-    { id: 'community', label: 'Community', labelUrdu: 'کمیونٹی', icon: HeartHandshake },
     { id: 'profile', label: 'Profile', labelUrdu: 'پروفائل', icon: User },
   ];
 
@@ -125,8 +125,7 @@ export const Navigation: React.FC<NavigationProps> = ({
     { id: 'assistant', label: 'Unsaid Legal AI', labelUrdu: 'قانونی معاون', icon: Scale },
     { id: 'contacts', label: 'Important Contacts', labelUrdu: 'اہم رابطے', icon: Users },
     { id: 'vault', label: 'Private Vault', labelUrdu: 'پرائیویٹ والٹ', icon: Lock, badge: vaultCount },
-    { id: 'builder', label: 'Complaint Drafter', labelUrdu: 'درخواست ڈرافٹ', icon: FileText },
-    { id: 'tracking', label: 'My Status', labelUrdu: 'میری اپ ڈیٹس', icon: Clock, badge: draftCount },
+    { id: 'tracking', label: 'Registered Complaints', labelUrdu: 'رجسٹرڈ شکایات', icon: FileText, badge: draftCount },
     { id: 'directory', label: 'Helplines', labelUrdu: 'ڈائریکٹری', icon: HeartHandshake },
     { id: 'api_monitor', label: 'API Monitor', labelUrdu: 'اے پی آئی مانیٹر', icon: Activity }
   ];
@@ -267,7 +266,14 @@ export const Navigation: React.FC<NavigationProps> = ({
                           })}
                           {/* Help option (#36) */}
                           <button
-                            onClick={() => { onOpenOnboarding(); setIsMoreMenuOpen(false); }}
+                            onClick={() => {
+                              if (onOpenSafetyGuide) {
+                                onOpenSafetyGuide();
+                              } else {
+                                onOpenOnboarding();
+                              }
+                              setIsMoreMenuOpen(false);
+                            }}
                             className="w-full flex items-center justify-between px-2.5 py-1.5 rounded-xl text-xs font-medium text-[#1C2C34] dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#263842]/60 transition cursor-pointer"
                           >
                             <div className="flex items-center space-x-2">
@@ -316,19 +322,9 @@ export const Navigation: React.FC<NavigationProps> = ({
                           </button>
                         </div>
 
-                        {/* PWA Install & Safety Guide */}
-                        <div className="mt-1.5 flex items-center gap-1.5">
+                        {/* PWA Install */}
+                        <div className="mt-1.5 flex items-center">
                           <PWAInstallButton language={language} variant="badge" className="w-full justify-center" />
-                          <button
-                            onClick={() => {
-                              onOpenOnboarding();
-                              setIsMoreMenuOpen(false);
-                            }}
-                            className="w-full py-1.5 px-2 rounded-xl bg-slate-50 dark:bg-[#121A1E] hover:bg-[#ECF4F4] dark:hover:bg-[#263842] border border-slate-200/80 dark:border-slate-700/80 text-xs font-semibold text-[#1C2C34] dark:text-[#F4F4FC] flex items-center justify-center gap-1.5 transition cursor-pointer"
-                          >
-                            <ShieldCheck className="w-3.5 h-3.5 text-[#FC7454]" />
-                            <span>{isUrdu ? 'رہنما گائیڈ' : 'Safety Guide'}</span>
-                          </button>
                         </div>
                       </div>
 
@@ -453,20 +449,13 @@ export const Navigation: React.FC<NavigationProps> = ({
               <span>{isUrdu ? 'رابطہ و سوشل' : 'Admin & Socials'}</span>
             </button>
 
-            <button
-              onClick={onOpenOnboarding}
-              className="text-xs font-bold text-[#1C2C34] dark:text-slate-300 hover:text-[#FC7454] dark:hover:text-[#FC7C54] flex items-center space-x-1 cursor-pointer transition-colors"
-            >
-              <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
-              <span>Safety Guide</span>
-            </button>
-          </div>
+            </div>
         </div>
       </nav>
 
       {/* 3. MOBILE BOTTOM NAVIGATION BAR */}
       <nav aria-label="Mobile Navigation" className="md:hidden fixed bottom-0 inset-x-0 z-40 bg-white/98 dark:bg-[#12141C]/98 border-t border-slate-200/80 dark:border-slate-800/80 backdrop-blur-lg px-3 py-1.5 shadow-lg transition-colors">
-        <div className="grid grid-cols-5 gap-1 max-w-md mx-auto">
+        <div className="grid grid-cols-4 gap-1 max-w-md mx-auto">
           {PRIMARY_NAV.map((item) => {
             const Icon = item.icon;
             const isActive = activeTab === item.id;

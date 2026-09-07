@@ -47,6 +47,7 @@ import { loadVaultRecords, persistVaultRecords } from '../utils/dataService';
 import { AgentActionCard } from './AgentActionCard';
 import { AgentStepsPanel } from './AgentStepsPanel';
 import { useChatState, ChatMessage } from '../utils/chatState';
+import { getConversations, getConversationMessages, persistConversationUpdate, loadLocalConversations } from '../utils/conversationStorage';
 
 interface LegalAssistantProps {
   language: AppLanguage;
@@ -62,30 +63,42 @@ interface LegalAssistantProps {
 // Re-export ChatMessage so the rest of this file can use it via the local alias
 type Message = ChatMessage;
 
-const QUICK_PROMPTS = [
+interface QuickPrompt {
+  id: string;
+  labelEn: string;
+  labelUrdu: string;
+  queryEn: string;
+  queryUrdu: string;
+}
+
+const QUICK_PROMPTS: QuickPrompt[] = [
   {
     id: 'coercive',
     labelEn: 'Domestic abuse',
     labelUrdu: 'گھریلو تشدد',
-    query: 'What legal protections exist under Punjab law for domestic abuse and confinement?'
+    queryEn: 'What legal protections exist under Punjab law for domestic abuse and confinement?',
+    queryUrdu: 'پنجاب کے قانون کے تحت گھریلو تشدد اور حبس بے جا کے لیے کیا قانونی تحفظات موجود ہیں؟'
   },
   {
     id: 'workplace',
     labelEn: 'Workplace harassment',
     labelUrdu: 'دفتر میں ہراسانی',
-    query: 'How do I file a workplace harassment complaint with the Punjab Ombudsperson?'
+    queryEn: 'How do I file a workplace harassment complaint with the Punjab Ombudsperson?',
+    queryUrdu: 'پنجاب محتسب کے پاس کام کی جگہ پر ہراسانی کی شکایت کیسے درج کروائی جائے؟'
   },
   {
     id: 'cyber',
     labelEn: 'Online blackmail (PECA)',
     labelUrdu: 'آن لائن بلیک میلنگ',
-    query: 'Someone is blackmailing me on WhatsApp. Which laws apply and what steps should I take?'
+    queryEn: 'Someone is blackmailing me on WhatsApp. Which laws apply and what steps should I take?',
+    queryUrdu: 'واٹس ایپ پر مجھے کوئی بلیک میل کر رہا ہے۔ کون سے قوانین لاگو ہوتے ہیں اور مجھے کیا اقدامات کرنے چاہئیں؟'
   },
   {
     id: 'protection',
     labelEn: 'Protection orders',
     labelUrdu: 'حفاظتی آرڈرز',
-    query: 'What is the procedure to obtain a Protection Order under PPWVA 2016 in Punjab?'
+    queryEn: 'What is the procedure to obtain a Protection Order under PPWVA 2016 in Punjab?',
+    queryUrdu: 'پنجاب میں PPWVA 2016 کے تحت پروٹیکشن آرڈر حاصل کرنے کا کیا طریقہ کار ہے؟'
   }
 ];
 
@@ -210,35 +223,39 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
   }, [messages, loading, attachedPhotos]);
 
-  // Load conversation history on FIRST mount only (not on every remount)
+  // Load conversation history on FIRST mount and restore active conversation if available
   useEffect(() => {
     if (hasInitializedRef.current) return;
     hasInitializedRef.current = true;
     let cancelled = false;
-    void loadConversations().then(convs => {
+    void getConversations().then(async (convs) => {
       if (cancelled) return;
-      setConversationList(prev => prev.length > 0 ? prev : convs);
+      setConversationList(convs);
+
+      // Restore existing conversation messages if present and current messages are empty/welcome-only
+      if (convs.length > 0) {
+        const targetId = currentConversationId || convs[0].id;
+        const loadedMsgs = await getConversationMessages(undefined, targetId);
+        if (!cancelled && loadedMsgs.length > 0) {
+          setCurrentConversationId(targetId);
+          setMessages(loadedMsgs);
+        }
+      }
     });
     return () => { cancelled = true; };
   }, []);
 
-  // Switch to an existing conversation and load its messages
+  // Switch to an existing conversation and load its rich messages
   const handleSwitchConversation = async (convId: string) => {
     if (convId === currentConversationId || loading) return;
     setCurrentConversationId(convId);
     setIsHistoryPanelOpen(false);
     setLoading(true);
     try {
-      const stored = await loadConversationMessages(convId);
-      const mapped: Message[] = stored
-        .filter((m: StoredMessage) => m.role === 'user' || m.role === 'model')
-        .map((m: StoredMessage) => ({
-          id: `hist-${m.id}`,
-          sender: m.role === 'user' ? 'user' as const : 'assistant' as const,
-          timestamp: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-          text: m.content || ''
-        }));
-      if (mapped.length > 0) setMessages(mapped);
+      const loadedMsgs = await getConversationMessages(undefined, convId);
+      if (loadedMsgs.length > 0) {
+        setMessages(loadedMsgs);
+      }
     } catch {
       // Keep current messages on failure
     } finally {
@@ -452,6 +469,12 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     const query = textToSend || inputText;
     if ((!query.trim() && attachedPhotos.length === 0) || loading) return;
 
+    let targetConvId = currentConversationId;
+    if (!targetConvId) {
+      targetConvId = `conv-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`;
+      setCurrentConversationId(targetConvId);
+    }
+
     const userMessageId = `user-${Date.now()}`;
     const photosToAttach = [...attachedPhotos];
     const currentLoc = activeLocation;
@@ -469,6 +492,8 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
     ];
 
     setMessages(newMessages);
+    persistConversationUpdate(undefined, targetConvId, newMessages, currentLang);
+    setConversationList(loadLocalConversations());
     setInputText('');
     setAttachedPhotos([]);
     setLoading(true);
@@ -510,21 +535,19 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         const agentResp = await sendAgentMessage(
           promptQuery,
           currentLang,
-          currentConversationId || undefined,
+          targetConvId,
           currentLoc ? {
             currentLocation: { lat: 0, lng: 0, permissionGranted: true }
           } : undefined
         );
 
         if (agentResp && agentResp.text && agentResp.type !== 'error') {
-          // Update conversation tracking after agent response
-          if (agentResp.conversationId && agentResp.conversationId !== currentConversationId) {
+          if (agentResp.conversationId && agentResp.conversationId !== targetConvId) {
+            targetConvId = agentResp.conversationId;
             setCurrentConversationId(agentResp.conversationId);
-            // Refresh conversation list to include the new conversation
-            void loadConversations().then(convs => setConversationList(convs));
           }
 
-          setMessages([
+          const agentMessages: Message[] = [
             ...newMessages,
             {
               id: assistantMessageId,
@@ -533,7 +556,11 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
               text: agentResp.text,
               agentResponse: agentResp
             }
-          ]);
+          ];
+
+          setMessages(agentMessages);
+          persistConversationUpdate(undefined, targetConvId, agentMessages, currentLang);
+          setConversationList(loadLocalConversations());
 
           onLogAudit?.('agent_response', `Agent responded (${agentResp.type}) with ${agentResp.citations?.length || 0} citations`);
 
@@ -565,7 +592,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
       const response = await processSafetyOrchestration(promptQuery, currentLang, userContacts);
       const answerText = isUrdu && response.answerSummaryUrdu ? response.answerSummaryUrdu : response.answerSummary;
 
-      setMessages([
+      const orchestratorMessages: Message[] = [
         ...newMessages,
         {
           id: assistantMessageId,
@@ -574,7 +601,11 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           text: answerText,
           responsePayload: response
         }
-      ]);
+      ];
+
+      setMessages(orchestratorMessages);
+      persistConversationUpdate(undefined, targetConvId, orchestratorMessages, currentLang);
+      setConversationList(loadLocalConversations());
 
       onLogAudit?.('orchestrator_response', `Synthesized grounded response with ${response.sourceReferences.length} citations`, response.confidence);
 
@@ -587,7 +618,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         onLogAudit?.('danger_triggered', 'Immediate danger trigger phrase detected');
       }
     } catch (err: any) {
-      setMessages([
+      const errMessages: Message[] = [
         ...newMessages,
         {
           id: `err-${Date.now()}`,
@@ -597,7 +628,10 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             ? 'معذرت، اس وقت سرور سے رابطہ نہیں ہو سکا۔ آپ کا ڈیٹا محفوظ ہے۔ براہ کرم دوبارہ کوشش کریں یا سپورٹ ڈائریکٹری دیکھیں۔'
             : 'We encountered a momentary connection issue. You can still browse the local legal directory and Punjab statutes offline.'
         }
-      ]);
+      ];
+      setMessages(errMessages);
+      persistConversationUpdate(undefined, targetConvId, errMessages, currentLang);
+      setConversationList(loadLocalConversations());
     } finally {
       setLoading(false);
     }
@@ -735,7 +769,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                     >
                       <div className="flex items-center space-x-2 min-w-0">
                         <MessageSquare className="w-3.5 h-3.5 text-[#FC7454] flex-shrink-0" />
-                        <span className="truncate font-medium">{conv.title || (isUrdu ? 'بغیر عنوان' : 'Untitled')}</span>
+                        <span className={`truncate font-medium ${conv.language === 'ur' || /[\u0600-\u06FF]/.test(conv.title || '') ? 'font-urdu' : ''}`}>{conv.title || (isUrdu ? 'بغیر عنوان' : 'Untitled')}</span>
                       </div>
                       <div className="flex items-center space-x-1.5 text-[10px] text-[#5A6E78] flex-shrink-0">
                         <span>{conv.message_count} msgs</span>
@@ -801,6 +835,16 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                 {msg.text}
               </p>
 
+              {/* Agent Provenance Badge */}
+              {msg.agentResponse && (
+                <div className="mt-2 flex items-center gap-1.5 flex-wrap text-xs">
+                  <span className="flex items-center space-x-1 text-teal-800 font-semibold bg-teal-50 px-2.5 py-1 rounded-xl border border-teal-200">
+                    <Sparkles className="w-3.5 h-3.5 text-teal-600" />
+                    <span>{isUrdu ? 'جیمنائی AI ایجنٹ (ملٹی ٹول تصدیق شدہ)' : 'Gemini AI Agent (Multi-Tool Verified)'}</span>
+                  </span>
+                </div>
+              )}
+
               {/* Agent Steps Panel (when agent response has steps) */}
               {msg.agentResponse?.steps && msg.agentResponse.steps.length > 0 && (
                 <AgentStepsPanel steps={msg.agentResponse.steps} isUrdu={isUrdu} />
@@ -816,7 +860,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                       isUrdu={isUrdu}
                       onConfirmed={(result) => {
                         onLogAudit?.('agent_action_confirmed', `Confirmed: ${action.toolName}`);
-                        // If the action has a UI action (e.g. vault save), handle it
+                        // If the action has a UI action (e.g. vault save or complaint builder), handle it
                         if (result?.uiActions) {
                           for (const ua of result.uiActions) {
                             if (ua.action === 'save_incident_to_vault') {
@@ -825,6 +869,18 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                                 (ua.payload?.message as string) || ''
                               );
                             }
+                            if (ua.action === 'open_complaint_builder') {
+                              onOpenComplaintWithData?.(
+                                (ua.payload?.incidentSummary as string) || '',
+                                (ua.payload?.category as string) || 'domestic_violence'
+                              );
+                            }
+                          }
+                        } else if (action.toolName === 'prepare_complaint_draft') {
+                          const category = (action.displayData?.complaintCategory as string) || 'domestic_violence';
+                          const summary = (action.displayData?.incidentSummary as string) || '';
+                          if (summary) {
+                            onOpenComplaintWithData?.(summary, category);
                           }
                         }
                       }}
@@ -882,15 +938,20 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="flex items-center space-x-1.5 text-[#1C2C34] font-bold bg-[#ECF4F4] px-3 py-1.5 rounded-xl border border-[#BCD4D4]">
                         <ShieldCheck className="w-4 h-4 text-[#FC7454]" />
-                        <span>{Math.round(msg.responsePayload.confidence * 100)}% Grounded in Punjab Statutes</span>
+                        <span>{Math.round(msg.responsePayload.confidence * 100)}% {isUrdu ? 'پنجاب کے قوانین پر مبنی' : 'Grounded in Punjab Statutes'}</span>
                       </span>
 
-                      {msg.responsePayload.modelUsed && (
+                      {msg.responsePayload.isDeterministicFallback ? (
+                        <span className="flex items-center space-x-1 text-slate-700 font-semibold bg-slate-100 px-2.5 py-1.5 rounded-xl border border-slate-200">
+                          <BookOpen className="w-3.5 h-3.5 text-slate-500" />
+                          <span>{isUrdu ? 'مقامی پنجاب قوانین (آف لائن تصدیق شدہ)' : 'Local Punjab Corpus (Offline Verified)'}</span>
+                        </span>
+                      ) : msg.responsePayload.modelUsed ? (
                         <span className="flex items-center space-x-1 text-teal-800 font-semibold bg-teal-50 px-2.5 py-1.5 rounded-xl border border-teal-200">
                           <Sparkles className="w-3.5 h-3.5 text-teal-600" />
                           <span>{msg.responsePayload.modelUsed}</span>
                         </span>
-                      )}
+                      ) : null}
                     </div>
 
                     <button
@@ -1101,10 +1162,10 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             <button
               key={prompt.id}
               type="button"
-              onClick={() => handleSend(prompt.query)}
+              onClick={() => handleSend(isUrdu ? prompt.queryUrdu : prompt.queryEn)}
               className="px-2.5 py-1 rounded-full bg-slate-50 hover:bg-[#ECF4F4] border border-slate-200 hover:border-[#BCD4D4] text-[11px] font-medium text-[#1C2C34] transition shrink-0 shadow-2xs hover:shadow-xs cursor-pointer active:scale-95 flex items-center space-x-1"
             >
-              <span>{isUrdu ? prompt.labelUrdu : prompt.labelEn}</span>
+              <span className={isUrdu ? 'font-urdu' : ''}>{isUrdu ? prompt.labelUrdu : prompt.labelEn}</span>
             </button>
           ))}
         </div>

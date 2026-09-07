@@ -380,9 +380,10 @@ All API routes are served from the Express server at `/api/*`:
 | `POST` | `/api/check-in/start` | Start a silent destination check-in timer | 30 req / 15 min |
 | `POST` | `/api/check-in/complete` | Complete (check in at destination) | 30 req / 15 min |
 | `GET` | `/api/check-in/status/:id` | Get check-in status by ID | 60 req / 15 min |
+| `POST` | `/api/auth/send-welcome-email` | Send official welcome notification email from Resend | 10 req / 15 min |
 | `GET` | `/api/activity-logs` | Get API activity logs for the dashboard | 30 req / 15 min |
 
-### Security Layers
+### Security & Authentication Layers
 
 ```
 Request → [Rate Limiter] → [Helmet Headers] → [Input Sanitizer] → [Supabase JWT Auth] → Handler
@@ -390,11 +391,14 @@ Request → [Rate Limiter] → [Helmet Headers] → [Input Sanitizer] → [Supab
                                                           [RLS User Context]
 ```
 
-- **Helmet**: CSP (enforced in production), X-Content-Type-Options, Referrer-Policy, Permissions-Policy
-- **Rate Limiting**: Per-route `express-rate-limit` (global + specific)
-- **Input Sanitization**: Null-byte filtering, script injection detection
-- **Auth**: Supabase JWT verification with Row-Level Security (RLS)
-- **Query Hardening**: Simple `querystring` parser (no `qs` DoS surface)
+- **Helmet Security**: CSP (enforced in production), X-Content-Type-Options (nosniff), Referrer-Policy, Permissions-Policy.
+- **Native Supabase Auth Email Confirmation**: Verification emails dispatched natively via Supabase Auth with custom HTML templates (`{{ .ConfirmationURL }}`).
+- **Account Enumeration Defense**: Obfuscates duplicate registration errors by displaying *"This email already has an account linked. Please sign in instead."* without dispatching unneeded emails.
+- **Client-Side First-Time Onboarding Token**: `hasUserCompletedOnboarding()` checks `localStorage` token (`mehfooz_onboarding_token_<user_id/email>`), displaying the setup walkthrough on initial post-confirmation login and bypassing it on subsequent logins with zero server overhead.
+- **Rate Limiting**: Per-route `express-rate-limit` (global + endpoint-specific).
+- **Input Sanitization**: Null-byte filtering, script injection detection, max 3,000 char query limits.
+- **Auth Middleware**: Server-side Supabase JWT verification with Row-Level Security (RLS) enforcement.
+- **Query Hardening**: Simple `querystring` parser (eliminating `qs` DoS surface).
 
 ---
 
@@ -436,68 +440,92 @@ Request → [Rate Limiter] → [Helmet Headers] → [Input Sanitizer] → [Supab
 MehfoozAi/
 ├── 📱 src/                          # Client-side React SPA
 │   ├── components/
-│   │   ├── common/                  # Shared: Logo, Social Links, Offline Indicator, UI primitives
-│   │   ├── landing/                 # Landing page art: AbstractArt, PhoneMockupShowcase
-│   │   ├── ui/                      # Primitive components: Button, Card, Badge, StarRating
+│   │   ├── common/                  # Shared: MehfoozLogo, OfflineIndicator, PWAInstallButton, OpenStreetMapViewer
+│   │   ├── landing/                 # Landing page visual assets: AbstractArt, HeroAnimatedLogo, PhoneMockupShowcase
+│   │   ├── ui/                      # Primitive UI components: button, card, badge, primitives, star-rating
 │   │   ├── weather/                 # Weather cover art: LandscapeIllustration, WeatherIcons
-│   │   ├── LegalAssistant.tsx       # ⚖️ AI Legal Advisor (voice-enabled, stateful chat)
+│   │   ├── ActiveAlerts.tsx         # 🚨 Live street safety hazard warnings
+│   │   ├── AgentActionCard.tsx      # 🤖 Pending AI agent action confirmation cards
+│   │   ├── AgentStepsPanel.tsx      # 🔍 Transparent AI agent step-by-step reasoning panel
+│   │   ├── ApiActivityDashboard.tsx # 📊 System telemetry & API log inspector
+│   │   ├── AuthModal.tsx            # 🔑 Dual-mode authentication (Supabase / Local)
+│   │   ├── CommunityUpdates.tsx     # 👥 Local safety updates & community reports
 │   │   ├── ComplaintBuilder.tsx     # 📋 Multi-step complaint form with department routing
-│   │   ├── IncidentVault.tsx        # 🔒 AES-GCM-256 encrypted evidence locker
-│   │   ├── SafeNavigation.tsx       # 🗺️ Leaflet/OSM safe corridor maps
-│   │   ├── SilentCheckIn.tsx        # 📍 Destination timer with auto-alert
-│   │   ├── WeatherCover.tsx         # 🌤️ Stealth weather disguise + PIN unlock
 │   │   ├── CrisisModal.tsx          # 🚨 Emergency SOS modal
+│   │   ├── ExportPdfModal.tsx       # 📄 PDF export modal for official dockets & evidence
+│   │   ├── HackathonInspector.tsx   # 🛠️ System health & architecture inspector
 │   │   ├── HomeDashboard.tsx        # 🏠 Main dashboard with quick actions
-│   │   ├── TrackingDashboard.tsx    # 📊 Complaint status tracking
-│   │   ├── SupportDirectory.tsx     # 📞 Punjab helplines & support orgs
-│   │   └── ...                      # AuthModal, OnboardingModal, Navigation, etc.
+│   │   ├── ImportantContacts.tsx    # 📞 Emergency contacts manager
+│   │   ├── IncidentVault.tsx        # 🔒 AES-GCM-256 encrypted evidence locker
+│   │   ├── LandingPage.tsx          # 🌐 Public landing page & feature overview
+│   │   ├── LegalAssistant.tsx       # ⚖️ AI Legal Advisor (voice-enabled, stateful chat)
+│   │   ├── Navigation.tsx           # 🧭 Top & bottom navigation bars
+│   │   ├── OnboardingModal.tsx      # 👤 First-time user setup walkthrough
+│   │   ├── SafeNavigation.tsx       # 🗺️ Leaflet/OSM safe corridor maps
+│   │   ├── SafetyGuideModal.tsx     # 📖 Emergency safety guide & legal rights reference
+│   │   ├── SilentCheckIn.tsx        # 📍 Destination timer with auto-alert
+│   │   ├── SupportDirectory.tsx     # 📞 Punjab helplines & support org directory
+│   │   ├── TrackingDashboard.tsx    # 📊 Complaint status tracking dashboard
+│   │   ├── UserProfile.tsx          # 👤 User profile & stealth settings
+│   │   └── WeatherCover.tsx         # 🌤️ Stealth weather disguise + PIN unlock
 │   ├── data/
 │   │   ├── legalCorpus.ts           # 34 Punjab protection laws (bilingual)
 │   │   ├── supportDirectory.ts      # Official helpline & org directory
 │   │   └── lahoreLocations.ts       # Pre-indexed safe haven locations
 │   ├── hooks/                       # useOnlineStatus, usePWAInstall
+│   ├── services/
+│   │   └── osmService.ts            # Nominatim geocoding & route intelligence service
 │   ├── utils/
+│   │   ├── agentClient.ts           # Client wrapper for /api/agent endpoint
+│   │   ├── auth.ts                  # Dual-mode auth & client-side onboarding token management
 │   │   ├── chatState.tsx            # 🧠 React Context for AI conversation persistence
-│   │   ├── orchestrator.ts          # Intent classification + RAG routing
-│   │   ├── hybridRetriever.ts       # 60% Gemini embeddings + 40% keyword scoring
-│   │   ├── auth.ts                  # Dual-mode auth (Supabase / localStorage)
-│   │   ├── crypto.ts                # AES-GCM-256 encryption helpers
-│   │   ├── dataService.ts           # Encrypted persistence layer
-│   │   ├── supabase.ts              # Supabase client initialization
-│   │   └── offlineEmergencyCache.ts # Pre-cache for zero-network incidents
+│   │   ├── conversationStorage.ts   # Local conversation history persistence
+│   │   ├── crypto.ts                # AES-GCM-256 Web Crypto encryption helpers
+│   │   ├── dataService.ts           # Encrypted persistence layer & user data helpers
+│   │   ├── hybridRetriever.ts       # 60% Gemini embeddings + 40% keyword scoring engine
+│   │   ├── localDataMigration.ts    # One-time local data to Supabase cloud migration
+│   │   ├── offlineEmergencyCache.ts # Pre-cache manager for zero-network incidents
+│   │   ├── orchestrator.ts          # Intent classification & legal corpus RAG router
+│   │   ├── pdfExport.ts             # jsPDF legal docket exporter
+│   │   ├── security.ts              # Client-side input validation & sanitization
+│   │   └── supabase.ts              # Supabase client initialization & auth listener
 │   ├── App.tsx                      # Root component + tab router + ChatStateProvider
 │   ├── types.ts                     # All TypeScript interfaces & enums
-│   └── index.css                    # Tailwind v4 + custom design tokens
+│   ├── index.css                    # Tailwind v4 + custom design tokens
+│   └── vite-env.d.ts                # Vite environment type declarations
 │
 ├── ⚙️ server/                       # Server-side modules
-│   ├── agent/
-│   │   ├── runner.ts                # 🤖 Bounded Gemini function-calling loop
-│   │   ├── executor.ts              # Safe tool execution dispatcher
-│   │   ├── confirmation.ts          # Pending action create/confirm/cancel + dept dispatch
-│   │   ├── context.ts               # Agent context builder (user, corpus, history)
+│   ├── agent/                       # Bounded Gemini Agent System
+│   │   ├── config.ts                # Agent configuration & Gemini model chain
+│   │   ├── confirmation.ts          # Pending action state & confirmation gates
+│   │   ├── context.ts               # Context builder (user, legal corpus, history)
+│   │   ├── contextResolver.ts       # Context resolution & payload normalization
+│   │   ├── dangerCheck.ts           # Immediate danger detection & escalation
 │   │   ├── declarations.ts          # Gemini function declarations for all tools
-│   │   ├── policies.ts              # Tool validation + policy enforcement
-│   │   ├── systemPrompt.ts          # Agent system instruction builder
-│   │   ├── dangerCheck.ts           # Immediate danger detection (crisis escalation)
-│   │   ├── config.ts                # Agent configuration + model chain
+│   │   ├── errors.ts                # Agent error normalization & response formatting
+│   │   ├── executor.ts              # Tool execution dispatcher
+│   │   ├── inputGuardrail.ts        # Agent prompt injection & safety policy input filter
+│   │   ├── outputGuardrail.ts       # Agent output safety & policy verification filter
+│   │   ├── policies.ts              # Tool policy & execution rules
+│   │   ├── ragRetriever.ts          # Agent legal corpus RAG retrieval bridge
+│   │   ├── runner.ts                # Bounded Gemini function-calling execution loop
 │   │   ├── schemas.ts               # Agent input/output TypeScript schemas
-│   │   └── errors.ts                # Agent error normalization
-│   ├── departmentRouting.ts         # 🏛️ 9 departments → API + email dispatch
-│   ├── email.ts                     # Resend SDK — XSS-escaped complaint templates
-│   ├── sms.ts                       # Twilio SMS dispatch
-│   ├── checkIns.ts                  # Check-in timer routes + Supabase integration
-│   ├── apiActivity.ts               # API activity logging (in-memory + console)
-│   ├── supabaseServer.ts            # Supabase admin client + JWT auth middleware
-│   └── ...
+│   │   └── systemPrompt.ts          # System prompt builder for the legal navigator agent
+│   ├── apiActivity.ts               # In-memory API activity logging & telemetry
+│   ├── checkIns.ts                  # Destination check-in timer routes & Supabase check-ins
+│   ├── departmentRouting.ts         # 🏛️ 9 Punjab government departments routing dispatch
+│   ├── email.ts                     # Resend email SDK (complaints, welcome emails, notifications)
+│   ├── sms.ts                       # Twilio SMS emergency alert gateway
+│   └── supabaseServer.ts            # Supabase admin client + JWT auth middleware
 │
-├── server.ts                        # Express app root — all middleware + routes
+├── server.ts                        # Express app root — security headers, routes & Vite middleware
 ├── api/index.ts                     # Vercel Serverless Function entry point
-├── vercel.json                      # Vercel deployment config (rewrites + caching)
-├── vite.config.ts                   # Vite + React + Tailwind + PWA config
-├── tsconfig.json                    # TypeScript configuration
-├── package.json                     # Dependencies + build scripts
+├── vercel.json                      # Vercel deployment config (rewrites & route headers)
+├── vite.config.ts                   # Vite + React + Tailwind + PWA configuration
+├── tsconfig.json                    # TypeScript compiler options
+├── package.json                     # Project manifest & build scripts
 └── supabase/
-    ├── migrations/                  # SQL migrations (RLS, tables, indexes, edge functions)
+    ├── migrations/                  # SQL migrations (RLS policies, tables, indexes, pg_cron)
     ├── functions/                   # Supabase Edge Functions (check-in-monitor)
     └── tests/                       # RLS verification tests
 ```

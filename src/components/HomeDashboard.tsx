@@ -128,11 +128,11 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
             {/* Action Pills */}
             <div className="flex items-center space-x-2 pt-1">
               <button
-                onClick={triggerCheckIn}
+                onClick={() => handleNav('directory')}
                 className="py-2.5 px-4 rounded-xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs tracking-wide transition shadow-xs active:scale-95 cursor-pointer flex items-center space-x-1.5"
               >
-                <span>{isUrdu ? 'چیک ان ٹائمر' : 'Start Check-In'}</span>
-                <ChevronRight className="w-3.5 h-3.5 text-[#BCD4D4]" />
+                <PhoneCall className="w-3.5 h-3.5 text-[#BCD4D4]" />
+                <span>{isUrdu ? 'ہیلپ لائنز' : 'Helplines'}</span>
               </button>
 
               <button
@@ -151,14 +151,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
           </div>
         </div>
 
-        {/* 2. FOUR RELEVANT FEATURE BOXES (Matching Screen 2 in Reference) */}
+        {/* 2. FOUR RELEVANT FEATURE BOXES */}
         <div className="space-y-2 pt-1">
           <h3 className="text-xs font-bold text-[#1C2C34] dark:text-slate-300">Categories & Core Tools</h3>
 
           <div className="grid grid-cols-2 gap-3">
-            {/* Card 1: SAFE CORRIDOR (Outlined card with coral dot) */}
+            {/* Card 1: SAFE CHECK-IN */}
             <div
-              onClick={onStartNavigation}
+              onClick={() => handleNav('checkin')}
               className="rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:border-[#FC7454] dark:hover:border-[#FC7C54] transition bg-white dark:bg-[#18242A] min-h-[96px] group shadow-2xs"
             >
               <div className="relative">
@@ -167,12 +167,12 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
               <div className="text-center">
                 <span className="text-xs font-bold text-[#1C2C34] dark:text-white block">
-                  {isUrdu ? 'محفوظ راستہ' : 'Safe Corridor'}
+                  {isUrdu ? 'محفوظ چیک ان' : 'Safe Check-In'}
                 </span>
               </div>
             </div>
 
-            {/* Card 2: LEGAL ADVISOR (Outlined card with coral dot) */}
+            {/* Card 2: LEGAL ADVISOR */}
             <div
               onClick={() => handleNav('assistant')}
               className="rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:border-[#FC7454] dark:hover:border-[#FC7C54] transition bg-white dark:bg-[#18242A] min-h-[96px] group shadow-2xs"
@@ -188,23 +188,23 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </div>
             </div>
 
-            {/* Card 3: CHECK-IN TIMER (replaced Vault — Vault moved to menu per #14) */}
+            {/* Card 3: REGISTERED COMPLAINTS */}
             <div
-              onClick={triggerCheckIn}
+              onClick={() => handleNav('tracking')}
               className="rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:border-[#FC7454] dark:hover:border-[#FC7C54] transition bg-white dark:bg-[#18242A] min-h-[96px] group shadow-2xs"
             >
               <div className="relative">
-                <Clock className="w-6 h-6 text-[#1C2C34] dark:text-slate-100 group-hover:scale-110 transition-transform" />
+                <FileText className="w-6 h-6 text-[#1C2C34] dark:text-slate-100 group-hover:scale-110 transition-transform" />
                 <span className="absolute -top-1 -right-1 w-2.5 h-2.5 rounded-full bg-[#FC7454] dark:bg-[#FC7C54]" />
               </div>
               <div className="text-center">
                 <span className="text-xs font-bold text-[#1C2C34] dark:text-white block">
-                  {isUrdu ? 'چیک ان' : 'Check-In'}
+                  {isUrdu ? 'درج شدہ شکایات' : 'Registered Complaints'}
                 </span>
               </div>
             </div>
 
-            {/* Card 4: ALL TOOLS (functional dropdown per #15) */}
+            {/* Card 4: ALL TOOLS */}
             <div
               onClick={() => setIsAllToolsOpen(true)}
               className="rounded-2xl bg-[#ECF4F4] dark:bg-[#263842] border border-[#BCD4D4] dark:border-[#344854] p-3.5 flex flex-col items-center justify-center space-y-2 cursor-pointer hover:bg-[#C4DCDC]/40 transition min-h-[96px] group shadow-2xs"
@@ -261,14 +261,14 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
       </div>
 
-      {/* 4. FREQUENT SAFE ROUTES (Matching Reference Screen 2 Recent Booking) */}
+      {/* 4. VERIFIED SAFE PLACES IN LAHORE */}
       <div className="rounded-[32px] bg-white dark:bg-[#18242A] p-4.5 sm:p-5 shadow-sm border border-[#BCD4D4]/60 dark:border-slate-800 space-y-3.5 transition-colors">
         <div className="flex items-center justify-between">
           <h3 className="text-xs sm:text-sm font-bold tracking-wide uppercase text-[#1C2C34] dark:text-white">
-            {isUrdu ? 'حالیہ محفوظ راستے' : 'Recent Safe Corridors'}
+            {isUrdu ? 'لاہور کے محفوظ مقامات' : 'Safe Places in Lahore'}
           </h3>
           <button 
-            onClick={() => handleNav('navigate')}
+            onClick={() => handleNav('checkin')}
             className="text-xs font-semibold text-[#FC7454] dark:text-[#FC7C54] hover:underline cursor-pointer"
           >
             {isUrdu ? 'تمام دیکھیں' : 'See All'}
@@ -276,47 +276,64 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
 
         <div className="space-y-2.5">
-          {/* Route 1: Green Garden Corridor */}
           <div 
-            onClick={onStartNavigation}
+            onClick={() => handleNav('checkin')}
             className="p-3.5 rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 hover:border-[#FC7454] dark:hover:border-[#FC7C54] bg-white dark:bg-[#18242A] flex items-center justify-between cursor-pointer transition-all shadow-2xs group"
           >
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="text-xs sm:text-sm font-bold text-[#1C2C34] dark:text-white">
-                  Green Garden Safe Route
+                  Liberty Market / MM Alam Road
                 </span>
-                <span className="flex items-center space-x-0.5 text-xs font-bold text-[#1C2C34] dark:text-slate-200">
-                  <Star className="w-3.5 h-3.5 fill-[#FC7454] text-[#FC7454] dark:fill-[#FC7C54] dark:text-[#FC7C54]" />
-                  <span>4.6</span>
+                <span className="flex items-center space-x-0.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <span>Safest 98%</span>
                 </span>
               </div>
-              <p className="text-xs text-[#5A6E78] dark:text-slate-400 flex items-center space-x-1">
-                <MapPin className="w-3 h-3 text-[#5A6E78]" />
-                <span>Gulberg Main • 100% Lit</span>
+              <p className="text-xs text-[#5A6E78] dark:text-slate-400 flex items-center space-x-2">
+                <MapPin className="w-3 h-3 text-[#FC7454]" />
+                <span>Gulberg III • 100% Street Lighting • PSCA 24/7 CCTV</span>
               </p>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all" />
           </div>
 
-          {/* Route 2 */}
           <div 
-            onClick={onStartNavigation}
+            onClick={() => handleNav('checkin')}
+            className="p-3.5 rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 hover:border-[#FC7454] dark:hover:border-[#FC7C54] bg-[#F8FBFB] dark:bg-[#18242A] flex items-center justify-between cursor-pointer transition-all shadow-2xs group"
+          >
+            <div className="space-y-1">
+              <div className="flex items-center space-x-2">
+                <span className="text-xs sm:text-sm font-bold text-[#1C2C34] dark:text-white">
+                  Barkat Market / Garden Town
+                </span>
+                <span className="flex items-center space-x-0.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <span>Safe 94%</span>
+                </span>
+              </div>
+              <p className="text-xs text-[#5A6E78] dark:text-slate-400 flex items-center space-x-2">
+                <MapPin className="w-3 h-3 text-[#FC7454]" />
+                <span>Garden Town • Active Police Desk • High Visibility</span>
+              </p>
+            </div>
+            <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all" />
+          </div>
+
+          <div 
+            onClick={() => handleNav('checkin')}
             className="p-3.5 rounded-2xl border border-[#BCD4D4]/60 dark:border-slate-700/80 hover:border-[#FC7454] dark:hover:border-[#FC7C54] bg-white dark:bg-[#18242A] flex items-center justify-between cursor-pointer transition-all shadow-2xs group"
           >
             <div className="space-y-1">
               <div className="flex items-center space-x-2">
                 <span className="text-xs sm:text-sm font-bold text-[#1C2C34] dark:text-white">
-                  Mall Road → MM Alam Safe Corridor
+                  Mall Road / Alhamra Complex
                 </span>
-                <span className="flex items-center space-x-0.5 text-xs font-bold text-[#1C2C34] dark:text-slate-200">
-                  <Star className="w-3.5 h-3.5 fill-[#FC7454] text-[#FC7454] dark:fill-[#FC7C54] dark:text-[#FC7C54]" />
-                  <span>4.9</span>
+                <span className="flex items-center space-x-0.5 text-xs font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                  <span>Safe 92%</span>
                 </span>
               </div>
-              <p className="text-xs text-[#5A6E78] dark:text-slate-400 flex items-center space-x-1">
-                <MapPin className="w-3 h-3 text-[#5A6E78]" />
-                <span>MM Alam • PSCA Monitored</span>
+              <p className="text-xs text-[#5A6E78] dark:text-slate-400 flex items-center space-x-2">
+                <MapPin className="w-3 h-3 text-[#FC7454]" />
+                <span>Civil Lines • Police Patrol • Lit Pedestrian Walkway</span>
               </p>
             </div>
             <ChevronRight className="w-4 h-4 text-slate-400 group-hover:text-[#1C2C34] dark:group-hover:text-white group-hover:translate-x-0.5 transition-all" />
@@ -324,7 +341,7 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
         </div>
       </div>
 
-      {/* All Tools Dropdown Modal (#15) */}
+      {/* All Tools Dropdown Modal */}
       {isAllToolsOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-end sm:items-center justify-center p-4" onClick={() => setIsAllToolsOpen(false)}>
           <motion.div
@@ -341,15 +358,10 @@ export const HomeDashboard: React.FC<HomeDashboardProps> = ({
               </button>
             </div>
             {[
-              { id: 'assistant' as ActiveTab, label: isUrdu ? 'قانونی AI' : 'Legal AI Assistant', labelUrdu: 'قانونی AI', icon: Scale },
-              { id: 'navigate' as ActiveTab, label: isUrdu ? 'محفوظ راستہ' : 'Safe Corridor', labelUrdu: 'محفوظ راستہ', icon: Compass },
-              { id: 'checkin' as ActiveTab, label: isUrdu ? 'چیک ان' : 'Silent Check-In', labelUrdu: 'چیک ان', icon: Clock },
-              { id: 'builder' as ActiveTab, label: isUrdu ? 'درخواست ڈرافٹ' : 'Complaint Builder', labelUrdu: 'درخواست ڈرافٹ', icon: FileText },
+              { id: 'tracking' as ActiveTab, label: isUrdu ? 'درج شدہ شکایات' : 'Registered Complaints', labelUrdu: 'درج شدہ شکایات', icon: FileText },
               { id: 'vault' as ActiveTab, label: isUrdu ? 'پرائیویٹ والٹ' : 'Private Vault', labelUrdu: 'پرائیویٹ والٹ', icon: Lock },
-              { id: 'directory' as ActiveTab, label: isUrdu ? 'ڈائریکٹری' : 'Support Directory', labelUrdu: 'ڈائریکٹری', icon: HeartHandshake },
               { id: 'contacts' as ActiveTab, label: isUrdu ? 'اہم رابطے' : 'Important Contacts', labelUrdu: 'اہم رابطے', icon: Users },
-              { id: 'community' as ActiveTab, label: isUrdu ? 'کمیونٹی' : 'Community Updates', labelUrdu: 'کمیونٹی', icon: HeartHandshake },
-              { id: 'alerts' as ActiveTab, label: isUrdu ? 'الرٹس' : 'Active Alerts', labelUrdu: 'الرٹس', icon: AlertTriangle },
+              { id: 'community' as ActiveTab, label: isUrdu ? 'کمیونٹی اپ ڈیٹس' : 'Community Updates', labelUrdu: 'کمیونٹی اپ ڈیٹس', icon: HeartHandshake },
             ].map(tool => {
               const Icon = tool.icon;
               return (

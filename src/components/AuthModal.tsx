@@ -17,7 +17,8 @@ import {
   LogIn, 
   UserPlus, 
   Sparkles,
-  AlertCircle
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, PunjabDistrict, AppLanguage } from '../types';
@@ -136,6 +137,48 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           return;
         }
 
+        if (password.length < 6) {
+          setErrorMessage(isUrdu ? 'پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے۔' : 'Password must be at least 6 characters long.');
+          setLoading(false);
+          return;
+        }
+
+        if (!/\d/.test(password)) {
+          setErrorMessage(
+            isUrdu
+              ? 'پاس ورڈ میں کم از کم ایک عدد (نمبر 0-9) ہونا ضروری ہے۔'
+              : 'Password must contain at least one number (0-9).'
+          );
+          setLoading(false);
+          return;
+        }
+
+        if (phone.trim()) {
+          const cleanPhone = phone.trim().replace(/[\s\-\(\)]/g, '');
+          if (!/^((\+92|92|0)?3\d{9})$/.test(cleanPhone)) {
+            setErrorMessage(
+              isUrdu
+                ? 'براہ کرم درست پاکستانی موبائل نمبر درج کریں (مثال: 03001234567 یا 923001234567+)'
+                : 'Please enter a valid Pakistani mobile number (e.g. 03001234567 or +923001234567)'
+            );
+            setLoading(false);
+            return;
+          }
+        }
+
+        if (emergencyContactPhone.trim()) {
+          const cleanEmergencyPhone = emergencyContactPhone.trim().replace(/[\s\-\(\)]/g, '');
+          if (!/^((\+92|92|0)?3\d{9})$/.test(cleanEmergencyPhone)) {
+            setErrorMessage(
+              isUrdu
+                ? 'براہ کرم ہنگامی رابطہ کار کا درست پاکستانی موبائل نمبر درج کریں (مثال: 03001234567)'
+                : 'Please enter a valid Pakistani mobile number for the emergency contact (e.g. 03001234567)'
+            );
+            setLoading(false);
+            return;
+          }
+        }
+
         const result = await signUpUser({
           email,
           password,
@@ -233,17 +276,7 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </button>
         )}
 
-        {/* Demo Account Quick Fill Button */}
-        {mode === 'login' && (
-          <button
-            type="button"
-            onClick={handleDemoFill}
-            className="w-full py-2 px-3 rounded-xl bg-[#ECF4F4] hover:bg-[#BCD4D4]/30 border border-[#BCD4D4] text-[#1C2C34] text-xs font-semibold flex items-center justify-center space-x-2 transition cursor-pointer"
-          >
-            <ShieldCheck className="w-3.5 h-3.5 text-emerald-600" />
-            <span>{isUrdu ? 'ڈیمو اکاؤنٹ بھریں' : 'Use Demo Verified Account'}</span>
-          </button>
-        )}
+
 
         {/* Reset Email Feedback */}
         {resetMessage && (
@@ -253,12 +286,24 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* Error Alert */}
+        {/* Error or Success Alert Banner */}
         {errorMessage && (
-          <div className="p-3 rounded-xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium flex items-start space-x-2">
-            <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
-            <span>{errorMessage}</span>
-          </div>
+          (errorMessage.toLowerCase().includes('account created') || errorMessage.toLowerCase().includes('confirm your email')) ? (
+            <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium flex items-start space-x-2.5 shadow-2xs">
+              <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <span className="font-bold text-emerald-950 block mb-0.5">
+                  {isUrdu ? 'اکاؤنٹ کامیابی سے بن گیا!' : 'Account Created Successfully!'}
+                </span>
+                <span>{errorMessage}</span>
+              </div>
+            </div>
+          ) : (
+            <div className="p-3.5 rounded-2xl bg-rose-50 border border-rose-200 text-xs text-rose-800 font-medium flex items-start space-x-2.5 shadow-2xs">
+              <AlertCircle className="w-4 h-4 text-rose-600 flex-shrink-0 mt-0.5" />
+              <span>{errorMessage}</span>
+            </div>
+          )
         )}
 
         {/* Form */}
@@ -344,6 +389,18 @@ export const AuthModal: React.FC<AuthModalProps> = ({
                 {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
               </button>
             </div>
+            {mode === 'signup' && (
+              <div className="flex items-center space-x-3 mt-1.5 text-[11px]">
+                <span className={`flex items-center space-x-1 transition-colors ${password.length >= 6 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                  <span>{password.length >= 6 ? '✓' : '•'}</span>
+                  <span>{isUrdu ? 'کم از کم 6 حروف' : '6+ characters'}</span>
+                </span>
+                <span className={`flex items-center space-x-1 transition-colors ${/\d/.test(password) ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                  <span>{/\d/.test(password) ? '✓' : '•'}</span>
+                  <span>{isUrdu ? 'کم از کم 1 عدد (0-9)' : 'At least 1 number (0-9)'}</span>
+                </span>
+              </div>
+            )}
             {mode === 'login' && (
               <div className="flex justify-end mt-1">
                 <button

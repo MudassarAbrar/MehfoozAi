@@ -4,10 +4,12 @@
  */
 
 import React, { useState, useEffect, useCallback } from 'react';
-import { AlertTriangle } from 'lucide-react';
-import { AppLanguage, AuditLogEntry, ComplaintDraft, VaultRecord, UserProfile, ActiveTab } from './types';
-import { getStoredProfile, getStoredSessionToken, initializeAuth, needsOnboardingAfterAuth } from './utils/auth';
+import { AlertTriangle, RefreshCw } from 'lucide-react';
+import { AppLanguage, AuditLogEntry, ComplaintDraft, VaultRecord, UserProfile, ActiveTab, UserContact } from './types';
+import { getStoredProfile, getStoredSessionToken, initializeAuth, needsOnboardingAfterAuth, logoutUser, updateStoredProfile, hasUserCompletedOnboarding, markUserOnboardingCompleted } from './utils/auth';
 import { getSupabase } from './utils/supabase';
+import { hashPin, getVaultSalt } from './utils/crypto';
+import { persistContacts } from './utils/dataService';
 
 // Stealth & Crisis
 import { WeatherCover } from './components/WeatherCover';
@@ -15,11 +17,11 @@ import { CrisisModal } from './components/CrisisModal';
 import { Navigation } from './components/Navigation';
 import { AuthModal } from './components/AuthModal';
 import { OnboardingModal } from './components/OnboardingModal';
+import { SafetyGuideModal } from './components/SafetyGuideModal';
 import { HackathonInspector } from './components/HackathonInspector';
 
 // Primary Design Views (Matching Uploaded Screenshots)
 import { HomeDashboard } from './components/HomeDashboard';
-import { SafeNavigation } from './components/SafeNavigation';
 import { CommunityUpdates } from './components/CommunityUpdates';
 import { SilentCheckIn } from './components/SilentCheckIn';
 import { ActiveAlerts } from './components/ActiveAlerts';
@@ -40,6 +42,39 @@ import { initializeOfflineEmergencyCache } from './utils/offlineEmergencyCache';
 import { migrateLocalDataToSupabase } from './utils/localDataMigration';
 import { ChatStateProvider } from './utils/chatState';
 
+const VALID_TABS: ActiveTab[] = [
+  'home', 'navigate', 'community', 'checkin', 'alerts', 
+  'profile', 'contacts', 'assistant', 'vault', 'builder', 
+  'tracking', 'directory', 'landing'
+];
+
+function getInitialUserContacts(): UserContact[] {
+  if (typeof localStorage !== 'undefined') {
+    const saved = localStorage.getItem('mehfooz_user_contacts_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch { /* noop */ }
+    }
+  }
+  return [
+    { id: 'c1', name: 'Zainab (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true, isEmergencyContact: true },
+    { id: 'c2', name: 'Hamza (Brother)', relation: 'Brother', phone: '+92 321 9876543', isDefaultNotified: true, isEmergencyContact: true }
+  ];
+}
+
+function getInitialTab(): ActiveTab {
+  if (typeof window === 'undefined') return 'landing';
+  const hash = window.location.hash.replace('#', '').toLowerCase() as ActiveTab;
+  if (VALID_TABS.includes(hash)) return hash;
+  
+  const saved = localStorage.getItem('mehfooz_active_tab') as ActiveTab;
+  if (saved && VALID_TABS.includes(saved)) return saved;
+
+  return 'landing';
+}
+
 export default function App() {
   return (
     <ChatStateProvider>
@@ -51,7 +86,7 @@ export default function App() {
 function AppInner() {
   // Disguise & App State
   const [isUnlocked, setIsUnlocked] = useState<boolean>(true);
-  const [activeTab, setActiveTab] = useState<ActiveTab>('landing'); // Start at landing page
+  const [activeTabState, setActiveTabState] = useState<ActiveTab>(getInitialTab);
   const [needsOnboarding, setNeedsOnboarding] = useState<boolean>(false); // Post-signup onboarding
   const [language, setLanguage] = useState<AppLanguage>('en');
   const [isOfflineCorpusOpen, setIsOfflineCorpusOpen] = useState<boolean>(false);
@@ -61,10 +96,43 @@ function AppInner() {
     return window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
   });
 
+  // Synchronized activeTab setter that syncs URL hash and localStorage
+  const setActiveTab = useCallback((tab: ActiveTab) => {
+    setActiveTabState(tab);
+    if (typeof window !== 'undefined') {
+      if (tab === 'landing') {
+        localStorage.removeItem('mehfooz_active_tab');
+        if (window.location.hash) {
+          window.history.replaceState(null, '', window.location.pathname);
+        }
+      } else {
+        localStorage.setItem('mehfooz_active_tab', tab);
+        if (window.location.hash !== `#${tab}`) {
+          window.location.hash = `#${tab}`;
+        }
+      }
+    }
+  }, []);
+
+  const activeTab = activeTabState;
+
+  // Listen for browser Back/Forward navigation (hashchange)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash.replace('#', '').toLowerCase() as ActiveTab;
+      if (VALID_TABS.includes(hash) && hash !== activeTabState) {
+        setActiveTabState(hash);
+      }
+    };
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [activeTabState]);
+
   // Modals
   const [isCrisisModalOpen, setIsCrisisModalOpen] = useState<boolean>(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState<boolean>(false);
   const [isOnboardingOpen, setIsOnboardingOpen] = useState<boolean>(false);
+  const [isSafetyGuideOpen, setIsSafetyGuideOpen] = useState<boolean>(false);
   const [isInspectorOpen, setIsInspectorOpen] = useState<boolean>(false);
   const [passwordChangeTarget, setPasswordChangeTarget] = useState<'app' | 'vault' | null>(null);
   const [pwNew, setPwNew] = useState('');
@@ -74,10 +142,10 @@ function AppInner() {
 
   // User Profile State — start with null (loading), populate via initializeAuth()
   const [user, setUser] = useState<UserProfile | null>(() => {
-    // Synchronously check for a cached profile (fast path for instant UI render)
     return getStoredProfile();
   });
   const [isAuthLoading, setIsAuthLoading] = useState<boolean>(true);
+  const [checkInDestination, setCheckInDestination] = useState<string | undefined>(undefined);
   const [authVerificationError, setAuthVerificationError] = useState<string | null>(null);
 
   // Cross-component legal handoff state
@@ -119,31 +187,57 @@ function AppInner() {
     }
   }, [themeMode]);
 
-  // Restore authentication session on mount (Supabase or legacy localStorage).
-  // The Supabase client (detectSessionInUrl: true) has already consumed the
-  // #access_token=... hash and established the session BEFORE React mounts,
-  // so we cannot parse the hash here. Instead, we detect new signups by
-  // checking whether the user has completed onboarding (PIN hash cache).
+  // Restore authentication session on mount
   useEffect(() => {
     let cancelled = false;
+
+    // Check for Demo Mode flag in client storage
+    const isDemoStored = localStorage.getItem('mehfooz_demo_mode') === 'true';
+    if (isDemoStored) {
+      const initialContacts = getInitialUserContacts();
+      const demoUser: UserProfile = {
+        id: 'demo-user-1',
+        fullName: 'Fatima Noor',
+        safeNickname: 'Fatima',
+        email: 'fatima.noor@example.pk',
+        phone: '+92 300 1234567',
+        district: 'Lahore',
+        emergencyContactName: initialContacts[0]?.name || 'Zainab (Mom)',
+        emergencyContactPhone: initialContacts[0]?.phone || '+92 300 1234567',
+        emergencyContacts: initialContacts,
+        preferredLanguage: 'en',
+        themeMode: 'light',
+        stealthPin: '1520',
+        discreetNotifications: true,
+        quickExitHotkey: 'Escape',
+        createdAt: new Date().toISOString(),
+        lastLoginAt: new Date().toISOString()
+      };
+      setUser(demoUser);
+      const targetTab = getInitialTab();
+      setActiveTab(targetTab === 'landing' ? 'home' : targetTab);
+      setIsAuthLoading(false);
+      return;
+    }
 
     void initializeAuth().then(authUser => {
       if (cancelled) return;
       if (authUser) {
         setUser(authUser);
-        // Detect new signup: user has a Supabase session but no PIN hash yet
-        // (PIN is only written during onboarding step 6). This correctly
-        // identifies email-verification users and users who signed up but
-        // closed before finishing onboarding.
-        if (needsOnboardingAfterAuth()) {
+        const targetTab = getInitialTab();
+        setActiveTab(targetTab === 'landing' ? 'home' : targetTab);
+        
+        // Client-side onboarding token check: first time post email confirmation -> show onboarding
+        const isCompleted = hasUserCompletedOnboarding(authUser.id || authUser.email);
+        if (!isCompleted) {
           setNeedsOnboarding(true);
-          setActiveTab('home');
-          setIsUnlocked(true); // Unlock so the onboarding modal renders
+          setIsUnlocked(true);
+        } else {
+          setNeedsOnboarding(false);
         }
       } else {
         setUser(null);
-        // If no session was established but a signup was recently attempted,
-        // show a helpful message so the user knows what happened.
+        setActiveTab('landing');
         const pendingSignup = sessionStorage.getItem('mehfooz_pending_email_verify');
         if (pendingSignup) {
           sessionStorage.removeItem('mehfooz_pending_email_verify');
@@ -158,25 +252,28 @@ function AppInner() {
       setIsAuthLoading(false);
     });
 
-    // Supabase auth state listener — catches SIGNED_IN events that fire
-    // when the SDK processes an email verification callback. This acts as
-    // a safety net if the session was established after React mounted.
+    // Supabase auth state listener
     const supabase = getSupabase();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let authSubscription: any = null;
     if (supabase) {
       const { data } = supabase.auth.onAuthStateChange((event) => {
         if (event === 'SIGNED_IN' && !cancelled) {
-          // Re-check: if user now has a session but hasn't onboarded, trigger onboarding
           void initializeAuth().then(u => {
             if (cancelled || !u) return;
             setUser(u);
-            if (needsOnboardingAfterAuth()) {
-              setNeedsOnboarding(true);
-              setActiveTab('home');
-              setIsUnlocked(true);
-            }
+            const targetTab = getInitialTab();
+            setActiveTab(targetTab === 'landing' ? 'home' : targetTab);
             setIsAuthLoading(false);
+            
+            // Client-side onboarding token check
+            const isCompleted = hasUserCompletedOnboarding(u.id || u.email);
+            if (!isCompleted) {
+              setNeedsOnboarding(true);
+              setIsUnlocked(true);
+            } else {
+              setNeedsOnboarding(false);
+            }
           });
         }
       });
@@ -187,7 +284,7 @@ function AppInner() {
       cancelled = true;
       authSubscription?.unsubscribe();
     };
-  }, []);
+  }, [setActiveTab]);
 
   // Pre-cache Punjab Support Directory & Legal Corpus for zero-network incidents
   useEffect(() => {
@@ -231,6 +328,15 @@ function AppInner() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isUnlocked, handleQuickExit]);
 
+  // Synchronize browser tab title: stealth weather cover title when locked, Mehfooz when unlocked
+  useEffect(() => {
+    if (!isUnlocked) {
+      document.title = 'Weather — Local Forecast & Conditions';
+    } else {
+      document.title = 'Mehfooz — Safe Legal Information & Support Assistant';
+    }
+  }, [isUnlocked]);
+
   // Flow handlers
   const handleOpenVaultWithDraft = (title: string, note: string) => {
     setVaultDraftNote({ title, note });
@@ -265,6 +371,7 @@ function AppInner() {
 
   // Demo mode handler — bypasses real onboarding (MUST be before early returns — Rules of Hooks)
   const handleDemoMode = useCallback(() => {
+    const initialContacts = getInitialUserContacts();
     const demoUser: UserProfile = {
       id: 'demo-user-1',
       fullName: 'Fatima Noor',
@@ -272,12 +379,9 @@ function AppInner() {
       email: 'fatima.noor@example.pk',
       phone: '+92 300 1234567',
       district: 'Lahore',
-      emergencyContactName: 'Tulsi (Mom)',
-      emergencyContactPhone: '+92 300 9876543',
-      emergencyContacts: [
-        { id: 'c1', name: 'Tulsi (Mom)', relation: 'Mother', phone: '+92 300 9876543', isDefaultNotified: true },
-        { id: 'c2', name: 'Gopal (Brother)', relation: 'Brother', phone: '+92 321 4567890', isDefaultNotified: true }
-      ],
+      emergencyContactName: initialContacts[0]?.name || 'Zainab (Mom)',
+      emergencyContactPhone: initialContacts[0]?.phone || '+92 300 1234567',
+      emergencyContacts: initialContacts,
       preferredLanguage: 'en',
       themeMode: 'light',
       stealthPin: '1520',
@@ -286,30 +390,84 @@ function AppInner() {
       createdAt: new Date().toISOString(),
       lastLoginAt: new Date().toISOString()
     };
+    localStorage.setItem('mehfooz_demo_mode', 'true');
     setUser(demoUser);
-    setActiveTab('home');
+    const requestedTab = getInitialTab();
+    setActiveTab(requestedTab === 'landing' ? 'home' : requestedTab);
     setNeedsOnboarding(false);
     addAuditLog('demo_mode_activated', 'User entered demo mode — bypassed real onboarding');
-  }, [addAuditLog]);
+  }, [addAuditLog, setActiveTab]);
 
-  // Auth success handler — triggers onboarding for new real users
+  // Auth success handler — triggers onboarding ONLY for first-time users (client-side token check)
   const handleAuthSuccess = useCallback((authedUser: UserProfile) => {
+    localStorage.removeItem('mehfooz_demo_mode');
     setUser(authedUser);
-    setNeedsOnboarding(true);
-    setIsUnlocked(true); // Unlock so the onboarding modal renders
-    setActiveTab('home'); // Navigate to home where onboarding modal lives
-  }, []);
+    
+    const isCompleted = hasUserCompletedOnboarding(authedUser.id || authedUser.email);
+    if (!isCompleted) {
+      // First time logging in after email confirmation -> show onboarding process
+      setNeedsOnboarding(true);
+      setIsUnlocked(true); // Unlock so the onboarding modal renders
+      setActiveTab('home'); // Navigate to home where onboarding modal lives
+    } else {
+      // Returning user logging in -> skip onboarding process completely!
+      setNeedsOnboarding(false);
+      setIsUnlocked(true);
+      setActiveTab('home');
+    }
+  }, [setActiveTab]);
 
-  // Onboarding complete — enter the weather cover (stealth layer)
+  // Onboarding complete — record client-side token and enter weather cover (stealth layer)
   const handleOnboardingComplete = useCallback(() => {
+    if (user) {
+      markUserOnboardingCompleted(user.id || user.email);
+    } else {
+      markUserOnboardingCompleted();
+    }
     setNeedsOnboarding(false);
     setIsUnlocked(false);
-  }, []);
+  }, [user]);
+
+  // Full session termination & logout
+  const handleLogout = useCallback(() => {
+    logoutUser();
+    localStorage.removeItem('mehfooz_demo_mode');
+    localStorage.removeItem('mehfooz_active_tab');
+    if (typeof window !== 'undefined' && window.location.hash) {
+      window.history.replaceState(null, '', window.location.pathname);
+    }
+    setUser(null);
+    setIsUnlocked(true);
+    setActiveTab('landing');
+    setIsAuthModalOpen(false);
+    addAuditLog('user_logout', 'Session terminated, user returned to public landing page');
+  }, [addAuditLog, setActiveTab]);
+
+  // Render loading state while authenticating
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen bg-[#FCFCFC] dark:bg-[#121A1E] flex flex-col items-center justify-center space-y-3 p-4">
+        <div className="w-10 h-10 rounded-2xl bg-[#ECF4F4] border border-[#BCD4D4] flex items-center justify-center shadow-xs">
+          <RefreshCw className="w-5 h-5 text-[#FC7454] animate-spin" />
+        </div>
+        <p className="text-xs font-bold text-[#1C2C34] dark:text-slate-200">
+          Mehfooz • Restoring Secure Session...
+        </p>
+      </div>
+    );
+  }
 
   // Render Weather Cover if stealth locked
   if (!isUnlocked) {
     return (
       <WeatherCover
+        isLoggedIn={!!user}
+        isDemoMode={user?.id === 'demo-user-1'}
+        onOpenAuth={() => {
+          setIsUnlocked(true);
+          setActiveTab('landing');
+          setIsAuthModalOpen(true);
+        }}
         onUnlock={() => {
           setIsUnlocked(true);
           addAuditLog('stealth_unlocked', 'PIN verified to reveal SafePath / Mehfooz');
@@ -317,6 +475,10 @@ function AppInner() {
         onDirectSos={() => {
           setIsCrisisModalOpen(true);
           addAuditLog('stealth_direct_sos', 'Direct SOS triggered from weather cover');
+        }}
+        onBack={() => {
+          setIsUnlocked(true);
+          setActiveTab('landing');
         }}
       />
     );
@@ -401,6 +563,7 @@ function AppInner() {
         onToggleInspector={() => setIsInspectorOpen(!isInspectorOpen)}
         inspectorOpen={isInspectorOpen}
         onOpenOnboarding={() => setIsOnboardingOpen(true)}
+        onOpenSafetyGuide={() => setIsSafetyGuideOpen(true)}
         onOpenOfflineCorpus={() => setIsOfflineCorpusOpen(true)}
         onChangePassword={(target) => {
           if (target === 'email') {
@@ -419,6 +582,7 @@ function AppInner() {
           <HomeDashboard
             language={language}
             user={user}
+            onNavigateToTab={(tab) => setActiveTab(tab)}
             onStartNavigation={() => setActiveTab('navigate')}
             onStartCheckIn={() => setActiveTab('checkin')}
             onOpenCommunity={() => setActiveTab('community')}
@@ -428,29 +592,22 @@ function AppInner() {
           />
         )}
 
-        {/* TAB 2: SAFE NAVIGATION (Matching Design Image 8 & 6) */}
-        {activeTab === 'navigate' && (
-          <SafeNavigation
-            language={language}
-            user={user}
-            onOpenCrisis={() => setIsCrisisModalOpen(true)}
-          />
-        )}
-
-        {/* TAB 3: COMMUNITY UPDATES (Matching Design Image 10) */}
-        {activeTab === 'community' && (
-          <CommunityUpdates
-            language={language}
-            user={user}
-          />
-        )}
-
-        {/* TAB 4: SILENT CHECK-IN (Matching Design Image 1 & 9) */}
-        {activeTab === 'checkin' && (
+        {/* UNIFIED TAB: SAFE CHECK-IN (Safe Corridor + Silent Check-In Hub) */}
+        {(activeTab === 'checkin' || activeTab === 'navigate') && (
           <SilentCheckIn
             language={language}
             user={user}
             onOpenCrisis={() => setIsCrisisModalOpen(true)}
+            initialDestination={checkInDestination}
+            onNavigateToContacts={() => setActiveTab('contacts')}
+          />
+        )}
+
+        {/* TAB 3: COMMUNITY UPDATES */}
+        {activeTab === 'community' && (
+          <CommunityUpdates
+            language={language}
+            user={user}
           />
         )}
 
@@ -459,7 +616,10 @@ function AppInner() {
           <ActiveAlerts
             language={language}
             user={user}
-            onStartNavigation={() => setActiveTab('navigate')}
+            onStartNavigation={(alertLoc) => {
+              if (alertLoc) setCheckInDestination(alertLoc);
+              setActiveTab('checkin');
+            }}
             onOpenReportModal={() => setActiveTab('community')}
           />
         )}
@@ -473,10 +633,12 @@ function AppInner() {
             themeMode={themeMode}
             onThemeChange={setThemeMode}
             onUpdateProfile={(updated) => setUser(updated)}
-            onLogout={() => setUser(null)}
+            onLogout={handleLogout}
             onOpenAuthModal={() => setIsAuthModalOpen(true)}
             onQuickExit={handleQuickExit}
             onOpenOnboarding={() => setIsOnboardingOpen(true)}
+            onOpenSafetyGuide={() => setIsSafetyGuideOpen(true)}
+            onBack={() => setActiveTab('home')}
           />
         )}
 
@@ -512,6 +674,8 @@ function AppInner() {
             onLogAudit={addAuditLog}
             initialDraftNote={vaultDraftNote}
             onClearInitialDraft={() => setVaultDraftNote(null)}
+            onNavigateToAssistant={() => setActiveTab('assistant')}
+            isDemoMode={user?.id === 'demo-user-1'}
           />
         )}
 
@@ -525,6 +689,7 @@ function AppInner() {
             onDraftCreated={handleDraftCreated}
             onOpenCrisis={() => setIsCrisisModalOpen(true)}
             onLogAudit={addAuditLog}
+            onBack={() => setActiveTab('assistant')}
           />
         )}
 
@@ -554,11 +719,32 @@ function AppInner() {
         isOpen={isOnboardingOpen || needsOnboarding}
         onClose={() => {
           setIsOnboardingOpen(false);
-          if (needsOnboarding) handleOnboardingComplete();
+          setNeedsOnboarding(false);
         }}
         language={language}
         user={user}
         isNewUser={needsOnboarding}
+        onSavePreferences={(prefs) => {
+          if (prefs?.contacts && prefs.contacts.length > 0) {
+            const formattedContacts: UserContact[] = prefs.contacts.map((c: any) => ({
+              id: c.id || `c-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
+              name: c.name,
+              relation: c.relation || 'Contact',
+              phone: c.phone,
+              email: c.email || undefined,
+              isEmergencyContact: true,
+              isDefaultNotified: true,
+              contactType: 'family' as const
+            }));
+            void persistContacts(formattedContacts);
+            setUser(prev => prev ? {
+              ...prev,
+              emergencyContacts: formattedContacts,
+              emergencyContactName: formattedContacts[0]?.name,
+              emergencyContactPhone: formattedContacts[0]?.phone
+            } : null);
+          }
+        }}
         onComplete={handleOnboardingComplete}
       />
 
@@ -589,7 +775,17 @@ function AppInner() {
             <div className="space-y-3">
               <div>
                 <label className="block text-xs font-medium text-[#1C2C34] dark:text-slate-300 mb-1">New Password</label>
-                <input type="password" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwError(null); setPwSuccess(false); }} placeholder="Minimum 6 characters" className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-[#1C2C34] dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                <input type="password" value={pwNew} onChange={e => { setPwNew(e.target.value); setPwError(null); setPwSuccess(false); }} placeholder="Minimum 6 characters with at least 1 number" className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-600 rounded-xl text-sm text-[#1C2C34] dark:text-white placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                <div className="flex items-center space-x-3 mt-1 text-[11px]">
+                  <span className={`flex items-center space-x-1 transition-colors ${pwNew.length >= 6 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{pwNew.length >= 6 ? '✓' : '•'}</span>
+                    <span>6+ characters</span>
+                  </span>
+                  <span className={`flex items-center space-x-1 transition-colors ${/\d/.test(pwNew) ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/\d/.test(pwNew) ? '✓' : '•'}</span>
+                    <span>At least 1 number (0-9)</span>
+                  </span>
+                </div>
               </div>
               <div>
                 <label className="block text-xs font-medium text-[#1C2C34] dark:text-slate-300 mb-1">Confirm Password</label>
@@ -599,21 +795,26 @@ function AppInner() {
             <div className="flex space-x-2 mt-4">
               <button onClick={() => setPasswordChangeTarget(null)} className="flex-1 py-2.5 rounded-xl bg-slate-100 dark:bg-slate-700 text-[#1C2C34] dark:text-slate-200 text-xs font-semibold hover:bg-slate-200 dark:hover:bg-slate-600 transition cursor-pointer">Cancel</button>
               <button
-                onClick={() => {
+                onClick={async () => {
                   if (pwNew.length < 6) { setPwError('Password must be at least 6 characters'); return; }
+                  if (!/\d/.test(pwNew)) { setPwError('Password must contain at least one number (0-9)'); return; }
                   if (pwNew !== pwConfirm) { setPwError('Passwords do not match'); return; }
                   if (passwordChangeTarget === 'app') {
-                    // Save as stealth PIN
-                    try {
-                      const updated = user ? { ...user, stealthPin: pwNew } : null;
-                      if (updated) {
-                        setUser(updated);
-                        localStorage.setItem('mehfooz_profile_cache_v1', JSON.stringify(updated));
-                      }
-                    } catch {}
+                    // Update user profile with new stealth PIN securely
+                    if (user) {
+                      const updated = { ...user, stealthPin: pwNew };
+                      setUser(updated);
+                      updateStoredProfile(updated);
+                    }
                   } else {
-                    // Save vault password
-                    try { localStorage.setItem('mehfooz_vault_pw_hash', pwNew); } catch {}
+                    // Save vault password securely using cryptographic per-user salt and PBKDF2/SHA256
+                    try {
+                      const salt = getVaultSalt();
+                      const hashed = await hashPin(pwNew, salt);
+                      localStorage.setItem('mehfooz_vault_pw_hash', hashed);
+                    } catch (err) {
+                      console.warn('Vault password hashing failed:', err);
+                    }
                   }
                   setPwSuccess(true);
                   setPwError(null);
@@ -654,6 +855,17 @@ function AppInner() {
         isOpen={isOfflineCorpusOpen}
         onClose={() => setIsOfflineCorpusOpen(false)}
         language={language}
+      />
+
+      {/* 9. Dedicated Safety Guide Reference Modal */}
+      <SafetyGuideModal
+        isOpen={isSafetyGuideOpen}
+        onClose={() => setIsSafetyGuideOpen(false)}
+        language={language}
+        onNavigateToTab={(tab) => {
+          setActiveTab(tab as any);
+          setIsSafetyGuideOpen(false);
+        }}
       />
     </div>
   );

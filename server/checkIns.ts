@@ -28,7 +28,7 @@
 
 import { Express, Request, Response } from 'express';
 import rateLimit from 'express-rate-limit';
-import { AuthedRequest, createUserClient, requireSupabaseAuth } from './supabaseServer.js';
+import { AuthedRequest, createUserClient, requireSupabaseAuth, supabaseAuthOptional } from './supabaseServer.js';
 import { logApiActivity } from './apiActivity.js';
 import {
   sendSms,
@@ -228,6 +228,7 @@ export function registerCheckInRoutes(app: Express): void {
         .from('check_ins')
         .select('*')
         .eq('id', checkInId)
+        .eq('user_id', authed.supabaseUserId!)
         .maybeSingle();
       const checkIn = row as unknown as CheckInRow | null;
 
@@ -253,7 +254,8 @@ export function registerCheckInRoutes(app: Express): void {
       const { error } = await userClient
         .from('check_ins')
         .update({ status: 'arrived' })
-        .eq('id', checkInId);
+        .eq('id', checkInId)
+        .eq('user_id', authed.supabaseUserId!);
       if (error) {
         console.warn('check-in confirm update failed:', error.message);
         return res.status(500).json({ error: 'Could not confirm the check-in.', code: 'CHECKIN_UPDATE_FAILED' });
@@ -353,10 +355,14 @@ export function registerCheckInRoutes(app: Express): void {
     if (typeof checkInId !== 'string' || typeof lat !== 'number' || typeof lng !== 'number') {
       return res.status(400).json({ error: '"checkInId", "lat" and "lng" are required.', code: 'INVALID_LOCATION' });
     }
+    if (lat < -90 || lat > 90 || lng < -180 || lng > 180) {
+      return res.status(400).json({ error: 'Coordinates out of bounds (-90..90, -180..180).', code: 'COORDINATES_OUT_OF_BOUNDS' });
+    }
     const { error } = await userClient
       .from('check_ins')
       .update({ last_known_lat: lat, last_known_lng: lng })
       .eq('id', checkInId)
+      .eq('user_id', authed.supabaseUserId!)
       .eq('status', 'active');
     if (error) {
       return res.status(500).json({ error: 'Could not update location.', code: 'LOCATION_UPDATE_FAILED' });
@@ -382,6 +388,7 @@ export function registerCheckInRoutes(app: Express): void {
       .from('check_ins')
       .select('expected_arrival, grace_period_minutes, status, alerts_dispatched_at')
       .eq('id', checkInId)
+      .eq('user_id', authed.supabaseUserId!)
       .maybeSingle();
     const checkIn = row as unknown as { expected_arrival: string; status: string; alerts_dispatched_at: string | null } | null;
     if (!checkIn) {
@@ -395,6 +402,7 @@ export function registerCheckInRoutes(app: Express): void {
       .from('check_ins')
       .update({ expected_arrival: newArrival })
       .eq('id', checkInId)
+      .eq('user_id', authed.supabaseUserId!)
       .eq('status', 'active');
     if (error) {
       return res.status(500).json({ error: 'Could not extend the session.', code: 'EXTEND_FAILED' });
@@ -419,6 +427,7 @@ export function registerCheckInRoutes(app: Express): void {
       .from('check_ins')
       .update({ status: 'cancelled' })
       .eq('id', checkInId)
+      .eq('user_id', authed.supabaseUserId!)
       .eq('status', 'active');
     if (error) {
       return res.status(500).json({ error: 'Could not cancel the session.', code: 'CANCEL_FAILED' });
@@ -512,5 +521,53 @@ export function registerCheckInRoutes(app: Express): void {
       console.error('crisis alert error:', err?.message);
       return res.status(500).json({ error: 'A secure server error occurred.', code: 'INTERNAL_SERVER_ERROR' });
     }
+  });
+
+  // -------------------------------------------------------------------
+  // ROUTE ALIASES & PHONE VERIFICATION
+  // -------------------------------------------------------------------
+
+  // Alias: POST /api/check-ins/respond -> confirm safety
+  app.post('/api/check-ins/respond', requireSupabaseAuth, checkInLimiter, (req: Request, res: Response, next) => {
+    req.url = '/api/check-in/confirm';
+    app._router.handle(req, res, next);
+  });
+
+  // Alias: POST /api/check-ins/sos -> crisis alert
+  app.post('/api/check-ins/sos', requireSupabaseAuth, crisisLimiter, (req: Request, res: Response, next) => {
+    req.url = '/api/crisis-alert';
+    app._router.handle(req, res, next);
+  });
+
+  // Alias: POST /api/check-ins/schedule -> start check-in
+  app.post('/api/check-ins/schedule', requireSupabaseAuth, checkInLimiter, (req: Request, res: Response, next) => {
+    req.url = '/api/check-in/start';
+    app._router.handle(req, res, next);
+  });
+
+  // Phone verification endpoint (accessible with optional auth for vault setup)
+  app.post('/api/contacts/verify-phone', supabaseAuthOptional, checkInLimiter, async (req: Request, res: Response) => {
+    const { phone } = req.body || {};
+    if (!phone || typeof phone !== 'string') {
+      return res.status(400).json({ valid: false, error: 'Phone number string is required.', code: 'MISSING_PHONE' });
+    }
+    const normalized = normalizePhone(phone);
+    if (!normalized) {
+      return res.status(400).json({
+        valid: false,
+        error: 'Invalid phone number format. Please provide a valid Pakistani (03xx...) or international (+E.164) mobile number.',
+        code: 'INVALID_PHONE_FORMAT'
+      });
+    }
+    const formatted = normalized.startsWith('+923') && normalized.length === 13
+      ? `+92 ${normalized.slice(3, 6)} ${normalized.slice(6)}`
+      : normalized;
+
+    return res.json({
+      valid: true,
+      normalized,
+      formatted,
+      isPakistaniMobile: normalized.startsWith('+923')
+    });
   });
 }

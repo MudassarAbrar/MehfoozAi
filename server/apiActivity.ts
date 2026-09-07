@@ -62,7 +62,7 @@ export function isActivityLogWritable(): boolean {
   return isSupabaseServerConfigured() || getServiceRoleClient() !== null;
 }
 
-const SECRET_KEY_PATTERN = /("(?:[^"]*(?:pass|secret|token|key|authorization|credential)[^"]*)"\s*:\s*")([^"]{4,})(")/gi;
+const SECRET_KEY_PATTERN = /("(?:[^"]*(?:pass|secret|token|key|authorization|credential|pin|salt|hash|pdfbase64|imagebase64)[^"]*)"\s*:\s*")([^"]{2,})(")/gi;
 const BEARER_PATTERN = /(Bearer\s+)[A-Za-z0-9._\-]+/gi;
 const SK_PATTERN = /\b(?:sk|rk|re)_[A-Za-z0-9_\-]{10,}\b/g;
 

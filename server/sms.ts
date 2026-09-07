@@ -88,8 +88,9 @@ export function normalizePhone(raw: string): string | null {
   const trimmed = raw.replace(/[\s\-()]/g, '');
   const candidate = trimmed.startsWith('00') ? `+${trimmed.slice(2)}` : trimmed;
   if (/^\+\d{8,15}$/.test(candidate)) return candidate;
-  // Local Pakistani numbers (03xx…) get the +92 prefix automatically.
+  // Local Pakistani numbers (03xx… or 923xx...) get the +92 prefix automatically.
   if (/^0\d{10}$/.test(candidate)) return `+92${candidate.slice(1)}`;
+  if (/^92\d{10}$/.test(candidate)) return `+${candidate}`;
   return null;
 }
 

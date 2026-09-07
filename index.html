@@ -1,19 +1,57 @@
 <!doctype html>
 <html lang="en">
   <head>
+    <script>
+      (function() {
+        var origError = console.error;
+        var origWarn = console.warn;
+        function isViteNoise(arg) {
+          if (!arg) return false;
+          if (typeof arg === 'string') {
+            return arg.indexOf('[vite]') !== -1 || arg.indexOf('vite-plugin-pwa') !== -1;
+          }
+          if (typeof arg === 'object') {
+            var msg = arg.message || '';
+            var stack = arg.stack || '';
+            return msg.indexOf('[vite]') !== -1 || stack.indexOf('[vite]') !== -1;
+          }
+          return false;
+        }
+        function hasViteNoise(args) {
+          for (var i = 0; i < args.length; i++) {
+            if (isViteNoise(args[i])) return true;
+          }
+          return false;
+        }
+        console.error = function() {
+          if (hasViteNoise(arguments)) return;
+          return origError.apply(console, arguments);
+        };
+        console.warn = function() {
+          if (hasViteNoise(arguments)) return;
+          return origWarn.apply(console, arguments);
+        };
+        window.addEventListener('unhandledrejection', function(event) {
+          if (isViteNoise(event.reason)) {
+            event.preventDefault();
+            event.stopPropagation();
+          }
+        });
+      })();
+    </script>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Weather — Local Forecast & Conditions</title>
-    <meta name="description" content="Check local weather conditions, forecasts, and climate information for your area." />
-    <meta property="og:title" content="Weather — Local Forecast & Conditions" />
-    <meta property="og:description" content="Check local weather conditions, forecasts, and climate information for your area." />
+    <title>Mehfooz — Safe Legal Information & Support Assistant</title>
+    <meta name="description" content="A privacy-first assistant for gender-based violence legal information, encrypted incident documentation, complaint preparation, and support navigation in Punjab, Pakistan." />
+    <meta property="og:title" content="Mehfooz — Safe Legal Information & Support Assistant" />
+    <meta property="og:description" content="A privacy-first assistant for gender-based violence legal information, encrypted incident documentation, complaint preparation, and support navigation in Punjab, Pakistan." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="theme-color" content="#4A90D9" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-    <meta name="apple-mobile-web-app-title" content="Weather" />
+    <meta name="apple-mobile-web-app-title" content="Mehfooz" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <link rel="icon" type="image/svg+xml" href="/icon.svg" />
     <link rel="shortcut icon" href="/favicon.ico" />

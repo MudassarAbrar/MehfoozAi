@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   ShieldCheck,
   MapPin,
@@ -12,6 +12,7 @@ import {
   Navigation,
   CheckCircle2,
   ArrowRight,
+  ArrowLeft,
   Check,
   X,
   Sparkles,
@@ -31,7 +32,10 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { MehfoozLogo } from './common/MehfoozLogo';
-import { AppLanguage, UserProfile } from '../types';
+import { AppLanguage, UserProfile, UserContact } from '../types';
+import { hashPin, getVaultSalt } from '../utils/crypto';
+import { persistContacts } from '../utils/dataService';
+import { markUserOnboardingCompleted } from '../utils/auth';
 
 interface EmergencyContactInput {
   id: string;
@@ -92,12 +96,43 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     id: '', name: '', phone: '', email: '', relation: 'Parent'
   });
 
-  // Privacy toggles
+  // Privacy toggles — default to false for explicit opt-in privacy
   const [privacyToggles, setPrivacyToggles] = useState({
-    shareWithContacts: true,
-    contributeCommunity: true,
-    localAlerts: true
+    shareWithContacts: false,
+    contributeCommunity: false,
+    localAlerts: false
   });
+
+  // Populate existing user contacts on modal open if available
+  useEffect(() => {
+    if (isOpen) {
+      if (user?.emergencyContacts && user.emergencyContacts.length > 0) {
+        setContacts(user.emergencyContacts.map(c => ({
+          id: c.id,
+          name: c.name,
+          phone: c.phone,
+          email: c.email || '',
+          relation: c.relation || 'Parent'
+        })));
+      } else {
+        const saved = localStorage.getItem('mehfooz_user_contacts_v1');
+        if (saved) {
+          try {
+            const parsed = JSON.parse(saved);
+            if (Array.isArray(parsed) && parsed.length > 0) {
+              setContacts(parsed.map((c: any) => ({
+                id: c.id || '',
+                name: c.name || '',
+                phone: c.phone || '',
+                email: c.email || '',
+                relation: c.relation || 'Parent'
+              })));
+            }
+          } catch { /* noop */ }
+        }
+      }
+    }
+  }, [isOpen, user?.emergencyContacts]);
 
   if (!isOpen) return null;
 
@@ -111,6 +146,12 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
   const totalSteps = isNewUser ? 8 : 6;
 
   const RELATIONS = ['Parent', 'Sibling', 'Spouse', 'Friend', 'Guardian', 'Other'];
+
+  const isValidPakistaniPhone = (raw: string): boolean => {
+    if (!raw || typeof raw !== 'string') return false;
+    const cleaned = raw.replace(/[\s\-()]/g, '');
+    return /^((\+92|92|0092)?3\d{9}|03\d{9})$/.test(cleaned);
+  };
 
   const addOrUpdateContact = () => {
     const trimmed = {
@@ -126,6 +167,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     }
     if (!trimmed.phone) {
       setContactError(isUrdu ? 'فون نمبر ضروری ہے' : 'Phone number is required');
+      return;
+    }
+    if (!isValidPakistaniPhone(trimmed.phone)) {
+      setContactError(
+        isUrdu
+          ? 'درست پاکستانی موبائل نمبر درج کریں (مثلاً 03001234567 یا +923001234567)'
+          : 'Please enter a valid Pakistani mobile number (e.g. 03001234567 or +923001234567)'
+      );
       return;
     }
 
@@ -152,6 +201,14 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     setContactError(null);
   };
 
+  const handleBack = () => {
+    if (currentStep > 1) {
+      setCurrentStep(prev => prev - 1);
+      setPasswordError(null);
+      setContactError(null);
+    }
+  };
+
   const handleNext = () => {
     // Validate emergency contacts step
     if (currentStep === 3) {
@@ -168,16 +225,13 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         setPasswordError(isUrdu ? 'پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے' : 'App password must be at least 6 characters');
         return;
       }
+      if (!/\d/.test(appPassword)) {
+        setPasswordError(isUrdu ? 'پاس ورڈ میں کم از کم ایک عدد (نمبر 0-9) ہونا ضروری ہے' : 'App password must contain at least one number (0-9)');
+        return;
+      }
       if (appPassword !== appPasswordConfirm) {
         setPasswordError(isUrdu ? 'پاس ورڈز مماثل نہیں ہیں' : 'Passwords do not match');
         return;
-      }
-      // Store app password as stealth PIN
-      if (user) {
-        try {
-          const updated = { ...user, stealthPin: appPassword };
-          localStorage.setItem('mehfooz_profile_cache_v1', JSON.stringify(updated));
-        } catch { /* noop */ }
       }
       setPasswordError(null);
     }
@@ -188,13 +242,20 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         setPasswordError(isUrdu ? 'والٹ پاس ورڈ کم از کم 6 حروف کا ہونا چاہیے' : 'Vault password must be at least 6 characters');
         return;
       }
+      if (!/\d/.test(vaultPassword)) {
+        setPasswordError(isUrdu ? 'والٹ پاس ورڈ میں کم از کم ایک عدد (نمبر 0-9) ہونا ضروری ہے' : 'Vault password must contain at least one number (0-9)');
+        return;
+      }
       if (vaultPassword !== vaultPasswordConfirm) {
         setPasswordError(isUrdu ? 'پاس ورڈز مماثل نہیں ہیں' : 'Passwords do not match');
         return;
       }
-      // Store vault password hash locally
+      // Store cryptographic salted vault password hash locally
       try {
-        localStorage.setItem('mehfooz_vault_pw_hash', vaultPassword);
+        const salt = getVaultSalt();
+        void hashPin(vaultPassword, salt).then(hashed => {
+          localStorage.setItem('mehfooz_vault_pw_hash', hashed);
+        });
       } catch { /* noop */ }
       setPasswordError(null);
     }
@@ -202,8 +263,24 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
     if (currentStep < totalSteps) {
       setCurrentStep(prev => prev + 1);
     } else {
+      const formattedContacts: UserContact[] = contacts.map((c, i) => ({
+        id: c.id || `c-onboard-${Date.now()}-${i}`,
+        name: c.name,
+        relation: c.relation || 'Parent',
+        phone: c.phone,
+        email: c.email || undefined,
+        isEmergencyContact: true,
+        isDefaultNotified: true,
+        contactType: 'family' as const
+      }));
+
+      if (formattedContacts.length > 0) {
+        void persistContacts(formattedContacts);
+      }
+
+      markUserOnboardingCompleted(user?.id || user?.email);
       if (onSavePreferences) {
-        onSavePreferences({ safetyPreferences, contacts, privacyToggles });
+        onSavePreferences({ safetyPreferences, contacts: formattedContacts, privacyToggles });
       }
       if (onComplete) {
         onComplete();
@@ -221,7 +298,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
         exit={{ scale: 0.95, opacity: 0 }}
         className="w-full max-w-md bg-white border border-slate-200 rounded-3xl p-6 shadow-2xl space-y-5 text-[#1C2C34] max-h-[90vh] overflow-y-auto"
       >
-        {/* Step Progress Indicators (no skip button — onboarding is mandatory) */}
+        {/* Step Progress Indicators & Close Button */}
         <div className="flex items-center justify-between border-b border-slate-100 pb-3">
           <div className="flex items-center space-x-1.5">
             {Array.from({ length: totalSteps }, (_, i) => i + 1).map((step) => (
@@ -237,9 +314,20 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               />
             ))}
           </div>
-          <span className="text-[10px] font-semibold text-[#5A6E78]">
-            {currentStep}/{totalSteps}
-          </span>
+          <div className="flex items-center space-x-2">
+            <span className="text-[10px] font-semibold text-[#5A6E78]">
+              {currentStep}/{totalSteps}
+            </span>
+            <button
+              type="button"
+              onClick={onClose}
+              className="p-1 rounded-full text-slate-400 hover:text-[#1C2C34] hover:bg-slate-100 transition cursor-pointer flex items-center justify-center"
+              aria-label="Close onboarding"
+              title={isUrdu ? 'بند کریں' : 'Close'}
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
         </div>
 
         {/* ========================================================================= */}
@@ -471,7 +559,7 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                 {isUrdu ? 'آپ کی رازداری، آپ کا کنٹرول' : 'Your privacy, your control'}
               </h2>
               <p className="text-xs text-[#5A6E78]">
-                {isUrdu ? 'صفر علم کی ضمانت کے ساتھ کیا شیئر کرنا ہے منتخب کریں۔' : 'Choose what to share with absolute zero-knowledge guarantees.'}
+                {isUrdu ? 'کلائنٹ سائیڈ AES-256 انکرپشن کے ساتھ کیا شیئر کرنا ہے منتخب کریں۔' : 'Choose what to share with client-side AES-256 password encryption.'}
               </p>
             </div>
 
@@ -526,6 +614,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
                   className="w-4 h-4 accent-[#FC7454] cursor-pointer"
                 />
               </div>
+
+              {/* Data Disclosure Notice Box */}
+              <div className="p-3 rounded-2xl bg-[#ECF4F4] border border-[#BCD4D4] text-[11px] text-[#1C2C34] space-y-1">
+                <span className="font-bold block text-[#FC7454]">
+                  {isUrdu ? 'شفافیت اور ڈیٹا تحفظ کی تفصیلات:' : 'Data Protection & Privacy Disclosures:'}
+                </span>
+                <ul className="list-disc list-inside space-y-0.5 text-[10.5px] text-[#5A6E78]">
+                  <li><strong>Recipients:</strong> Designated emergency contacts and statutory Punjab authorities upon explicit user handoff.</li>
+                  <li><strong>Purpose:</strong> Real-time journey safety monitoring & official petition draft generation.</li>
+                  <li><strong>Retention & Deletion:</strong> Local device storage only. One-click vault wipe deletes all data permanently.</li>
+                </ul>
+              </div>
             </div>
           </div>
         )}
@@ -579,8 +679,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <div>
                 <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'پاس ورڈ:' : 'App Password:'}</label>
                 <div className="relative">
-                  <input type={showAppPw ? 'text' : 'password'} value={appPassword} onChange={e => setAppPassword(e.target.value)} placeholder="Minimum 6 characters" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                  <input type={showAppPw ? 'text' : 'password'} value={appPassword} onChange={e => setAppPassword(e.target.value)} placeholder="Minimum 6 characters with at least 1 number" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
                   <button type="button" onClick={() => setShowAppPw(!showAppPw)} className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1C2C34] cursor-pointer">{showAppPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                </div>
+                <div className="flex items-center space-x-3 mt-1 text-[11px]">
+                  <span className={`flex items-center space-x-1 transition-colors ${appPassword.length >= 6 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{appPassword.length >= 6 ? '✓' : '•'}</span>
+                    <span>{isUrdu ? 'کم از کم 6 حروف' : '6+ characters'}</span>
+                  </span>
+                  <span className={`flex items-center space-x-1 transition-colors ${/\d/.test(appPassword) ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/\d/.test(appPassword) ? '✓' : '•'}</span>
+                    <span>{isUrdu ? 'کم از کم 1 عدد (0-9)' : 'At least 1 number (0-9)'}</span>
+                  </span>
                 </div>
               </div>
               <div>
@@ -609,8 +719,18 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
               <div>
                 <label className="block text-xs font-medium text-[#1C2C34] mb-1">{isUrdu ? 'والٹ پاس ورڈ:' : 'Vault Password:'}</label>
                 <div className="relative">
-                  <input type={showVaultPw ? 'text' : 'password'} value={vaultPassword} onChange={e => setVaultPassword(e.target.value)} placeholder="Minimum 6 characters" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
+                  <input type={showVaultPw ? 'text' : 'password'} value={vaultPassword} onChange={e => setVaultPassword(e.target.value)} placeholder="Minimum 6 characters with at least 1 number" className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl text-sm text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]" />
                   <button type="button" onClick={() => setShowVaultPw(!showVaultPw)} className="absolute right-3 top-2.5 text-slate-400 hover:text-[#1C2C34] cursor-pointer">{showVaultPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}</button>
+                </div>
+                <div className="flex items-center space-x-3 mt-1 text-[11px]">
+                  <span className={`flex items-center space-x-1 transition-colors ${vaultPassword.length >= 6 ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{vaultPassword.length >= 6 ? '✓' : '•'}</span>
+                    <span>{isUrdu ? 'کم از کم 6 حروف' : '6+ characters'}</span>
+                  </span>
+                  <span className={`flex items-center space-x-1 transition-colors ${/\d/.test(vaultPassword) ? 'text-emerald-600 font-semibold' : 'text-slate-400'}`}>
+                    <span>{/\d/.test(vaultPassword) ? '✓' : '•'}</span>
+                    <span>{isUrdu ? 'کم از کم 1 عدد (0-9)' : 'At least 1 number (0-9)'}</span>
+                  </span>
                 </div>
               </div>
               <div>
@@ -636,28 +756,30 @@ export const OnboardingModal: React.FC<OnboardingModalProps> = ({
 
             <div className="space-y-1">
               <h2 className="text-lg font-bold text-[#1C2C34]">
-                {isUrdu ? 'آپ محفوظ نیویگیشن کے لیے تیار ہیں' : "You're ready to navigate safely"}
+                {isUrdu ? 'آپ سیٹ اپ مکمل کر چکے ہیں' : "You're All Set!"}
               </h2>
               <p className="text-xs text-[#5A6E78]">
-                {isUrdu ? 'سب تیار! اپنی کمیونٹی کی دیگر خواتین کی تصدیق شدہ محفوظ راستے تلاش کریں۔' : 'All set! Find safe routes verified by other women in your community.'}
+                {isUrdu ? 'آپ کی سیکیورٹی اور ایپ سیٹنگز تیار ہیں۔' : 'Your security preferences and settings are ready.'}
               </p>
-            </div>
-
-            <div className="p-4 rounded-2xl bg-[#ECF4F4]/70 border border-[#BCD4D4] text-xs text-[#1C2C34] font-semibold flex items-center justify-between">
-              <div className="flex items-center space-x-2">
-                <Navigation className="w-4 h-4 text-[#FC7454]" />
-                <span>{isUrdu ? 'محفوظ راستے تلاش کریں' : 'Find Safe Routes'}</span>
-              </div>
-              <ChevronRight className="w-4 h-4 text-[#5A6E78]" />
             </div>
           </div>
         )}
 
-        {/* Bottom Navigation Button */}
-        <div className="pt-2">
+        {/* Bottom Navigation Buttons */}
+        <div className="pt-2 flex items-center space-x-2">
+          {currentStep > 1 && (
+            <button
+              type="button"
+              onClick={handleBack}
+              className="px-4 py-3.5 rounded-2xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 dark:hover:bg-slate-700 text-[#1C2C34] dark:text-slate-200 font-bold text-xs transition flex items-center justify-center space-x-1 cursor-pointer"
+            >
+              <ArrowLeft className="w-4 h-4 text-[#5A6E78] dark:text-slate-400" />
+              <span>{isUrdu ? 'پیچھے' : 'Back'}</span>
+            </button>
+          )}
           <button
             onClick={handleNext}
-            className="w-full py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
+            className="flex-1 py-3.5 rounded-2xl bg-[#1C2C34] hover:bg-[#263842] text-white font-bold text-xs shadow-md transition flex items-center justify-center space-x-1.5 cursor-pointer"
           >
             <span>{currentStep === totalSteps ? (isNewUser ? (isUrdu ? 'ایپ میں داخل ہوں' : 'Enter App') : (isUrdu ? 'تلاش شروع کریں' : 'Start Exploring')) : (isUrdu ? 'جاری رکھیں' : 'Continue')}</span>
             <ArrowRight className="w-4 h-4 text-[#FC7454]" />

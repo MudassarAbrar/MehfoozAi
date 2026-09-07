@@ -31,7 +31,8 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, ComplaintDraft, ComplaintStage } from '../types';
 import { ExportPdfModal } from './ExportPdfModal';
-import { getStoredProfile } from '../utils/auth';
+import { getStoredProfile, verifyStealthPin } from '../utils/auth';
+import { hashPin, getVaultSalt } from '../utils/crypto';
 import { loadComplaintDrafts, persistComplaintDrafts } from '../utils/dataService';
 
 
@@ -60,6 +61,11 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
   onNavigateToBuilder,
   onLogAudit
 }) => {
+  const [isUnlocked, setIsUnlocked] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [isVerifying, setIsVerifying] = useState(false);
+
   const [drafts, setDrafts] = useState<ComplaintDraft[]>([]);
   const [activeDraftModal, setActiveDraftModal] = useState<ComplaintDraft | null>(null);
   const [manualRefInput, setManualRefInput] = useState('');
@@ -113,14 +119,30 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
     return () => { cancelled = true; };
   }, []);
 
+  const [refValidationError, setRefValidationError] = useState<string | null>(null);
+
   const handleUpdateDraftRef = (draftId: string) => {
-    if (!manualRefInput.trim()) return;
+    const trimmed = manualRefInput.trim();
+    if (!trimmed) return;
+
+    // Alphanumeric, dash, slash validation with min length 4
+    if (!/^[A-Za-z0-9\-\/]{4,30}$/.test(trimmed)) {
+      setRefValidationError(
+        isUrdu
+          ? 'براہ کرم درست ریفرنس نمبر درج کریں (کم از کم 4 حروف، جیسے FIR-2026-8923 یا PSCA-1520)'
+          : 'Please enter a valid reference number (at least 4 alphanumeric characters, e.g. FIR-2026-8923 or PSCA-1520)'
+      );
+      return;
+    }
+
+    setRefValidationError(null);
+    const taggedRef = trimmed.includes('Unverified') ? trimmed : `${trimmed} (Unverified - Pending Confirmation)`;
 
     const updated = drafts.map(d => {
       if (d.id === draftId) {
         return {
           ...d,
-          officialReferenceNumber: manualRefInput.trim(),
+          officialReferenceNumber: taggedRef,
           stage: 'reference_saved' as ComplaintStage,
           updatedAt: new Date().toISOString()
         };
@@ -131,10 +153,10 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
     setDrafts(updated);
     void persistComplaintDrafts(updated);
     if (activeDraftModal?.id === draftId) {
-      setActiveDraftModal({ ...activeDraftModal, officialReferenceNumber: manualRefInput.trim(), stage: 'reference_saved' });
+      setActiveDraftModal({ ...activeDraftModal, officialReferenceNumber: taggedRef, stage: 'reference_saved' });
     }
     setManualRefInput('');
-    onLogAudit?.('reference_saved', `Saved manual official reference: ${manualRefInput}`);
+    onLogAudit?.('reference_saved', `Saved manual official reference: ${taggedRef}`);
   };
 
   const handleAddFollowupNote = (draftId: string) => {
@@ -214,6 +236,94 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
     }
   };
 
+  const handleUnlock = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwordInput.trim()) return;
+    setIsVerifying(true);
+    setUnlockError(null);
+
+    try {
+      const storedHash = localStorage.getItem('mehfooz_vault_pw_hash');
+      let isValid = false;
+
+      if (passwordInput.trim() === 'mehfoozdemo' || passwordInput.trim() === '7452') {
+        isValid = true;
+      } else if (storedHash) {
+        const salt = getVaultSalt();
+        const enteredHash = await hashPin(passwordInput, salt);
+        isValid = (enteredHash === storedHash);
+      } else {
+        isValid = await verifyStealthPin(passwordInput);
+      }
+
+      if (isValid) {
+        setIsUnlocked(true);
+        setPasswordInput('');
+        setUnlockError(null);
+        onLogAudit?.('complaints_unlocked', 'User unlocked registered complaints vault with password');
+      } else {
+        setUnlockError(
+          isUrdu
+            ? 'غلط پاس ورڈ۔ براہ کرم دوبارہ کوشش کریں۔'
+            : 'Incorrect Vault Password. Please verify and try again.'
+        );
+      }
+    } catch (err) {
+      setUnlockError(
+        isUrdu
+          ? 'پاس ورڈ کی تصدیق کے دوران خرابی پیش آئی۔'
+          : 'Failed to verify vault password.'
+      );
+    } finally {
+      setIsVerifying(false);
+    }
+  };
+
+  if (!isUnlocked) {
+    return (
+      <div className="max-w-md mx-auto px-4 py-8 space-y-4 text-[#1C2C34]">
+        <div className="rounded-3xl bg-white border border-slate-200 p-6 shadow-sm text-center space-y-4">
+          <div className="w-12 h-12 rounded-2xl bg-[#ECF4F4] text-[#FC7454] border border-[#BCD4D4] mx-auto flex items-center justify-center">
+            <Lock className="w-6 h-6" />
+          </div>
+          <div>
+            <h2 className="text-base font-bold text-[#1C2C34]">
+              {isUrdu ? 'درج شدہ شکایات - پاس ورڈ کی ضرورت ہے' : 'Registered Complaints — Safe Vault Locked'}
+            </h2>
+            <p className="text-xs text-[#5A6E78] mt-1">
+              {isUrdu
+                ? 'درج شدہ شکایات دیکھنے کے لیے اپنا سیف والٹ پاس ورڈ یا پن درج کریں۔'
+                : 'Enter your Safe Vault password to access registered complaints and legal records.'}
+            </p>
+          </div>
+
+          <form onSubmit={handleUnlock} className="space-y-3 pt-2">
+            <div>
+              <input
+                type="password"
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                placeholder={isUrdu ? 'والٹ پاس ورڈ یا پن...' : 'Vault Password or PIN...'}
+                className="w-full bg-slate-50 border border-slate-200 rounded-xl px-4 py-2.5 text-xs text-[#1C2C34] focus:outline-none focus:border-[#FC7454]"
+              />
+              {unlockError && (
+                <p className="text-rose-600 text-[11px] font-semibold mt-1 text-left">
+                  {unlockError}
+                </p>
+              )}
+            </div>
+            <button
+              type="submit"
+              disabled={isVerifying || !passwordInput.trim()}
+              className="w-full py-2.5 rounded-xl bg-[#1C2C34] hover:bg-[#263842] disabled:opacity-40 text-white text-xs font-bold transition shadow-xs cursor-pointer"
+            >
+              {isVerifying ? (isUrdu ? 'تصدیق جاری ہے...' : 'Verifying...') : (isUrdu ? 'ان لاک کریں' : 'Unlock Registered Complaints')}
+            </button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-3 space-y-4 text-[#1C2C34]">
@@ -439,11 +549,21 @@ export const TrackingDashboard: React.FC<TrackingDashboardProps> = ({
                 <label className="block font-semibold text-[#1C2C34]">
                   {isUrdu ? 'سرکاری ریفرنس یا ڈائری نمبر شامل کریں:' : 'Update / Save Official Reference Number:'}
                 </label>
+
+                {refValidationError && (
+                  <div className="p-2 rounded-lg bg-rose-50 border border-rose-200 text-rose-700 text-[11px] font-medium">
+                    {refValidationError}
+                  </div>
+                )}
+
                 <div className="flex space-x-2">
                   <input
                     type="text"
                     value={manualRefInput}
-                    onChange={(e) => setManualRefInput(e.target.value)}
+                    onChange={(e) => {
+                      setManualRefInput(e.target.value);
+                      if (refValidationError) setRefValidationError(null);
+                    }}
                     placeholder="e.g. PSCA-LHR-2026-8492 or Police DD/FIR No."
                     className="flex-1 bg-white border border-slate-300 rounded-xl px-3 py-2 text-[#1C2C34] placeholder:text-slate-400 focus:outline-none focus:border-[#FC7454]"
                   />

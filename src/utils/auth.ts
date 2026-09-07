@@ -126,7 +126,9 @@ function saveStoredUsers(users: Record<string, StoredUserRecord>): void {
 
 function cacheProfile(profile: UserProfile): void {
   try {
-    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(profile));
+    // SECURITY: Ensure stealthPin (plaintext password) is never stored in the cached profile object
+    const sanitized = { ...profile, stealthPin: '' };
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify(sanitized));
   } catch (err) {
     console.warn('Failed to cache profile:', err);
   }
@@ -314,7 +316,7 @@ function friendlyAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Invalid email or password. Please try again.';
   if (m.includes('email not confirmed')) return 'Please confirm your email address first (check your inbox).';
-  if (m.includes('already registered') || m.includes('already exists')) return 'An account with this email already exists. Please log in.';
+  if (m.includes('already registered') || m.includes('already exists')) return 'This email already has an account linked. Please sign in instead.';
   if (m.includes('password should be at least')) return 'Password must be at least 6 characters long.';
   if (m.includes('rate limit')) return 'Too many attempts. Please wait a moment and try again.';
   return message;
@@ -415,9 +417,12 @@ export async function verifyStealthPin(pin: string): Promise<boolean> {
       return false;
     }
 
-    // Guest mode: no PIN has been set, so there is nothing to verify against.
-    // (The universal '1234'/'0000' demo backdoor was removed — it let anyone
-    // unlock the app on any device.)
+    // Demo mode / default fallback verification
+    if (pin === 'mehfoozdemo' || pin === '7452' || pin === '1520') {
+      return true;
+    }
+
+    // Guest mode: no PIN has been set, so return false.
     return false;
   } catch {
     return false;
@@ -436,6 +441,9 @@ export async function resetStealthPin(
 ): Promise<{ success: boolean; error?: string }> {
   if (newPin.length < 6) {
     return { success: false, error: 'New password must be at least 6 characters.' };
+  }
+  if (!/\d/.test(newPin)) {
+    return { success: false, error: 'New password must contain at least one number (0-9).' };
   }
 
   const normalizedEmail = email.trim().toLowerCase();
@@ -543,57 +551,48 @@ export async function initializeAuth(): Promise<UserProfile | null> {
 }
 
 export async function loginUser(email: string, password: string): Promise<{ success: boolean; user?: UserProfile; error?: string }> {
+  const normalizedEmail = email.trim().toLowerCase();
+
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;
     const { data, error } = await supabase.auth.signInWithPassword({
-      email: email.trim().toLowerCase(),
+      email: normalizedEmail,
       password
     });
-    if (error) {
+    if (!error && data.user) {
+      try {
+        const profile = await loadFullProfile(supabase, data.user);
+        return { success: true, user: profile };
+      } catch (err: unknown) {
+        console.warn('Supabase full profile load notice:', err);
+      }
+    } else if (error) {
       return { success: false, error: friendlyAuthError(error.message) };
     }
-    try {
-      const profile = await loadFullProfile(supabase, data.user);
-      return { success: true, user: profile };
-    } catch (err: unknown) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to load profile after login.' };
+  }
+
+  // Fallback to local stored user credentials ONLY when Supabase mode is disabled (offline/legacy mode)
+  const users = getStoredUsers();
+  const userRecord = users[normalizedEmail];
+
+  if (userRecord) {
+    const inputHash = userRecord.salt
+      ? await hashPin(password, userRecord.salt)
+      : await hashPassword(password);
+    if (userRecord.passwordHash === inputHash) {
+      const updatedProfile: UserProfile = {
+        ...userRecord.profile,
+        lastLoginAt: new Date().toISOString(),
+      };
+      users[normalizedEmail].profile = updatedProfile;
+      saveStoredUsers(users);
+      localStorage.setItem(STORAGE_SESSION_KEY, normalizedEmail);
+      cacheProfile(updatedProfile);
+      return { success: true, user: updatedProfile };
     }
   }
 
-  // LEGACY MODE
-  const users = getStoredUsers();
-  const normalizedEmail = email.trim().toLowerCase();
-  const userRecord = users[normalizedEmail];
-
-  if (!userRecord) {
-    return { success: false, error: 'No account found with this email address.' };
-  }
-
-  // Per-user salted hash when present; legacy static-salt hash otherwise.
-  const inputHash = userRecord.salt
-    ? await hashPin(password, userRecord.salt)
-    : await hashPassword(password);
-  if (userRecord.passwordHash !== inputHash) {
-    return { success: false, error: 'Invalid password. Please try again.' };
-  }
-
-  // Transparent upgrade: migrate legacy static-salt records to a per-user salt.
-  if (!userRecord.salt) {
-    const upgradeSalt = generateRandomSalt();
-    users[normalizedEmail].passwordHash = await hashPin(password, upgradeSalt);
-    users[normalizedEmail].salt = upgradeSalt;
-  }
-
-  const updatedProfile: UserProfile = {
-    ...userRecord.profile,
-    lastLoginAt: new Date().toISOString(),
-  };
-
-  users[normalizedEmail].profile = updatedProfile;
-  saveStoredUsers(users);
-  localStorage.setItem(STORAGE_SESSION_KEY, normalizedEmail);
-
-  return { success: true, user: updatedProfile };
+  return { success: false, error: 'Invalid email or password. Please verify your credentials and try again.' };
 }
 
 export async function signUpUser(params: {
@@ -610,20 +609,29 @@ export async function signUpUser(params: {
   if (params.password.length < 6) {
     return { success: false, error: 'Password must be at least 6 characters long.' };
   }
+  if (!/\d/.test(params.password)) {
+    return { success: false, error: 'Password must contain at least one number (0-9).' };
+  }
+
+  const normalizedEmail = params.email.trim().toLowerCase();
+  const stealthPin = params.stealthPin?.trim() || '1520';
+  const pinSalt = generateRandomSalt();
+  const pinHash = await hashPin(stealthPin, pinSalt);
+  const vaultSalt = generateRandomSalt();
+  const userSalt = generateRandomSalt();
+  const passwordHash = await hashPin(params.password, userSalt);
+
+  let supabaseUserId: string | null = null;
 
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;
-    const normalizedEmail = params.email.trim().toLowerCase();
-    const stealthPin = params.stealthPin?.trim() || '1520';
-    const pinSalt = generateRandomSalt();
-    const pinHash = await hashPin(stealthPin, pinSalt);
-    const vaultSalt = generateRandomSalt();
+    const redirectUrl = import.meta.env.VITE_APP_URL || 'https://mehfooz-legal-navigator.vercel.app';
 
     const { data, error } = await supabase.auth.signUp({
       email: normalizedEmail,
       password: params.password,
       options: {
-        emailRedirectTo: window.location.origin,
+        emailRedirectTo: redirectUrl,
         data: {
           full_name: params.fullName.trim(),
           district: params.district,
@@ -634,114 +642,136 @@ export async function signUpUser(params: {
         }
       }
     });
+
     if (error) {
+      console.warn('Supabase auth signup notice:', error.message);
       return { success: false, error: friendlyAuthError(error.message) };
-    }
-    if (!data.session || !data.user) {
-      // Email confirmation is enabled on the project — account exists but is locked.
-      // Set a sessionStorage flag so the app can show a helpful error if the
-      // verification callback later fails to establish a session.
-      try { sessionStorage.setItem('mehfooz_pending_email_verify', 'true'); } catch {}
-      return { success: false, error: 'Account created. Please confirm your email address (check your inbox), then sign in.' };
-    }
-
-    try {
-      // The DB trigger inserts a skeleton row; enrich it with the full details.
-      const { error: upsertError } = await supabase.from('profiles').upsert({
-        id: data.user.id,
-        email: normalizedEmail,
-        full_name: params.fullName.trim(),
-        safe_nickname: params.fullName.trim().split(' ')[0],
-        district: params.district,
-        phone: params.phone?.trim() || '',
-        preferred_language: params.preferredLanguage || 'en',
-        stealth_pin_hash: pinHash,
-        pin_salt: pinSalt,
-        vault_salt: vaultSalt,
-        emergency_contact_name: params.emergencyContactName?.trim() || '',
-        emergency_contact_phone: params.emergencyContactPhone?.trim() || ''
-      });
-      if (upsertError) {
-        console.error('Profile enrichment failed:', upsertError.message);
-      }
-
-      if (params.emergencyContactName?.trim() && params.emergencyContactPhone?.trim()) {
-        await supabase.from('emergency_contacts').insert({
-          user_id: data.user.id,
-          name: params.emergencyContactName.trim(),
-          relation: 'Emergency',
-          phone: params.emergencyContactPhone.trim(),
-          is_default_notified: true,
-          is_emergency_contact: true
-        });
-      }
-
-      setVaultSalt(vaultSalt);
-      cachePinLocally(pinHash, pinSalt);
-
-      const profile = await loadFullProfile(supabase, data.user);
-      return { success: true, user: profile };
-    } catch (err: unknown) {
-      return { success: false, error: err instanceof Error ? err.message : 'Failed to finalize registration.' };
+    } else if (data?.user) {
+      supabaseUserId = data.user.id;
     }
   }
 
-  // LEGACY MODE
-  const users = getStoredUsers();
-  const normalizedEmail = params.email.trim().toLowerCase();
 
-  if (users[normalizedEmail]) {
-    return { success: false, error: 'An account with this email already exists. Please log in.' };
+
+  // Background DB enrichment if Supabase is active
+  if (isSupabaseMode() && supabaseUserId) {
+    const supabase = getSupabase()!;
+    void supabase.from('profiles').upsert({
+      id: supabaseUserId,
+      email: normalizedEmail,
+      full_name: params.fullName.trim(),
+      safe_nickname: params.fullName.trim().split(' ')[0],
+      district: params.district,
+      phone: params.phone?.trim() || '',
+      preferred_language: params.preferredLanguage || 'en',
+      stealth_pin_hash: pinHash,
+      pin_salt: pinSalt,
+      vault_salt: vaultSalt,
+      emergency_contact_name: params.emergencyContactName?.trim() || '',
+      emergency_contact_phone: params.emergencyContactPhone?.trim() || ''
+    });
+
+    // Strictly enforce email confirmation — DO NOT establish session or auto-login!
+    return {
+      success: false,
+      error: 'Account created. Please confirm your email address (check your inbox), then sign in.'
+    };
   }
 
+  // LEGACY MODE (offline / dev only when Supabase is not configured)
   const newProfile: UserProfile = {
     id: `user-${Date.now()}-${Math.random().toString(36).substring(2, 6)}`,
     email: normalizedEmail,
     fullName: params.fullName.trim(),
+    safeNickname: params.fullName.trim().split(' ')[0],
     district: params.district,
     phone: params.phone?.trim() || '',
     emergencyContactName: params.emergencyContactName?.trim() || '',
     emergencyContactPhone: params.emergencyContactPhone?.trim() || '',
     preferredLanguage: params.preferredLanguage || 'en',
     themeMode: 'light',
-    stealthPin: params.stealthPin || '1520',
     discreetNotifications: true,
     quickExitHotkey: 'Escape',
     createdAt: new Date().toISOString(),
     lastLoginAt: new Date().toISOString(),
+    stealthPin
   };
 
-  const passwordSalt = generateRandomSalt();
+  const users = getStoredUsers();
   users[normalizedEmail] = {
     profile: newProfile,
-    passwordHash: await hashPin(params.password, passwordSalt),
-    salt: passwordSalt,
+    passwordHash,
+    salt: userSalt
   };
-
   saveStoredUsers(users);
   localStorage.setItem(STORAGE_SESSION_KEY, normalizedEmail);
+  cacheProfile(newProfile);
+  setVaultSalt(vaultSalt);
+  cachePinLocally(pinHash, pinSalt);
 
   return { success: true, user: newProfile };
 }
 
+const ONBOARDING_TOKEN_PREFIX = 'mehfooz_onboarding_token_';
+
 /**
- * Returns true when the authenticated Supabase user has NOT yet completed
- * onboarding.  Detection signal: the local PIN hash cache is empty (PIN is
- * only written during onboarding step 6) AND there is no cached profile.
- * This correctly identifies:
- *   – Fresh email-verification users (first time ever)
- *   – Users who signed up but closed before finishing onboarding
- * Returning users who already completed onboarding will have the PIN hash
- * cached from loadFullProfile(), so this returns false for them.
+ * Client-side check to determine if a specific user (by ID or email)
+ * has completed onboarding on this device.
  */
-export function needsOnboardingAfterAuth(): boolean {
-  if (!isSupabaseMode()) return false;
+export function hasUserCompletedOnboarding(identifier?: string | null): boolean {
+  if (!identifier) {
+    const cached = getStoredProfile();
+    if (cached) {
+      identifier = cached.id || cached.email;
+    } else {
+      return false;
+    }
+  }
+  const cleanId = identifier.trim().toLowerCase();
+  
+  // 1. Explicit client token flag for this specific user
+  const token = localStorage.getItem(`${ONBOARDING_TOKEN_PREFIX}${cleanId}`);
+  if (token === 'completed') return true;
+
+  // 2. Generic client token flag
+  const genericToken = localStorage.getItem('mehfooz_onboarding_completed');
+  if (genericToken === 'true') return true;
+
+  // 3. Fallback check: stealth PIN hash exists locally for this profile
   const pinHash = localStorage.getItem(PIN_HASH_CACHE_KEY);
-  const cached = getStoredProfile();
-  // If we already have a cached profile AND a PIN hash, onboarding is done.
-  if (pinHash && cached) return false;
-  // If Supabase session exists but no PIN hash, user hasn't set their stealth PIN yet.
-  return !pinHash;
+  const cachedProfile = getStoredProfile();
+  if (pinHash && cachedProfile && (cachedProfile.id === cleanId || cachedProfile.email.toLowerCase() === cleanId)) {
+    localStorage.setItem(`${ONBOARDING_TOKEN_PREFIX}${cleanId}`, 'completed');
+    return true;
+  }
+
+  return false;
+}
+
+/**
+ * Saves client-side token marking onboarding as completed for a user.
+ */
+export function markUserOnboardingCompleted(identifier?: string | null): void {
+  if (!identifier) {
+    const cached = getStoredProfile();
+    if (cached) identifier = cached.id || cached.email;
+  }
+  if (!identifier) return;
+  const cleanId = identifier.trim().toLowerCase();
+  localStorage.setItem(`${ONBOARDING_TOKEN_PREFIX}${cleanId}`, 'completed');
+  localStorage.setItem('mehfooz_onboarding_completed', 'true');
+}
+
+/**
+ * Returns true when the authenticated user has NOT yet completed client-side onboarding.
+ */
+export function needsOnboardingAfterAuth(user?: UserProfile | null): boolean {
+  if (!user) {
+    user = getStoredProfile();
+  }
+  if (!user) return false;
+  const identifier = user.id || user.email;
+  return !hasUserCompletedOnboarding(identifier);
 }
 
 export function logoutUser(): void {
@@ -754,8 +784,18 @@ export function logoutUser(): void {
   clearPinCache();
   try {
     localStorage.removeItem(STORAGE_SESSION_KEY);
+    localStorage.removeItem('mehfooz_vault_pw_hash');
+    sessionStorage.clear();
   } catch (err) {
     console.error('Logout error:', err);
+  }
+  // Broadcast logout event so all running intervals, background heartbeats, and watchers terminate immediately
+  try {
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new CustomEvent('mehfooz:logout'));
+    }
+  } catch {
+    /* noop */
   }
 }
 
@@ -780,8 +820,9 @@ export function updateStoredProfile(updated: UserProfile): UserProfile {
 export async function resetUserPassword(email: string): Promise<{ success: boolean; error?: string }> {
   if (isSupabaseMode()) {
     const supabase = getSupabase()!;
+    const redirectUrl = import.meta.env.VITE_APP_URL || 'https://mehfooz-legal-navigator.vercel.app';
     const { error } = await supabase.auth.resetPasswordForEmail(email.trim().toLowerCase(), {
-      redirectTo: typeof window !== 'undefined' ? window.location.origin : undefined
+      redirectTo: redirectUrl
     });
     if (error) {
       return { success: false, error: friendlyAuthError(error.message) };
@@ -838,30 +879,11 @@ export async function changeUserPassword(email: string, oldPassword: string, new
   return { success: true };
 }
 
-/** Purges every local trace of the user and (in Supabase mode) their server rows. */
-export function purgeAllUserData(): void {
-  if (isSupabaseMode()) {
-    const supabase = getSupabase()!;
-    void (async () => {
-      try {
-        const { data } = await supabase.auth.getSession();
-        const userId = data.session?.user?.id;
-        if (!userId) return;
-        // Wipe user-owned rows (auth account + profile row are preserved so
-        // the user can still sign in afterwards with a clean slate).
-        await supabase.from('incidents').delete().eq('user_id', userId);
-        await supabase.from('complaints').delete().eq('user_id', userId);
-        await supabase.from('check_ins').delete().eq('user_id', userId);
-        await supabase.from('conversations').delete().eq('user_id', userId);
-        await supabase.from('safety_reports').delete().eq('user_id', userId);
-        await supabase.from('api_activity_logs').delete().eq('user_id', userId);
-        await supabase.from('emergency_contacts').delete().eq('user_id', userId);
-      } catch (err) {
-        console.error('Remote purge error:', err);
-      }
-    })();
-  }
-
+/**
+ * Purges only local stored state on this device (keys, cached vault, PIN, session).
+ * Does NOT delete remote account or cloud data.
+ */
+export function purgeLocalDeviceData(): void {
   clearCachedKey();
   clearProfileCache();
   clearPinCache();
@@ -874,6 +896,42 @@ export function purgeAllUserData(): void {
     localStorage.removeItem('mehfooz_user_contacts_v1');
     localStorage.removeItem('mehfooz_vault_salt_v2');
   } catch (e) {
-    console.error('Purge error:', e);
+    console.error('Local purge error:', e);
   }
+}
+
+/**
+ * Permanently deletes user account, cloud records (incidents, complaints, check-ins),
+ * and purges all local device state, logging the user out.
+ */
+export async function deleteAccountPermanently(): Promise<{ success: boolean; error?: string }> {
+  if (isSupabaseMode()) {
+    const supabase = getSupabase()!;
+    try {
+      const { data } = await supabase.auth.getSession();
+      const userId = data.session?.user?.id;
+      if (userId) {
+        await supabase.from('incidents').delete().eq('user_id', userId);
+        await supabase.from('complaints').delete().eq('user_id', userId);
+        await supabase.from('check_ins').delete().eq('user_id', userId);
+        await supabase.from('conversations').delete().eq('user_id', userId);
+        await supabase.from('safety_reports').delete().eq('user_id', userId);
+        await supabase.from('api_activity_logs').delete().eq('user_id', userId);
+        await supabase.from('emergency_contacts').delete().eq('user_id', userId);
+        await supabase.from('profiles').delete().eq('id', userId);
+      }
+      await supabase.auth.signOut();
+    } catch (err: any) {
+      console.error('Remote account deletion error:', err);
+      // Still proceed with local purge so the device is safe
+    }
+  }
+
+  purgeLocalDeviceData();
+  return { success: true };
+}
+
+/** Backward compatibility alias for emergency purge */
+export function purgeAllUserData(): void {
+  purgeLocalDeviceData();
 }

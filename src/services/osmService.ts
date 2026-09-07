@@ -259,6 +259,7 @@ export async function searchAddressWithNominatim(query: string): Promise<Geocode
 
 /**
  * Finding nearby POIs (police, hospitals, clinics) with OpenStreetMap + Overpass API
+ * Includes timeout control, mirror fallback, and distance-bounded POI filtering
  */
 export async function fetchNearbySafetyPOIsWithOverpass(
   lat: number,
@@ -266,78 +267,91 @@ export async function fetchNearbySafetyPOIsWithOverpass(
   radiusMeters: number = 3500
 ): Promise<SafetyPOI[]> {
   const pois: SafetyPOI[] = [];
+  const OVERPASS_ENDPOINTS = [
+    'https://overpass-api.de/api/interpreter',
+    'https://overpass.kumi.systems/api/interpreter'
+  ];
 
-  try {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5500);
+  const overpassQuery = `
+    [out:json][timeout:5];
+    (
+      node["amenity"="police"](around:${radiusMeters},${lat},${lon});
+      node["amenity"="hospital"](around:${radiusMeters},${lat},${lon});
+      node["amenity"="clinic"](around:${radiusMeters},${lat},${lon});
+      way["amenity"="police"](around:${radiusMeters},${lat},${lon});
+      way["amenity"="hospital"](around:${radiusMeters},${lat},${lon});
+    );
+    out center 15;
+  `.trim();
 
-    const overpassQuery = `
-      [out:json][timeout:6];
-      (
-        node["amenity"="police"](around:${radiusMeters},${lat},${lon});
-        node["amenity"="hospital"](around:${radiusMeters},${lat},${lon});
-        node["amenity"="clinic"](around:${radiusMeters},${lat},${lon});
-        way["amenity"="police"](around:${radiusMeters},${lat},${lon});
-        way["amenity"="hospital"](around:${radiusMeters},${lat},${lon});
-      );
-      out center 15;
-    `.trim();
+  let fetchSuccess = false;
 
-    const response = await fetch('https://overpass-api.de/api/interpreter', {
-      method: 'POST',
-      body: overpassQuery,
-      signal: controller.signal,
-      headers: {
-        'Content-Type': 'application/x-www-form-urlencoded'
-      }
-    });
-    clearTimeout(timeoutId);
+  for (const endpoint of OVERPASS_ENDPOINTS) {
+    if (fetchSuccess) break;
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 4500);
 
-    if (response.ok) {
-      const data = await response.json();
-      if (data && Array.isArray(data.elements)) {
-        for (const el of data.elements) {
-          const poiLat = el.lat ?? el.center?.lat;
-          const poiLon = el.lon ?? el.center?.lon;
-          if (!poiLat || !poiLon) continue;
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        body: overpassQuery,
+        signal: controller.signal,
+        headers: {
+          'Content-Type': 'application/x-www-form-urlencoded'
+        }
+      });
+      clearTimeout(timeoutId);
 
-          const tags = el.tags || {};
-          const rawName = tags.name || tags['name:en'] || tags['name:ur'] || 'Emergency Service Post';
-          const amenity = tags.amenity;
-          const type: SafetyPOI['type'] =
-            amenity === 'police' ? 'police' : amenity === 'hospital' ? 'hospital' : 'clinic';
+      if (response.ok) {
+        const data = await response.json();
+        if (data && Array.isArray(data.elements)) {
+          for (const el of data.elements) {
+            const poiLat = el.lat ?? el.center?.lat;
+            const poiLon = el.lon ?? el.center?.lon;
+            if (!poiLat || !poiLon) continue;
 
-          const dist = calculateDistance(lat, lon, poiLat, poiLon);
+            const tags = el.tags || {};
+            const rawName = tags.name || tags['name:en'] || tags['name:ur'] || 'Emergency Service Post';
+            const amenity = tags.amenity;
+            const type: SafetyPOI['type'] =
+              amenity === 'police' ? 'police' : amenity === 'hospital' ? 'hospital' : 'clinic';
 
-          pois.push({
-            id: `overpass-${el.id}`,
-            name: rawName,
-            type,
-            lat: poiLat,
-            lon: poiLon,
-            distanceMeters: dist,
-            distanceFormatted: formatDistance(dist),
-            phone: tags.phone || tags['contact:phone'] || (type === 'police' ? '15' : '1122'),
-            emergencyHelpline: type === 'police' ? '15' : '1122',
-            address: tags['addr:street'] ? `${tags['addr:street']}, ${tags['addr:city'] || ''}` : undefined,
-            isOpen24Hours: tags.opening_hours === '24/7' || true
-          });
+            const dist = calculateDistance(lat, lon, poiLat, poiLon);
+
+            pois.push({
+              id: `overpass-${el.id}`,
+              name: rawName,
+              type,
+              lat: poiLat,
+              lon: poiLon,
+              distanceMeters: dist,
+              distanceFormatted: formatDistance(dist),
+              phone: tags.phone || tags['contact:phone'] || (type === 'police' ? '15' : '1122'),
+              emergencyHelpline: type === 'police' ? '15' : '1122',
+              address: tags['addr:street'] ? `${tags['addr:street']}, ${tags['addr:city'] || ''}` : undefined,
+              isOpen24Hours: tags.opening_hours === '24/7' || true
+            });
+          }
+          fetchSuccess = true;
         }
       }
+    } catch {
+      // Try next mirror
     }
-  } catch (err) {
-    // Overpass failed or timed out; will seamlessly augment with fallback POIs
   }
 
-  // If overpass returns few or none (or on network delay), augment with fallback POIs
-  if (pois.length < 3) {
-    for (const fb of FALLBACK_SAFETY_POIS) {
-      const dist = calculateDistance(lat, lon, fb.lat, fb.lon);
-      pois.push({
-        ...fb,
-        distanceMeters: dist,
-        distanceFormatted: formatDistance(dist)
-      });
+  // Only augment with fallback POIs if the user is reasonably close to them (within 20km)
+  // to avoid misleading users in other cities with faraway Lahore coordinates
+  for (const fb of FALLBACK_SAFETY_POIS) {
+    const dist = calculateDistance(lat, lon, fb.lat, fb.lon);
+    if (dist <= Math.max(radiusMeters * 1.5, 20_000)) {
+      if (!pois.some(p => p.name === fb.name)) {
+        pois.push({
+          ...fb,
+          distanceMeters: dist,
+          distanceFormatted: formatDistance(dist)
+        });
+      }
     }
   }
 

@@ -41,7 +41,7 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
   language,
   complaintDraft,
   incidentRecords = [],
-  defaultUserPin = '1520',
+  defaultUserPin,
   defaultUserName = 'Ayesha Rehman',
   onLogAudit
 }) => {
@@ -49,25 +49,35 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
 
   // Modal form states
   const [usePassword, setUsePassword] = useState(true);
-  const [password, setPassword] = useState(defaultUserPin);
+  const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
+  const [passwordError, setPasswordError] = useState<string | null>(null);
   const [complainantName, setComplainantName] = useState(defaultUserName);
   const [includeRecords, setIncludeRecords] = useState(true);
   const [isGenerating, setIsGenerating] = useState(false);
   const [exportResult, setExportResult] = useState<PDFExportResult | null>(null);
-
-  if (!isOpen) return null;
-
   const isComplaint = Boolean(complaintDraft);
   const hasVaultRecords = incidentRecords.length > 0;
 
-  const handleQuickPin = () => {
-    setPassword(defaultUserPin);
-    setUsePassword(true);
-  };
+  if (!isOpen) return null;
 
   const handleExport = async (e: React.FormEvent) => {
     e.preventDefault();
+    setPasswordError(null);
+
+    if (usePassword) {
+      if (password.length < 8) {
+        setPasswordError(isUrdu ? 'پاس ورڈ کم از کم 8 حروف پر مشتمل ہونا چاہیے۔' : 'Password must be at least 8 characters long.');
+        return;
+      }
+      if (password !== confirmPassword) {
+        setPasswordError(isUrdu ? 'پاس ورڈز آپس میں نہیں ملتے۔' : 'Passwords do not match.');
+        return;
+      }
+    }
+
     setIsGenerating(true);
 
     try {
@@ -110,6 +120,9 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
   };
 
   const handleResetAndClose = () => {
+    setPassword('');
+    setConfirmPassword('');
+    setPasswordError(null);
     setExportResult(null);
     onClose();
   };
@@ -132,13 +145,13 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
               <div>
                 <h3 className="text-sm font-bold text-[#1C2C34]">
                   {isUrdu 
-                    ? 'قانونی جمع آوری کیلئے محفوظ پی ڈی ایف ایکسپورٹ' 
-                    : 'Export Printer-Friendly Legal PDF'}
+                    ? 'پی ڈی ایف ایکسپورٹ' 
+                    : isComplaint ? 'Mehfooz — User-Generated Protective Petition Draft' : 'Protected Incident Record'}
                 </h3>
                 <span className="text-[10px] text-[#5A6E78]">
                   {isUrdu 
-                    ? 'پاس ورڈ سے محفوظ • عدالتی و پولیس فارمیٹ' 
-                    : '128-bit Encrypted • Standard Legal Submission Layout'}
+                    ? 'پاس ورڈ سے محفوظ پی ڈی ایف' 
+                    : 'Password-Protected PDF Document • Prepared for submission to relevant Punjab authority'}
                 </span>
               </div>
             </div>
@@ -162,8 +175,8 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
                   <FileText className="w-4 h-4 text-[#FC7454] flex-shrink-0" />
                   <span>
                     {isComplaint 
-                      ? `Formal Complaint Petition: ${complaintDraft?.officialReferenceNumber || complaintDraft?.id}`
-                      : `${incidentRecords.length} Encrypted Incident Vault Record(s)`}
+                      ? `Mehfooz — User-Generated Protective Petition Draft (${complaintDraft?.officialReferenceNumber || complaintDraft?.id})`
+                      : `Protected Incident Record (${incidentRecords.length} Vault Record(s))`}
                   </span>
                 </div>
                 <p className="text-[11px] text-[#5A6E78] leading-relaxed">
@@ -184,44 +197,74 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
                     <input
                       type="checkbox"
                       checked={usePassword}
-                      onChange={(e) => setUsePassword(e.target.checked)}
+                      onChange={(e) => {
+                        setUsePassword(e.target.checked);
+                        setPasswordError(null);
+                      }}
                       className="sr-only peer"
                     />
                     <div className="w-9 h-5 bg-slate-200 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#FC7454]"></div>
                   </label>
                 </div>
 
+                {passwordError && (
+                  <div className="p-2.5 rounded-xl bg-rose-50 border border-rose-200 text-rose-700 text-xs font-medium">
+                    {passwordError}
+                  </div>
+                )}
+
                 {usePassword ? (
-                  <div className="space-y-2 pt-1">
-                    <div className="flex items-center justify-between">
-                      <label className="text-[11px] font-semibold text-[#1C2C34]">
-                        {isUrdu ? 'پی ڈی ایف اوپن پاس ورڈ درج کریں:' : 'Set Document Unlock Password:'}
+                  <div className="space-y-3 pt-1">
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#1C2C34] mb-1">
+                        {isUrdu ? 'پی ڈی ایف پاس ورڈ درج کریں (کم از کم 8 حروف):' : 'Set Document Unlock Password (min 8 chars):'}
                       </label>
-                      <button
-                        type="button"
-                        onClick={handleQuickPin}
-                        className="text-[10px] text-[#FC7454] hover:underline font-semibold cursor-pointer"
-                      >
-                        Use App Stealth PIN ({defaultUserPin})
-                      </button>
+                      <div className="relative">
+                        <input
+                          type={showPassword ? 'text' : 'password'}
+                          required={usePassword}
+                          value={password}
+                          onChange={(e) => {
+                            setPassword(e.target.value);
+                            setPasswordError(null);
+                          }}
+                          placeholder="Enter password (min 8 characters)"
+                          className="w-full bg-white border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-[#1C2C34] text-xs font-mono focus:outline-none focus:border-[#FC7454] focus:ring-1 focus:ring-[#FC7454]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1C2C34] cursor-pointer"
+                        >
+                          {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
-                    <div className="relative">
-                      <input
-                        type={showPassword ? 'text' : 'password'}
-                        required={usePassword}
-                        value={password}
-                        onChange={(e) => setPassword(e.target.value)}
-                        placeholder="Enter password (e.g. 1520 or custom key)"
-                        className="w-full bg-white border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-[#1C2C34] text-xs font-mono focus:outline-none focus:border-[#FC7454] focus:ring-1 focus:ring-[#FC7454]"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1C2C34] cursor-pointer"
-                      >
-                        {showPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
-                      </button>
+                    <div>
+                      <label className="block text-[11px] font-semibold text-[#1C2C34] mb-1">
+                        {isUrdu ? 'پاس ورڈ کی تصدیق کریں:' : 'Confirm Unlock Password:'}
+                      </label>
+                      <div className="relative">
+                        <input
+                          type={showConfirmPassword ? 'text' : 'password'}
+                          required={usePassword}
+                          value={confirmPassword}
+                          onChange={(e) => {
+                            setConfirmPassword(e.target.value);
+                            setPasswordError(null);
+                          }}
+                          placeholder="Confirm password"
+                          className="w-full bg-white border border-slate-300 rounded-xl pl-3.5 pr-10 py-2.5 text-[#1C2C34] text-xs font-mono focus:outline-none focus:border-[#FC7454] focus:ring-1 focus:ring-[#FC7454]"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                          className="absolute right-3 top-1/2 -translate-y-1/2 text-slate-400 hover:text-[#1C2C34] cursor-pointer"
+                        >
+                          {showConfirmPassword ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
+                        </button>
+                      </div>
                     </div>
 
                     <p className="text-[10px] text-[#5A6E78] leading-tight">
@@ -278,12 +321,12 @@ export const ExportPdfModal: React.FC<ExportPdfModalProps> = ({
 
                 <button
                   type="submit"
-                  disabled={isGenerating || (usePassword && !password.trim())}
+                  disabled={isGenerating || (usePassword && (!password || password.length < 8 || password !== confirmPassword))}
                   className="px-5 py-2.5 rounded-xl bg-[#1C2C34] hover:bg-[#263842] disabled:opacity-40 text-white font-bold flex items-center space-x-2 shadow-xs transition cursor-pointer"
                 >
                   <FileDown className="w-4 h-4 text-[#BCD4D4]" />
                   <span>
-                    {isGenerating ? 'Generating Protected PDF...' : 'Download Legal PDF'}
+                    {isGenerating ? 'Generating Protected PDF...' : 'Export & Download Protected PDF'}
                   </span>
                 </button>
               </div>

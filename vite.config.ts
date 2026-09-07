@@ -14,9 +14,9 @@ export default defineConfig(() => {
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.svg'],
         manifest: {
           id: '/',
-          name: 'Weather — Local Forecast & Conditions',
-          short_name: 'Weather',
-          description: 'Check local weather conditions, forecasts, and climate information for your area.',
+          name: 'Mehfooz — Safe Legal Information & Support Assistant',
+          short_name: 'Mehfooz',
+          description: 'A privacy-first assistant for gender-based violence legal information, encrypted incident documentation, complaint preparation, and support navigation in Punjab, Pakistan.',
           theme_color: '#4A90D9',
           background_color: '#E8F4FD',
           display: 'standalone',
@@ -44,6 +44,7 @@ export default defineConfig(() => {
           ],
         },
         workbox: {
+          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff,woff2}'],
           runtimeCaching: [
             {
@@ -99,8 +100,7 @@ export default defineConfig(() => {
           ],
         },
         devOptions: {
-          enabled: true,
-          type: 'module',
+          enabled: false,
         },
       }),
     ],

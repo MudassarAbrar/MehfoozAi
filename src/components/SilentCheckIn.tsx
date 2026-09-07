@@ -36,12 +36,15 @@ import { AppLanguage, SilentCheckInSession, UserProfile, UserContact } from '../
 import { OpenStreetMapViewer } from './common/OpenStreetMapViewer';
 import { GeocodedAddress } from '../services/osmService';
 import { getAuthHeaders } from '../utils/auth';
-import { getNearbyPOIs } from '../data/lahoreLocations';
+import { getNearbyPOIs, generateSafeRoutes, findLahoreLocations } from '../data/lahoreLocations';
 
 interface SilentCheckInProps {
   language: AppLanguage;
   user: UserProfile | null;
   onOpenCrisis: () => void;
+  initialDestination?: string;
+  initialCoords?: { lat: number; lon: number };
+  onNavigateToContacts?: () => void;
 }
 
 interface ParentNotificationPayload {
@@ -79,25 +82,81 @@ function getCurrentPosition(timeoutMs = 5000): Promise<{ lat: number; lng: numbe
 export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
   language,
   user,
-  onOpenCrisis
+  onOpenCrisis,
+  initialDestination,
+  initialCoords,
+  onNavigateToContacts
 }) => {
   const isUrdu = language === 'ur';
 
-  // Default emergency contacts for parents/guardians
-  const defaultContacts: UserContact[] = [
-    { id: 'c1', name: 'Ayesha (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true },
-    { id: 'c2', name: 'Zain (Brother)', relation: 'Brother', phone: '+92 321 9876543', isDefaultNotified: true },
-    { id: 'c3', name: 'Fatima (Friend)', relation: 'Friend', phone: '+92 333 4567890', isDefaultNotified: false }
-  ];
+  // Dynamic contacts list — loads from user profile or localStorage mirror
+  const [contactsList, setContactsList] = useState<UserContact[]>(() => {
+    if (user?.emergencyContacts && user.emergencyContacts.length > 0) {
+      return user.emergencyContacts;
+    }
+    const saved = localStorage.getItem('mehfooz_user_contacts_v1');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      } catch { /* noop */ }
+    }
+    return [
+      { id: 'c1', name: 'Zainab (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true },
+      { id: 'c2', name: 'Hamza (Brother)', relation: 'Brother', phone: '+92 321 9876543', isDefaultNotified: true },
+      { id: 'c3', name: 'Fatima (Friend)', relation: 'Friend', phone: '+92 333 4567890', isDefaultNotified: false }
+    ];
+  });
 
-  const availableContacts = user?.emergencyContacts && user.emergencyContacts.length > 0
-    ? user.emergencyContacts
-    : defaultContacts;
+  useEffect(() => {
+    if (user?.emergencyContacts && user.emergencyContacts.length > 0) {
+      setContactsList(user.emergencyContacts);
+    } else {
+      const saved = localStorage.getItem('mehfooz_user_contacts_v1');
+      if (saved) {
+        try {
+          const parsed = JSON.parse(saved);
+          if (Array.isArray(parsed) && parsed.length > 0) {
+            setContactsList(parsed);
+            return;
+          }
+        } catch { /* noop */ }
+      }
+    }
+  }, [user?.emergencyContacts]);
+
+  const availableContacts = contactsList;
 
   // Setup form states
-  const [destination, setDestination] = useState<string>('Gulberg Main → MM Alam');
+  const [destination, setDestination] = useState<string>(initialDestination || 'Gulberg Main → MM Alam');
   const [durationMinutes, setDurationMinutes] = useState<number>(21);
-  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(['c1', 'c2']);
+  const [selectedContactIds, setSelectedContactIds] = useState<string[]>(() => {
+    const initial = availableContacts.filter(c => c.isDefaultNotified !== false).map(c => c.id);
+    return initial.length > 0 ? initial : availableContacts.slice(0, 2).map(c => c.id);
+  });
+  const [checkInValidationError, setCheckInValidationError] = useState<string | null>(null);
+
+  // Keep selected contact IDs in sync if available contacts list updates
+  useEffect(() => {
+    if (availableContacts.length > 0) {
+      setSelectedContactIds(prev => {
+        const validPrev = prev.filter(id => availableContacts.some(c => c.id === id));
+        if (validPrev.length > 0) return validPrev;
+        const auto = availableContacts.filter(c => c.isDefaultNotified !== false).map(c => c.id);
+        return auto.length > 0 ? auto : availableContacts.slice(0, 2).map(c => c.id);
+      });
+    }
+  }, [availableContacts]);
+
+  // Sync initialDestination if updated externally from ActiveAlerts
+  useEffect(() => {
+    if (initialDestination) {
+      setDestination(initialDestination);
+    }
+    if (initialCoords) {
+      setDestinationCoords(initialCoords);
+    }
+  }, [initialDestination, initialCoords]);
   
   // Real-time GPS & OSM state
   const [currentCoords, setCurrentCoords] = useState<{ lat: number; lon: number }>({
@@ -155,6 +214,25 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
 
   // Start check in — dispatches notification to parents + background server registration
   const handleStartCheckIn = () => {
+    if (!destination || !destination.trim()) {
+      setCheckInValidationError(
+        isUrdu
+          ? 'براہ کرم سفر کی منزل درج کریں یا میپ سے منتخب کریں۔'
+          : 'Please enter or select a valid journey destination before starting.'
+      );
+      return;
+    }
+
+    if (!durationMinutes || durationMinutes < 1) {
+      setCheckInValidationError(
+        isUrdu
+          ? 'سفر کا متوقع وقت کم از کم 1 منٹ ہونا چاہیے۔'
+          : 'Journey expected duration must be at least 1 minute.'
+      );
+      return;
+    }
+
+    setCheckInValidationError(null);
     const now = new Date();
     const arrivalTime = new Date(now.getTime() + durationMinutes * 60000);
     const timeStr = arrivalTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
@@ -255,6 +333,19 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
       }
     })();
   };
+
+  // Immediate abort of active session and intervals upon user logout
+  useEffect(() => {
+    const handleLogout = () => {
+      setActiveSession(null);
+      setServerSessionId(null);
+      setIsPlaying(false);
+      setAlertDispatched(false);
+      setRemainingMinutes(0);
+    };
+    window.addEventListener('mehfooz:logout', handleLogout);
+    return () => window.removeEventListener('mehfooz:logout', handleLogout);
+  }, []);
 
   // Timer countdown (1 app-minute per TICK_MS)
   useEffect(() => {
@@ -449,15 +540,15 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
           <div className="flex items-start justify-between">
             <div className="space-y-1">
               <span className="text-[11px] font-black tracking-[0.2em] text-[#FC7454] uppercase block">
-                {isUrdu ? 'حفاظتی ٹائمر و لائیو ٹریکنگ' : 'LIVE OSM PROTECTION PROTOCOL'}
+                {isUrdu ? 'حفاظتی روٹ و لائیو ٹریکنگ' : 'LIVE OSM PROTECTION & ROUTE CORRIDOR'}
               </span>
               <h2 className="text-lg sm:text-xl font-black tracking-[0.12em] text-[#1C2C34] dark:text-white uppercase">
-                {isUrdu ? 'خاموش چیک ان و والدین اطلاع' : 'SILENT CHECK-IN & PARENT NOTIFICATION'}
+                {isUrdu ? 'محفوظ چیک ان و لائیو روٹ' : 'SAFE CHECK-IN & ROUTE PROTECTION'}
               </h2>
               <p className="text-xs text-[#5A6E78] dark:text-slate-400 font-medium">
                 {isUrdu 
-                  ? 'سیشن شروع کرتے ہی آپ کی لائیو لوکیشن اور اوپن سٹریٹ میپ لنک والدین کو خودکار بھیج دیا جائے گا' 
-                  : 'Automated GPS & OpenStreetMap alert sent to parents on departure. SOS activates if unconfirmed.'}
+                  ? 'منزل اور محفوظ راستہ منتخب کریں۔ سیشن شروع ہوتے ہی والدین کو لائیو GPS اور میپ لنک خودکار بھیج دیا جائے گا۔' 
+                  : 'Select your destination & safe corridor. Automated GPS & OpenStreetMap alert sent to parents on departure.'}
               </p>
             </div>
             <div className="p-2 rounded-2xl bg-[#ECF4F4] dark:bg-[#1C2C34] border border-[#BCD4D4] text-[#FC7454] flex-shrink-0 hidden sm:flex">
@@ -484,6 +575,100 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
               />
             </div>
           </div>
+
+          {/* Safe Corridor Route Intelligence Selection */}
+          {(() => {
+            const matched = findLahoreLocations(destination);
+            const destLoc = matched[0] || { name: destination || 'Gulberg III', lat: 31.5135, lng: 74.3530 };
+            const routeData = generateSafeRoutes(
+              'Current Location',
+              destLoc.name,
+              { lat: currentCoords.lat, lng: currentCoords.lon },
+              { lat: destLoc.lat, lng: (destLoc as any).lng || (destLoc as any).lon || 74.3530 }
+            );
+
+            return (
+              <div className="space-y-2 pt-1">
+                <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Sparkles className="w-3.5 h-3.5 text-[#FC7454]" />
+                    <span>{isUrdu ? 'تجویز کردہ محفوظ راستے (کورریڈور انٹیلی جنس)' : 'RECOMMENDED SAFE CORRIDORS'}</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-600 dark:text-emerald-400 font-bold bg-emerald-50 dark:bg-emerald-950/50 border border-emerald-200 dark:border-emerald-800 px-2 py-0.5 rounded-full">
+                    A+ Corridor Active
+                  </span>
+                </label>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5">
+                  {/* Option 1: Safest */}
+                  <div
+                    onClick={() => {
+                      setDurationMinutes(routeData.safest.durationMin);
+                    }}
+                    className="p-3 rounded-2xl border bg-gradient-to-br from-[#ECF4F4]/80 to-white dark:from-[#1C2C34]/40 dark:to-[#12141C] border-[#BCD4D4] dark:border-slate-700 hover:border-[#FC7454] transition cursor-pointer space-y-1.5 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-[#FC7454] bg-[#FC7454]/10 px-2 py-0.5 rounded-md">
+                        {isUrdu ? '🛡️ محفوظ ترین ' : '🛡️ SAFEST (A+)'}
+                      </span>
+                      <span className="text-[11px] font-black text-[#1C2C34] dark:text-white">{routeData.safest.durationMin} min</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#1C2C34] dark:text-white truncate">
+                      Main Boulevard Corridor
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <span>Lighting: {routeData.safest.wellLit}%</span>
+                      <span>CCTV: {routeData.safest.cctv}%</span>
+                    </div>
+                  </div>
+
+                  {/* Option 2: Balanced */}
+                  <div
+                    onClick={() => {
+                      setDurationMinutes(routeData.balanced.durationMin);
+                    }}
+                    className="p-3 rounded-2xl border bg-slate-50 dark:bg-[#12141C] border-slate-200 dark:border-slate-700 hover:border-[#FC7454] transition cursor-pointer space-y-1.5 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-amber-700 bg-amber-50 dark:bg-amber-950/50 px-2 py-0.5 rounded-md">
+                        {isUrdu ? '⚖️ متوازن' : '⚖️ BALANCED (A)'}
+                      </span>
+                      <span className="text-[11px] font-black text-[#1C2C34] dark:text-white">{routeData.balanced.durationMin} min</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#1C2C34] dark:text-white truncate">
+                      Commercial Avenue
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <span>Lighting: {routeData.balanced.wellLit}%</span>
+                      <span>CCTV: {routeData.balanced.cctv}%</span>
+                    </div>
+                  </div>
+
+                  {/* Option 3: Direct */}
+                  <div
+                    onClick={() => {
+                      setDurationMinutes(routeData.fastest.durationMin);
+                    }}
+                    className="p-3 rounded-2xl border bg-slate-50 dark:bg-[#12141C] border-slate-200 dark:border-slate-700 hover:border-[#FC7454] transition cursor-pointer space-y-1.5 shadow-2xs"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-black uppercase text-sky-700 bg-sky-50 dark:bg-sky-950/50 px-2 py-0.5 rounded-md">
+                        {isUrdu ? '⚡ تیز ترین' : '⚡ FASTEST (B+)'}
+                      </span>
+                      <span className="text-[11px] font-black text-[#1C2C34] dark:text-white">{routeData.fastest.durationMin} min</span>
+                    </div>
+                    <div className="text-xs font-bold text-[#1C2C34] dark:text-white truncate">
+                      Direct Street Route
+                    </div>
+                    <div className="flex items-center justify-between text-[10px] text-slate-500 dark:text-slate-400 pt-0.5">
+                      <span>Lighting: {routeData.fastest.wellLit}%</span>
+                      <span>CCTV: {routeData.fastest.cctv}%</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            );
+          })()}
 
           {/* Dynamic Nearby POIs (#16, #17) */}
           {(() => {
@@ -608,74 +793,21 @@ export const SilentCheckIn: React.FC<SilentCheckInProps> = ({
             </div>
           </div>
 
-          {/* Guardian / Parent Contacts Section */}
-          <div className="space-y-2 pt-1">
-            <div className="flex items-center justify-between">
-              <label className="text-[11px] font-black tracking-wider text-[#1C2C34] dark:text-slate-300 uppercase flex items-center space-x-1.5">
-                <Users className="w-3.5 h-3.5 text-[#FC7454]" />
-                <span>{isUrdu ? 'والدین و گارڈین رابطے (جنہیں اطلاع دی جائے گی)' : 'PARENTS & GUARDIANS TO NOTIFY'}</span>
-              </label>
-              <span className="text-[10px] text-slate-500 font-semibold">
-                {selectedContactIds.length} {isUrdu ? 'منتخب' : 'Selected'}
-              </span>
+          {checkInValidationError && (
+            <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center space-x-2">
+              <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+              <span>{checkInValidationError}</span>
             </div>
-
-            <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-tight">
-              {isUrdu
-                ? 'سیشن شروع ہونے پر منتخب افراد کو خودکار ایس ایم ایس اور واٹس ایپ الرٹ میں آپ کا لائیو جی پی ایس اور میپ لنک بھیجا جائے گا۔'
-                : 'Selected parents receive instant automated SMS & WhatsApp dispatches containing your exact GPS coordinates and live OpenStreetMap corridor.'}
-            </p>
-
-            <div className="space-y-2 pt-1">
-              {availableContacts.map((contact) => {
-                const isChecked = selectedContactIds.includes(contact.id);
-                return (
-                  <div
-                    key={contact.id}
-                    onClick={() => handleToggleContact(contact.id)}
-                    className={`p-3 rounded-2xl border flex items-center justify-between cursor-pointer transition ${
-                      isChecked
-                        ? 'bg-[#ECF4F4] dark:bg-[#1C2C34] border-[#BCD4D4] dark:border-slate-700 text-[#1C2C34] dark:text-white shadow-xs'
-                        : 'bg-[#F8F9FD] dark:bg-[#12141C] border-slate-200 dark:border-slate-700 text-[#5A6E78] dark:text-slate-400'
-                    }`}
-                  >
-                    <div className="flex items-center space-x-3 min-w-0">
-                      <div className={`w-5 h-5 rounded-lg flex items-center justify-center text-xs flex-shrink-0 ${
-                        isChecked ? 'bg-[#1C2C34] text-white' : 'border border-slate-300 dark:border-slate-600'
-                      }`}>
-                        {isChecked && <Check className="w-3 h-3 text-white" />}
-                      </div>
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-1.5">
-                          <h4 className="text-xs font-black text-[#1C2C34] dark:text-white truncate">
-                            {contact.name}
-                          </h4>
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 uppercase">
-                            {contact.relation}
-                          </span>
-                        </div>
-                        <span className="text-[10px] text-[#5A6E78] dark:text-slate-400 font-mono">
-                          {contact.phone}
-                        </span>
-                      </div>
-                    </div>
-                    <span className="text-[10px] font-extrabold text-[#FC7454] flex-shrink-0">
-                      {isChecked ? 'NOTIFIED' : '+ ADD'}
-                    </span>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          )}
 
           {/* Start Button */}
           <button
             onClick={handleStartCheckIn}
-            disabled={!destination.trim() || selectedContactIds.length === 0}
+            disabled={!destination.trim()}
             className="w-full py-4 rounded-2xl bg-[#1C2C34] hover:bg-[#1C2C34]/90 disabled:opacity-50 text-white font-black text-xs tracking-[0.2em] uppercase shadow-md transition-all active:scale-98 cursor-pointer flex items-center justify-center gap-2"
           >
             <Send className="w-4 h-4 text-[#FC7454]" />
-            <span>{isUrdu ? 'سیشن شروع کریں اور والدین کو الرٹ بھیجیں' : 'START CHECK-IN & NOTIFY PARENTS'}</span>
+            <span>{isUrdu ? 'محفوظ چیک ان شروع کریں' : 'START SAFE CHECK-IN'}</span>
           </button>
         </div>
       )}

@@ -73,6 +73,7 @@ export interface LegalQueryResponse {
   disclaimerRequired: boolean;
   modelUsed?: string;
   isAiGenerated?: boolean;
+  isDeterministicFallback?: boolean;
   actionConfirmation?: ChatActionConfirmation;
   suggestedActions: {
     label: string;
@@ -514,6 +515,8 @@ export interface AgentToolProposal {
     complaintId?: string;
     recipientEmail?: string;
     includeGps?: boolean;
+    district?: string;
+    incidentSummary?: string;
   };
   expiresAt?: string;
 }

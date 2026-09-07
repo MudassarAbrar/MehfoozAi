@@ -30,8 +30,13 @@ import { safetyFunctionDeclarations } from './declarations.js';
 import { validateFunctionCall, getToolPolicy } from './policies.js';
 import { executeSafeTool } from './executor.js';
 import { createPendingAction } from './confirmation.js';
-import { buildAgentContext, formatHistoryForGemini } from './context.js';
+import { buildAgentContext, formatHistoryForGemini, saveMessage, updateConversationTitle } from './context.js';
 import { AgentError, normalizeAgentError } from './errors.js';
+import { checkImmediateDanger } from './dangerCheck.js';
+import { evaluateInputGuardrail } from './inputGuardrail.js';
+import { resolveConversationContext } from './contextResolver.js';
+import { retrieveGroundedEvidence } from './ragRetriever.js';
+import { validateOutputGuardrail } from './outputGuardrail.js';
 import {
   AgentInput,
   AgentOutput,
@@ -53,7 +58,7 @@ function createAgentClient(): GoogleGenAI {
   });
 }
 
-/** Main entry point: runs the bounded agent loop. */
+/** Main entry point: runs the bounded agent loop with full guardrail and RAG pipeline. */
 export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
   const cfg = getAgentConfig();
   const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
@@ -79,33 +84,123 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
 
   try {
     // 1. Build agent context (user profile, conversation history, contacts)
-    const contextStep = addStep('Loading your information…');
+    const contextStep = addStep('Loading conversation…');
     const context = await buildAgentContext(
-      input.userId,
+      input.userId || 'guest',
       input.accessToken,
       input.conversationId
     );
     completeStep(contextStep);
 
-    // 2. Create Gemini client
+    // 2. Immediate Danger Check (deterministic fast path — skips LLM entirely)
+    if (checkImmediateDanger(input.query)) {
+      const dangerStep = addStep('Immediate safety alert detected');
+      completeStep(dangerStep);
+      const dangerText = input.language === 'ur'
+        ? 'فوری حفاظتی الرٹ: اگر آپ فوری جسمانی خطرے میں ہیں تو اپنی جان کی حفاظت کو اولین ترجیح دیں۔ براہ کرم فوری طور پر ایمرجنسی 15 یا ریسکیو 1122 پر کال کریں۔ محفوظ کرائسس بٹن کے ذریعے اپنے ایمرجنسی رابطوں کو الرٹ کریں۔'
+        : 'IMMEDIATE SAFETY ALERT: If you are in immediate physical danger, prioritize your physical safety. Please call Emergency 15 or Rescue 1122 immediately. Use the Crisis button to alert emergency contacts.';
+
+      await saveMessage(context.conversationId, input.accessToken, 'user', input.query);
+      await saveMessage(context.conversationId, input.accessToken, 'model', dangerText);
+
+      return {
+        type: 'final',
+        text: dangerText,
+        citations: [],
+        conversationId: context.conversationId,
+        runId,
+        modelUsed: 'local-safety-guardrail',
+        steps
+      };
+    }
+
+    // 3. Input Guardrail: Domain & Intent check
+    const guardrail = evaluateInputGuardrail(input.query, input.language, context.messages);
+    if (!guardrail.allowed) {
+      const guardStep = addStep('Checking request domain');
+      completeStep(guardStep);
+
+      const refusalText = guardrail.refusalMessage || (input.language === 'ur'
+        ? 'میں خاص طور پر خواتین کے تحفظ، پنجاب کی قانونی رہنمائی، ہنگامی امداد اور محفوظ (Mehfooz) کے فیچرز کے لیے بنائی گئی ہوں۔ میں اس موضوع پر مدد نہیں کر سکتی، لیکن اگر آپ کا کوئی حفاظتی یا قانونی سوال ہو تو ضرور بتائیں۔'
+        : 'I’m designed specifically to help with women’s safety, Punjab legal guidance, emergency support, and Mehfooz features. I can’t help with this topic, but I can help you with any safety or legal concern.');
+
+      await saveMessage(context.conversationId, input.accessToken, 'user', input.query);
+      await saveMessage(context.conversationId, input.accessToken, 'model', refusalText);
+
+      return {
+        type: 'final',
+        text: refusalText,
+        citations: [],
+        conversationId: context.conversationId,
+        runId,
+        modelUsed: 'input-guardrail',
+        steps
+      };
+    }
+
+    // 4. Intent + Context Analysis: Resolve pronouns and extract incident context
+    const { resolvedQuery, structuredIncident } = resolveConversationContext(
+      input.query,
+      input.language,
+      context.messages
+    );
+
+    // Save user message to conversation
+    const userTurn = input.query;
+    await saveMessage(context.conversationId, input.accessToken, 'user', userTurn);
+
+    // If new conversation, generate a short title from the user query
+    if (context.messages.length === 0) {
+      void updateConversationTitle(context.conversationId, input.accessToken, userTurn);
+    }
+
+    // 5. Create Gemini client
     const client = createAgentClient();
     const modelChain = getModelChain();
-    const systemInstruction = buildSystemInstruction(input.language);
 
-    // 3. Build conversation history for Gemini
+    // 6. Pre-execution RAG Retrieval: Ground legal answers in Punjab Legal Corpus BEFORE generation
+    let citations: AgentCitation[] = [];
+    let evidencePrompt = '';
+    let hasSufficientEvidence = true;
+
+    if (guardrail.requires_rag) {
+      const ragStep = addStep('Searching verified Punjab legal corpus…');
+      const groundedEvidence = await retrieveGroundedEvidence(
+        resolvedQuery,
+        client,
+        input.language,
+        4
+      );
+      completeStep(ragStep);
+
+      citations = [...groundedEvidence.citations];
+      evidencePrompt = groundedEvidence.evidencePrompt;
+      hasSufficientEvidence = groundedEvidence.hasSufficientEvidence;
+    }
+
+    // Build system instruction incorporating authoritative retrieved evidence
+    const baseSystemInstruction = buildSystemInstruction(input.language);
+    const systemInstruction = evidencePrompt
+      ? `${baseSystemInstruction}\n\n${evidencePrompt}`
+      : baseSystemInstruction;
+
+    // 7. Build conversation history for Gemini
     const history = formatHistoryForGemini(context.messages, cfg.maxHistoryMessages);
 
-    // 4. Build the current user turn
-    const userTurn = input.query;
+    // Bounded agent loop: append user turn ensuring strict alternation
+    const contents: any[] = [...history];
+    const userPromptText = resolvedQuery !== input.query && resolvedQuery.length > input.query.length
+      ? `${userTurn}\n[Context: ${resolvedQuery}]`
+      : userTurn;
 
-    // 5. Bounded agent loop
-    const contents: any[] = [
-      ...history,
-      { role: 'user', parts: [{ text: userTurn }] }
-    ];
+    const lastContent = contents[contents.length - 1];
+    if (lastContent && lastContent.role === 'user') {
+      lastContent.parts.push({ text: userPromptText });
+    } else {
+      contents.push({ role: 'user', parts: [{ text: userPromptText }] });
+    }
 
     let finalText: string | undefined;
-    let citations: AgentCitation[] = [];
     let pendingActions: AgentToolProposal[] = [];
     let uiActions: Array<{ action: string; payload?: Record<string, unknown> }> = [];
     let modelUsed: string | undefined;
@@ -118,7 +213,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
       // Try each model in the fallback chain
       for (const modelName of modelChain) {
         try {
-          const callStep = addStep('Thinking…');
+          const callStep = addStep('Reasoning grounded response…');
 
           const callWithTimeout = Promise.race([
             client.models.generateContent({
@@ -166,12 +261,13 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
       const responseParts: any[] = candidate?.content?.parts || [];
 
       // Check for function calls
-      const functionCalls: Array<{ name: string; args: Record<string, unknown> }> = [];
+      const functionCalls: Array<{ id?: string; name: string; args: Record<string, unknown> }> = [];
       let textParts: string[] = [];
 
       for (const part of responseParts) {
         if (part.functionCall) {
           functionCalls.push({
+            id: part.functionCall.id,
             name: part.functionCall.name,
             args: (part.functionCall.args || {}) as Record<string, unknown>
           });
@@ -187,7 +283,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
       }
 
       // Process each function call
-      const toolResults: Array<{ name: string; response: Record<string, unknown> }> = [];
+      const toolResults: Array<{ id?: string; name: string; response: Record<string, unknown> }> = [];
       let confirmationRequired = false;
 
       for (const fc of functionCalls) {
@@ -197,6 +293,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
         const validation = validateFunctionCall(fc.name, fc.args);
         if (!validation.valid) {
           toolResults.push({
+            id: fc.id,
             name: fc.name,
             response: { error: validation.error || 'Invalid tool call' }
           });
@@ -207,6 +304,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
 
         if (!policy) {
           toolResults.push({
+            id: fc.id,
             name: fc.name,
             response: { error: 'Tool policy not found' }
           });
@@ -219,7 +317,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
 
           const displayData = buildDisplayData(fc.name, fc.args, context);
           const pendingAction = await createPendingAction({
-            userId: input.userId,
+            userId: input.userId || 'guest',
             conversationId: context.conversationId,
             accessToken: input.accessToken,
             toolName: fc.name,
@@ -232,6 +330,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
 
           // Tell Gemini the action is awaiting confirmation
           toolResults.push({
+            id: fc.id,
             name: fc.name,
             response: {
               status: 'pending_confirmation',
@@ -250,7 +349,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
 
         if (policy.safety === 'ui_only') {
           // UI-only tools return an action signal
-          const result = await executeSafeTool(fc.name, fc.args, input.userId, input.accessToken);
+          const result = await executeSafeTool(fc.name, fc.args, input.userId || 'guest', input.accessToken || '');
           if (result.success && result.data && (result.data as Record<string, unknown>).uiAction) {
             const uiAction = (result.data as Record<string, unknown>).uiAction as string;
             uiActions.push({
@@ -259,6 +358,7 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
             });
           }
           toolResults.push({
+            id: fc.id,
             name: fc.name,
             response: result.success
               ? { success: true, data: result.data }
@@ -267,19 +367,24 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
           completeStep(execStep);
         } else {
           // Read-only tool
-          const result = await executeSafeTool(fc.name, fc.args, input.userId, input.accessToken);
+          const result = await executeSafeTool(fc.name, fc.args, input.userId || 'guest', input.accessToken || '');
           toolResults.push({
+            id: fc.id,
             name: fc.name,
             response: result.success
               ? { success: true, data: result.data }
               : { success: false, error: result.error }
           });
 
-          // Collect citations from legal corpus search
+          // Collect citations from legal corpus search and merge uniquely
           if (fc.name === 'search_legal_corpus' && result.success && result.data) {
             const data = result.data as Record<string, unknown>;
             if (Array.isArray(data.citations)) {
-              citations.push(...(data.citations as AgentCitation[]));
+              for (const c of data.citations as AgentCitation[]) {
+                if (!citations.some(existing => existing.sourceId === c.sourceId)) {
+                  citations.push(c);
+                }
+              }
             }
           }
 
@@ -290,29 +395,24 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
       // If confirmation is required, pause the loop and return to the user
       if (confirmationRequired) {
         // Generate a text response explaining the pending action
-        const confirmTextStep = addStep('Preparing response…');
+        const confirmTextStep = addStep('Preparing confirmation…');
 
         try {
-          // Ask Gemini to generate a user-facing message about the pending action
           const confirmContents = [
             ...contents,
-            {
-              role: 'model',
-              parts: responseParts.map((p: any) => {
-                if (p.functionCall) return { functionCall: p.functionCall };
-                if (p.text) return { text: p.text };
-                return p;
-              })
-            },
+            candidate.content,
             {
               role: 'user',
               parts: toolResults.map(tr => ({
-                functionResponse: { name: tr.name, response: tr.response }
+                functionResponse: {
+                  name: tr.name,
+                  response: tr.response,
+                  ...(tr.id ? { id: tr.id } : {})
+                }
               }))
             }
           ];
 
-          // Try to get a text response explaining the action
           for (const modelName of modelChain) {
             try {
               const textResponse = await client.models.generateContent({
@@ -348,19 +448,16 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
       }
 
       // Append model's response + tool results to the conversation for the next iteration
-      contents.push({
-        role: 'model',
-        parts: responseParts.map((p: any) => {
-          if (p.functionCall) return { functionCall: p.functionCall };
-          if (p.text) return { text: p.text };
-          return p;
-        })
-      });
+      contents.push(candidate.content);
 
       contents.push({
         role: 'user',
         parts: toolResults.map(tr => ({
-          functionResponse: { name: tr.name, response: tr.response }
+          functionResponse: {
+            name: tr.name,
+            response: tr.response,
+            ...(tr.id ? { id: tr.id } : {})
+          }
         }))
       });
     }
@@ -372,7 +469,22 @@ export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
         : 'I was unable to complete your request at this time. Please try again.';
     }
 
-    // Save the assistant message to the conversation
+    // 8. Output Guardrail: Verify legal grounding, catch hallucinations or dangerous advice
+    if (finalText && pendingActions.length === 0) {
+      const outputGuardStep = addStep('Verifying safety and legal accuracy…');
+      const outputCheck = await validateOutputGuardrail(
+        finalText,
+        input.language,
+        hasSufficientEvidence,
+        citations,
+        client,
+        modelUsed || cfg.primaryModel
+      );
+      completeStep(outputGuardStep);
+      finalText = outputCheck.cleanText;
+    }
+
+    // 9. Save the assistant message to the conversation
     await saveMessage(context.conversationId, input.accessToken, 'model', finalText);
 
     return {
@@ -420,26 +532,26 @@ function buildDisplayData(
   switch (toolName) {
     case 'prepare_complaint_draft':
       return {
-        complaintCategory: args.category || 'unspecified',
-        incidentSummary: args.incident_summary || '',
-        district: args.district || 'Lahore',
-        requestedSupport: args.requested_support || ''
+        complaintCategory: (args.category as string) || 'unspecified',
+        incidentSummary: (args.incident_summary as string) || '',
+        district: (args.district as string) || 'Lahore',
+        requestedSupport: (args.requested_support as string) || ''
       };
 
     case 'save_incident_to_vault':
       return {
-        incidentType: args.incident_type || 'incident',
-        incidentTitle: args.title || 'Untitled Incident'
+        incidentType: (args.incident_type as string) || 'incident',
+        incidentTitle: (args.title as string) || 'Untitled Incident'
       };
 
     case 'start_safety_checkin': {
-      const contactIds = Array.isArray(args.contact_ids) ? args.contact_ids as string[] : [];
+      const contactIds = Array.isArray(args.contact_ids) ? (args.contact_ids as string[]) : [];
       const contactNames = contactIds
         .map(id => context.emergencyContacts.find(c => c.id === id)?.name)
         .filter(Boolean);
       return {
-        destination: args.destination || '',
-        durationMinutes: args.duration_minutes || 0,
+        destination: (args.destination as string) || '',
+        durationMinutes: (args.duration_minutes as number) || 0,
         contactNames: contactNames.join(', ') || 'No contacts selected'
       };
     }
@@ -457,8 +569,8 @@ function buildDisplayData(
 
     case 'email_complaint_to_authority':
       return {
-        complaintId: args.complaint_id || '',
-        recipientEmail: args.recipient_email || 'Configured authority'
+        complaintId: (args.complaint_id as string) || '',
+        recipientEmail: (args.recipient_email as string) || 'Configured authority'
       };
 
     default:
@@ -466,26 +578,3 @@ function buildDisplayData(
   }
 }
 
-/** Saves a message to the conversation for history continuity. */
-async function saveMessage(
-  conversationId: string,
-  accessToken: string,
-  role: 'user' | 'model',
-  content: string
-): Promise<void> {
-  try {
-    const { createUserClient } = await import('../supabaseServer');
-    const userClient = createUserClient(accessToken);
-    if (!userClient) return;
-
-    await userClient
-      .from('messages')
-      .insert({
-        conversation_id: conversationId,
-        role,
-        content: content.slice(0, 10000)
-      });
-  } catch (err: any) {
-    console.warn('Failed to save agent message:', err.message);
-  }
-}

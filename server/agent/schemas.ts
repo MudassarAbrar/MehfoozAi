@@ -86,8 +86,8 @@ export interface AgentResponse {
 }
 
 export interface AgentInput {
-  userId: string;
-  accessToken: string;
+  userId?: string;
+  accessToken?: string;
   conversationId?: string;
   query: string;
   language: 'en' | 'ur';

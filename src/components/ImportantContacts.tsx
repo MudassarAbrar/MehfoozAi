@@ -43,7 +43,7 @@ interface ImportantContactsProps {
 const DEFAULT_DEMO_CONTACTS: UserContact[] = [
   {
     id: 'c1',
-    name: 'Tulsi (Mom)',
+    name: 'Zainab (Mom)',
     relation: 'Mother',
     contactType: 'family',
     phone: '+92 300 9876543',
@@ -54,11 +54,11 @@ const DEFAULT_DEMO_CONTACTS: UserContact[] = [
   },
   {
     id: 'c2',
-    name: 'Gopal (Brother)',
+    name: 'Hamza (Brother)',
     relation: 'Brother',
     contactType: 'family',
     phone: '+92 321 4567890',
-    email: 'gopal.brother@example.pk',
+    email: 'hamza.brother@example.pk',
     isEmergencyContact: true,
     isDefaultNotified: true,
     avatarColor: 'bg-blue-500'
@@ -118,7 +118,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
   const [editingContact, setEditingContact] = useState<UserContact | null>(null);
   const [actionSuccessMsg, setActionSuccessMsg] = useState<string | null>(null);
 
-  // Form State
+  // Form & Delete Modal State
   const [formName, setFormName] = useState('');
   const [formRelation, setFormRelation] = useState('Family');
   const [formType, setFormType] = useState<ContactRelationship>('family');
@@ -127,6 +127,15 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
   const [formOrg, setFormOrg] = useState('');
   const [formIsEmergency, setFormIsEmergency] = useState(false);
   const [formIsDefaultNotified, setFormIsDefaultNotified] = useState(false);
+  const [formValidationError, setFormValidationError] = useState<string | null>(null);
+  const [deleteConfirmContact, setDeleteConfirmContact] = useState<UserContact | null>(null);
+
+  const isValidPhone = (rawPhone: string): boolean => {
+    if (!rawPhone) return false;
+    const cleaned = rawPhone.replace(/[\s\-()]/g, '');
+    // Validates Pakistani mobile/landline formats or standard +international formats
+    return /^((\+92|92|0092)?3\d{9}|03\d{9}|042\d{7}|\+9242\d{7}|\+\d{10,14})$/.test(cleaned);
+  };
 
   const saveContacts = (updated: UserContact[]) => {
     setContacts(updated);
@@ -155,6 +164,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
     setFormOrg('');
     setFormIsEmergency(false);
     setFormIsDefaultNotified(false);
+    setFormValidationError(null);
     setIsAddModalOpen(true);
   };
 
@@ -168,18 +178,44 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
     setFormOrg(contact.organization || '');
     setFormIsEmergency(!!contact.isEmergencyContact);
     setFormIsDefaultNotified(!!contact.isDefaultNotified);
+    setFormValidationError(null);
     setIsAddModalOpen(true);
   };
 
-  const handleDelete = (id: string) => {
-    const filtered = contacts.filter(c => c.id !== id);
+  const handleDeleteClick = (contact: UserContact) => {
+    setDeleteConfirmContact(contact);
+  };
+
+  const handleConfirmDelete = () => {
+    if (!deleteConfirmContact) return;
+    const filtered = contacts.filter(c => c.id !== deleteConfirmContact.id);
     saveContacts(filtered);
     showNotification(isUrdu ? 'رابطہ کامیابی سے ہٹا دیا گیا' : 'Contact removed successfully');
+    setDeleteConfirmContact(null);
   };
 
   const handleSaveForm = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!formName.trim() || !formPhone.trim()) return;
+    setFormValidationError(null);
+
+    if (!formName.trim()) {
+      setFormValidationError(isUrdu ? 'براہ کرم رابطہ کار کا نام درج کریں۔' : 'Please enter contact name.');
+      return;
+    }
+
+    if (!formPhone.trim()) {
+      setFormValidationError(isUrdu ? 'براہ کرم فون نمبر درج کریں۔' : 'Please enter phone number.');
+      return;
+    }
+
+    if (!isValidPhone(formPhone.trim())) {
+      setFormValidationError(
+        isUrdu
+          ? 'درست فون نمبر درج کریں (مثلاً 03001234567 یا +923001234567)'
+          : 'Please enter a valid Pakistani mobile/phone number (e.g. 03001234567 or +923001234567)'
+      );
+      return;
+    }
 
     if (editingContact) {
       const updated = contacts.map(c => {
@@ -401,7 +437,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                   <Edit3 className="w-4 h-4" />
                 </button>
                 <button
-                  onClick={() => handleDelete(contact.id)}
+                  onClick={() => handleDeleteClick(contact)}
                   className="p-1.5 rounded-xl hover:bg-rose-50 text-slate-400 hover:text-rose-600 transition cursor-pointer"
                   title="Remove Contact"
                 >
@@ -527,6 +563,13 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
               </div>
 
               <form onSubmit={handleSaveForm} className="space-y-4 text-xs">
+                {formValidationError && (
+                  <div className="p-3 rounded-2xl bg-rose-50 border border-rose-200 text-rose-800 text-xs font-bold flex items-center space-x-2">
+                    <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                    <span>{formValidationError}</span>
+                  </div>
+                )}
+
                 <div>
                   <label className="block font-bold text-[#1C2C34] mb-1">
                     {isUrdu ? 'مکمل نام *' : 'Full Name *'}
@@ -598,7 +641,7 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                       type="email"
                       value={formEmail}
                       onChange={(e) => setFormEmail(e.target.value)}
-                      placeholder="contact@example.pk"
+                      placeholder="e.g. contact@example.pk"
                       className="w-full px-3.5 py-2.5 rounded-2xl bg-slate-50 border border-slate-200 text-[#1C2C34] focus:outline-none focus:ring-2 focus:ring-[#FC7454]"
                     />
                   </div>
@@ -671,6 +714,49 @@ export const ImportantContacts: React.FC<ImportantContactsProps> = ({
                   </button>
                 </div>
               </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteConfirmContact && (
+          <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-xs flex items-center justify-center p-4">
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="w-full max-w-sm bg-white rounded-3xl p-6 border border-slate-200 shadow-xl space-y-4 text-center"
+            >
+              <div className="w-12 h-12 rounded-2xl bg-rose-50 text-rose-600 border border-rose-200 flex items-center justify-center mx-auto">
+                <Trash2 className="w-6 h-6" />
+              </div>
+              <div className="space-y-1">
+                <h3 className="text-base font-extrabold text-[#1C2C34]">
+                  {isUrdu ? 'رابطہ ختم کرنے کی تصدیق' : 'Delete Contact Confirmation'}
+                </h3>
+                <p className="text-xs text-[#5A6E78]">
+                  {isUrdu 
+                    ? `کیا آپ واقعی "${deleteConfirmContact.name}" کو لسٹ سے ہٹانا چاہتے ہیں؟`
+                    : `Are you sure you want to remove "${deleteConfirmContact.name}" from your emergency list?`}
+                </p>
+              </div>
+
+              <div className="flex items-center justify-center space-x-3 pt-2">
+                <button
+                  onClick={() => setDeleteConfirmContact(null)}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-[#5A6E78] font-bold text-xs hover:bg-slate-200 cursor-pointer"
+                >
+                  {isUrdu ? 'منسوخ کریں' : 'Cancel'}
+                </button>
+                <button
+                  onClick={handleConfirmDelete}
+                  className="px-5 py-2.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-xs cursor-pointer"
+                >
+                  {isUrdu ? 'ہاں، ہٹائیں' : 'Yes, Remove'}
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

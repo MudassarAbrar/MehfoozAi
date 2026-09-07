@@ -17,7 +17,9 @@ import {
   X, 
   Sparkles,
   Filter,
-  Check
+  Check,
+  AlertTriangle,
+  Bell
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, CommunityUpdate, UserProfile } from '../types';
@@ -36,11 +38,48 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
 }) => {
   const isUrdu = language === 'ur';
 
-  const [activeFilter, setActiveFilter] = useState<'all' | 'last_hour' | 'neighborhood'>('all');
+  const [activeFilter, setActiveFilter] = useState<'all' | 'alerts' | 'last_hour' | 'neighborhood'>('all');
   const [isShareModalOpen, setIsShareModalOpen] = useState<boolean>(false);
 
-  // Form states for Share Your Experience (Matching Image 10 - Right Screen)
-  const [formLocation, setFormLocation] = useState<string>('Dhanmondi 27 / Gulberg Main');
+  // Community Alerts state
+  const [communityAlerts] = useState([
+    {
+      id: 'alert-1',
+      title: 'Power Outage & Low Street Lighting',
+      titleUrdu: 'بجلی کی بندش اور کم اسٹریٹ لائٹس',
+      location: 'Ferozepur Road / Chuhng, Lahore',
+      severity: 'high',
+      timeAgo: '15 min ago',
+      reportedBy: 'Local Safety Circle',
+      description: 'Main streetlights temporarily inactive due to grid maintenance. Exercise extra caution when walking after dusk.',
+      verified: true
+    },
+    {
+      id: 'alert-2',
+      title: 'Road Construction Hazard & Roadblock',
+      titleUrdu: 'سڑک کی تعمیر اور رکاوٹ',
+      location: 'Canal Bank Road (Underpass North), Lahore',
+      severity: 'medium',
+      timeAgo: '45 min ago',
+      reportedBy: 'Commuter Network',
+      description: 'Single lane closed for resurfacing. Slow traffic and reduced pedestrian walkway width.',
+      verified: true
+    },
+    {
+      id: 'alert-3',
+      title: 'Heavy Waterlogging / Drainage Overflow',
+      titleUrdu: 'پانی کا جمع ہونا',
+      location: 'Kalma Chowk Underpass, Lahore',
+      severity: 'urgent',
+      timeAgo: '2 hours ago',
+      reportedBy: 'City Patrol Advisory',
+      description: 'Water accumulation on left lane. Vehicles advised to take main boulevard elevated detour.',
+      verified: true
+    }
+  ]);
+
+  // Form states for Share Your Experience
+  const [formLocation, setFormLocation] = useState<string>('MM Alam Road / Gulberg III, Lahore');
   const [formSentiment, setFormSentiment] = useState<'very_unsafe' | 'uncomfortable' | 'neutral' | 'safe' | 'very_safe'>('safe');
   const [formTags, setFormTags] = useState<string[]>(['Well-lit', 'Crowded', 'Shops open']);
   const [formDetails, setFormDetails] = useState<string>('');
@@ -54,7 +93,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
       starRating: 5,
       timestamp: new Date().toISOString(),
       timeAgo: '12 min ago',
-      locationName: 'Dhanmondi 27 / Gulberg',
+      locationName: 'MM Alam Road / Gulberg III, Lahore',
       district: user?.district || 'Lahore',
       text: 'Well-lit, tea stalls open, felt completely safe walking to the bus station.',
       textUrdu: 'اسٹریٹ لائٹس روشن ہیں، چائے کے کھوکھے کھلے ہیں، بس اسٹاپ تک واک بہت محفوظ رہی۔',
@@ -72,7 +111,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
       starRating: 4,
       timestamp: new Date().toISOString(),
       timeAgo: '35 min ago',
-      locationName: 'Banani 10 / Commercial Avenue',
+      locationName: 'Johar Town Main Blvd, Lahore',
       district: user?.district || 'Lahore',
       text: 'Police van stationed at the main roundabout. Safe corridor for evening transit.',
       textUrdu: 'مین چوک پر پولیس وین موجود ہے۔ شام کے وقت سفر کے لیے محفوظ راستہ ہے۔',
@@ -90,7 +129,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
       starRating: 2,
       timestamp: new Date().toISOString(),
       timeAgo: '1 hour ago',
-      locationName: 'Mirpur Road Underpass',
+      locationName: 'Ferozepur Road / Chuhng, Lahore',
       district: user?.district || 'Lahore',
       text: 'Lights flickering near the pedestrian ramp. Group loitering by the corner.',
       textUrdu: 'پیدل راستے کی لائٹس خراب ہیں۔ کارنر پر مشکوک افراد موجود ہیں۔ محتاط رہیں۔',
@@ -116,6 +155,32 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
     setFormTags(prev => 
       prev.includes(tag) ? prev.filter(t => t !== tag) : [...prev, tag]
     );
+  };
+
+  const [shareToast, setShareToast] = useState<string | null>(null);
+
+  const handleShareUpdate = async (item: CommunityUpdate) => {
+    const textToShare = `Mehfooz Safety Update: ${item.locationName} - "${item.text}"`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: `Mehfooz Safety Update — ${item.locationName}`,
+          text: textToShare,
+          url: window.location.href
+        });
+        return;
+      } catch {
+        /* Fallback to clipboard if share sheet cancelled or fails */
+      }
+    }
+    try {
+      await navigator.clipboard.writeText(textToShare);
+      setShareToast(isUrdu ? 'سیفٹی الرٹ کلپ بورڈ پر کاپی ہو گیا ہے' : 'Safety update copied to clipboard');
+      setTimeout(() => setShareToast(null), 3000);
+    } catch {
+      setShareToast(isUrdu ? 'شیئر نہیں ہو سکا' : 'Could not copy update');
+      setTimeout(() => setShareToast(null), 3000);
+    }
   };
 
   const handleToggleHelpful = (id: string) => {
@@ -202,7 +267,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
       </div>
 
       {/* 3. Filter Pills */}
-      <div className="flex space-x-2">
+      <div className="flex space-x-2 overflow-x-auto pb-1">
         <button
           onClick={() => setActiveFilter('all')}
           className={`px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer ${
@@ -211,7 +276,18 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
-          All Updates
+          {isUrdu ? 'تمام اپ ڈیٹس' : 'All Updates'}
+        </button>
+        <button
+          onClick={() => setActiveFilter('alerts')}
+          className={`px-4 py-1.5 rounded-xl text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center space-x-1.5 ${
+            activeFilter === 'alerts'
+              ? 'bg-[#FC7454] text-white shadow-xs'
+              : 'bg-amber-50 text-amber-800 hover:bg-amber-100 border border-amber-200'
+          }`}
+        >
+          <AlertTriangle className="w-3.5 h-3.5" />
+          <span>{isUrdu ? 'کمیونٹی الرٹس' : 'Alerts & Warnings'}</span>
         </button>
         <button
           onClick={() => setActiveFilter('last_hour')}
@@ -221,7 +297,7 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
-          Last Hour
+          {isUrdu ? 'پچھلا گھنٹہ' : 'Last Hour'}
         </button>
         <button
           onClick={() => setActiveFilter('neighborhood')}
@@ -231,13 +307,60 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
               : 'bg-white text-[#5A6E78] hover:bg-slate-50 border border-slate-200'
           }`}
         >
-          My Neighborhood
+          {isUrdu ? 'میرا علاقہ' : 'My Neighborhood'}
         </button>
       </div>
 
-      {/* 4. Updates Feed List */}
+      {/* 4. Updates & Alerts List */}
       <div className="space-y-3">
-        {updates.map((item) => (
+        {activeFilter === 'alerts' ? (
+          <div className="space-y-3">
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-amber-900 text-xs font-medium flex items-center space-x-2">
+              <Bell className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>
+                {isUrdu
+                  ? 'کمیونٹی الرٹس اور لائیو ہیزرڈ وارننگز۔ براہ کرم ان علاقوں میں محتاط رہیں۔'
+                  : 'Active Community Safety Warnings & Hazards in your area.'}
+              </span>
+            </div>
+            {communityAlerts.map((alert) => (
+              <div
+                key={alert.id}
+                className="rounded-3xl bg-white border border-amber-200/80 p-4 shadow-xs space-y-2.5"
+              >
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center space-x-2">
+                    <span className="w-7 h-7 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold text-xs">
+                      <AlertTriangle className="w-4 h-4" />
+                    </span>
+                    <div>
+                      <h4 className="text-xs font-bold text-[#1C2C34]">
+                        {isUrdu && alert.titleUrdu ? alert.titleUrdu : alert.title}
+                      </h4>
+                      <span className="text-[10px] text-amber-700 font-semibold uppercase tracking-wider">
+                        {alert.severity} Priority • {alert.timeAgo}
+                      </span>
+                    </div>
+                  </div>
+                  <span className="text-[10px] font-bold text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200">
+                    Verified
+                  </span>
+                </div>
+                <p className="text-xs text-[#5A6E78] leading-relaxed">
+                  {alert.description}
+                </p>
+                <div className="flex items-center justify-between text-[11px] text-[#6B7280] pt-2 border-t border-slate-100">
+                  <span className="flex items-center space-x-1">
+                    <MapPin className="w-3.5 h-3.5 text-[#FC7454]" />
+                    <span>{alert.location}</span>
+                  </span>
+                  <span>Reported by {alert.reportedBy}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          updates.map((item) => (
           <div
             key={item.id}
             className="rounded-3xl bg-white border border-slate-200 p-4 shadow-xs space-y-2.5 transition-all"
@@ -302,14 +425,25 @@ export const CommunityUpdates: React.FC<CommunityUpdatesProps> = ({
                   <ThumbsUp className="w-3.5 h-3.5" />
                   <span>Helpful ({item.helpfulCount})</span>
                 </button>
-                <button className="p-1 rounded-lg text-[#6B7280] hover:text-[#1C2C34] cursor-pointer">
+                <button
+                  onClick={() => handleShareUpdate(item)}
+                  title={isUrdu ? 'شیئر کریں' : 'Share update'}
+                  className="p-1 rounded-lg text-[#6B7280] hover:text-[#1C2C34] hover:bg-[#ECF4F4] transition cursor-pointer"
+                >
                   <Share2 className="w-3.5 h-3.5" />
                 </button>
               </div>
             </div>
           </div>
-        ))}
+        )))}
       </div>
+
+      {/* Share toast notification */}
+      {shareToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 px-4 py-2 bg-[#1C2C34] text-white text-xs font-semibold rounded-full shadow-lg border border-slate-700 animate-in fade-in slide-in-from-bottom-2 duration-200">
+          {shareToast}
+        </div>
+      )}
 
       {/* 5. SHARE YOUR EXPERIENCE MODAL */}
       <AnimatePresence>
