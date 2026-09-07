@@ -655,7 +655,7 @@ The `vercel.json` configuration:
 <b>Rida Amir</b><br>
 <i>Help Desk Support & Research</i><br><br>
 <a href="mailto:ridaamircs@gmail.com"><img src="https://img.shields.io/badge/Email-D14836?style=flat-square&logo=gmail&logoColor=white" /></a>
-<a href="linkedin.com/in/rida-amir-b606a836b"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+<a href="https://www.linkedin.com/in/rida-amir-b606a836b"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
 </td>
 <td align="center" width="33%">
 <br>
@@ -663,7 +663,7 @@ The `vercel.json` configuration:
 <b>Zainab Irfan</b><br>
 <i>Help Desk Support & Research</i><br><br>
 <a href="mailto:zainab.irfan2428@gmail.com"><img src="https://img.shields.io/badge/Email-D14836?style=flat-square&logo=gmail&logoColor=white" /></a>
-<a href="https://www.linkedin.com/in/zainab-irfan-0a6816356?utm_source=share_via&utm_content=profile&utm_medium=member_android"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
+<a href="https://www.linkedin.com/in/zainab-irfan-0a6816356"><img src="https://img.shields.io/badge/LinkedIn-0A66C2?style=flat-square&logo=linkedin&logoColor=white" /></a>
 </td>
 </tr>
 </table>
