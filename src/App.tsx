@@ -60,7 +60,10 @@ function getInitialUserContacts(): UserContact[] {
   }
   return [
     { id: 'c1', name: 'Zainab (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true, isEmergencyContact: true },
-    { id: 'c2', name: 'Hamza (Brother)', relation: 'Brother', phone: '+92 321 9876543', isDefaultNotified: true, isEmergencyContact: true }
+    { id: 'c2', name: 'Tariq (Dad)', relation: 'Father', phone: '+92 321 9876543', isDefaultNotified: true, isEmergencyContact: true },
+    { id: 'c3', name: 'Hamza (Brother)', relation: 'Brother', phone: '+92 333 4567890', isDefaultNotified: true, isEmergencyContact: true },
+    { id: 'c4', name: 'Fatima (Friend)', relation: 'Friend', phone: '+92 345 5566778', isDefaultNotified: false, isEmergencyContact: false },
+    { id: 'c5', name: 'Maryam (Sister)', relation: 'Sister', phone: '+92 312 9988776', isDefaultNotified: false, isEmergencyContact: false }
   ];
 }
 

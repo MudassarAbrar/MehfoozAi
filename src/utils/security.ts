@@ -239,3 +239,6 @@ function checkMagicBytes(bytes: Uint8Array, ext: string, mimeType: string): bool
 
   return true;
 }
+
+export { validateFileUpload as validateUploadedFile };
+

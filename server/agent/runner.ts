@@ -33,10 +33,11 @@ import { createPendingAction } from './confirmation.js';
 import { buildAgentContext, formatHistoryForGemini, saveMessage, updateConversationTitle } from './context.js';
 import { AgentError, normalizeAgentError } from './errors.js';
 import { checkImmediateDanger } from './dangerCheck.js';
-import { evaluateInputGuardrail } from './inputGuardrail.js';
+import { evaluateInputGuardrail, redactPII } from './inputGuardrail.js';
 import { resolveConversationContext } from './contextResolver.js';
 import { retrieveGroundedEvidence } from './ragRetriever.js';
 import { validateOutputGuardrail } from './outputGuardrail.js';
+import { checkAndConsumeServerQuota } from '../supabaseServer.js';
 import {
   AgentInput,
   AgentOutput,
@@ -60,6 +61,32 @@ function createAgentClient(): GoogleGenAI {
 
 /** Main entry point: runs the bounded agent loop with full guardrail and RAG pipeline. */
 export async function runMehfoozAgent(input: AgentInput): Promise<AgentOutput> {
+  // PII Redaction: mask CNICs, phone numbers, and emails before model processing
+  if (input.query) {
+    input.query = redactPII(input.query);
+  }
+
+  // Server-Side 10-Message / 12-Hour Session Quota Verification
+  const quotaResult = await checkAndConsumeServerQuota(input.userId || 'guest');
+  if (!quotaResult.allowed) {
+    const isUrdu = input.language === 'ur';
+    const hoursLeft = Math.ceil(quotaResult.resetInMs / (1000 * 60 * 60));
+    const quotaRefusal = isUrdu
+      ? `آپ نے اس 12 گھنٹے کے سیشن کے لیے اپنی 10 پیغامات کی حد (10/10) پوری کر لی ہے۔ آپ کی حد تقریباً ${hoursLeft} گھنٹوں میں دوبارہ فعال ہو جائے گی۔`
+      : `You have reached your 10-message limit (0/10 remaining) for this 12-hour session. Your message quota will reset in approximately ${hoursLeft} hours.`;
+
+    return {
+      type: 'final',
+      text: quotaRefusal,
+      citations: [],
+      conversationId: input.conversationId || 'guest-conv',
+      runId: `run-${Date.now()}`,
+      steps: [],
+      modelUsed: 'quota-enforcer',
+      error: { code: 'SESSION_QUOTA_EXHAUSTED', message: quotaRefusal }
+    };
+  }
+
   const cfg = getAgentConfig();
   const runId = `run-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
   const steps: AgentStep[] = [];

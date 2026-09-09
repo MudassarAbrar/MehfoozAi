@@ -97,6 +97,44 @@ const GENERAL_CONVERSATIONAL_REGEX = /^(hi|hello|hey|salam|assalam|assalamu\s+al
 const FOLLOWUP_REGEX = /^(what\s+should\s+i\s+do(\s+about\s+it)?|can\s+i\s+report\s+(this|it)|what\s+evidence(\s+should\s+i\s+keep|\s+do\s+i\s+need)?|what\s+about\s+the\s+(first|second|other)\s+option|how\s+does\s+that\s+help|what\s+law\s+applies|will\s+they\s+arrest|what\s+if\s+i\s+don't\s+have\s+proof|can\s+my\s+family\s+find\s+out|how\s+long\s+does\s+it\s+take|go\s+ahead|yes|no|tell\s+me\s+more|continue)\b/i;
 
 /**
+ * PII Redaction Helper — Masks CNICs, Pakistani phone numbers, and email addresses
+ * to prevent sensitive personal identifiers from being sent to external LLMs.
+ */
+export function redactPII(text: string): string {
+  if (!text) return text;
+  let sanitized = text;
+
+  // Mask Pakistani CNIC numbers (e.g. 35202-1234567-8 or 3520212345678)
+  sanitized = sanitized.replace(/\b\d{5}[-–\s]?\d{7}[-–\s]?\d\b/g, '[CNIC REDACTED]');
+
+  // Mask Pakistani Mobile & Landline Phone Numbers (e.g. +923001234567, 0300-1234567, 042-35763234)
+  sanitized = sanitized.replace(/\b(\+92|0)(3\d{2}|4[1-9]|51|21)[-–\s]?\d{7}\b/g, '[PHONE REDACTED]');
+
+  // Mask Email Addresses
+  sanitized = sanitized.replace(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}\b/g, '[EMAIL REDACTED]');
+
+  return sanitized;
+}
+
+/**
+ * Structural Prompt Injection Detector — Intercepts malicious jailbreak overrides.
+ */
+export function detectPromptInjection(query: string): boolean {
+  if (!query) return false;
+  const lower = query.toLowerCase();
+
+  const INJECTION_PATTERNS = [
+    /\b(ignore|forget|override|bypass)\s+(all\s+)?(previous|prior|system)\s+(instructions|rules|prompts|directives)\b/i,
+    /\b(act|pretend|behave)\s+as\s+(an?\s+)?(unrestricted|dan|jailbroken|developer|admin|root|god)\b/i,
+    /\b(system\s+override|developer\s+mode|reveal\s+your\s+system\s+prompt|print\s+your\s+instructions|show\s+system\s+prompt)\b/i,
+    /\b(you\s+are\s+now\s+a\s+free\s+ai|disregard\s+safety\s+guidelines)\b/i,
+    /\[system\s*:\s*override\]/i
+  ];
+
+  return INJECTION_PATTERNS.some(pattern => pattern.test(lower));
+}
+
+/**
  * Evaluates whether a query is within the domain of Mehfooz.
  * Takes conversational history into account so that follow-up turns are not rejected.
  */
@@ -120,7 +158,20 @@ export function evaluateInputGuardrail(
     };
   }
 
-  // 2. Greetings and conversational queries
+  // 2. Structural Prompt Injection Interception
+  if (detectPromptInjection(trimmed)) {
+    return {
+      allowed: false,
+      domain: 'out_of_domain',
+      reason: 'Prompt injection attempt detected',
+      requires_rag: false,
+      refusalMessage: isUrdu
+        ? 'سیکیورٹی الرٹ: آپ کی درخواست میں غیر مجاز کمانڈ شامل ہے، جسے بلاک کر دیا گیا ہے۔ میں صرف خواتین کے تحفظ اور پنجاب کے قوانین پر معلومات دے سکتی ہوں۔'
+        : 'Security Notice: Your request contained an unauthorized system directive and was blocked. I can only assist with women’s safety, legal guidance, and Mehfooz features.'
+    };
+  }
+
+  // 3. Greetings and conversational queries (strict greeting pattern)
   if (GENERAL_CONVERSATIONAL_REGEX.test(trimmed) && trimmed.length < 50) {
     return {
       allowed: true,
@@ -130,7 +181,7 @@ export function evaluateInputGuardrail(
     };
   }
 
-  // 3. Check for explicit out-of-domain patterns (coding, calculus, recipes, sports, etc.)
+  // 4. Check for explicit out-of-domain patterns (coding, calculus, recipes, sports, etc.)
   for (const pattern of OUT_OF_DOMAIN_PATTERNS) {
     if (pattern.regex.test(trimmed)) {
       const topic = isUrdu ? pattern.topicUr : pattern.topicEn;
@@ -149,7 +200,7 @@ export function evaluateInputGuardrail(
     }
   }
 
-  // 4. Follow-up inquiry check: inherits domain from conversation history
+  // 5. Follow-up inquiry check: inherits domain from conversation history
   const isFollowUp = FOLLOWUP_REGEX.test(trimmed) || (trimmed.split(/\s+/).length <= 6 && (lower.includes('report') || lower.includes('law') || lower.includes('evidence') || lower.includes('help') || lower.includes('option')));
   
   if (isFollowUp && historyMessages.length > 0) {
@@ -169,7 +220,7 @@ export function evaluateInputGuardrail(
     }
   }
 
-  // 5. Check for domain indicators in the current query
+  // 6. Check for domain indicators in the current query
   const hasDomainIndicator = DOMAIN_INDICATORS.some(indicator => lower.includes(indicator));
   
   // Semantic expressions check (capturing user intent without strict keywords)
@@ -197,9 +248,23 @@ export function evaluateInputGuardrail(
     };
   }
 
-  // 6. Default fallback for brief or general queries:
-  // If the query does not match an explicit out-of-domain pattern, we allow it politely
-  // but treat it as a general query so the agent responds warmly without hallucinating laws.
+  // 7. General queries check: if query has no safety/legal domain indicators and is not a greeting,
+  // reject it politely as out of domain to prevent arbitrary LLM usage.
+  const isGeneralGreeting = /^(hi|hello|hey|salam|assalam|adab|bye|thanks|thank\s+you|ok|okay|who\s+are\s+you|what\s+is\s+mehfooz)\b/i.test(trimmed);
+  if (!isGeneralGreeting) {
+    const refusal = isUrdu
+      ? 'معذرت، میں صرف خواتین کے تحفظ، پنجاب کے قوانین، ہنگامی امداد اور محفوظ (Mehfooz) ایپ کی معاونت کے لیے بنائی گئی ہوں۔ میں اس موضوع پر جواب نہیں دے سکتی۔'
+      : 'I apologize, but I am specifically restricted to assisting with women’s safety, Punjab legal rights, emergency support, and Mehfooz application features. I cannot answer queries outside this domain.';
+
+    return {
+      allowed: false,
+      domain: 'out_of_domain',
+      reason: 'Query is outside Mehfooz safety & legal domain boundary',
+      requires_rag: false,
+      refusalMessage: refusal
+    };
+  }
+
   return {
     allowed: true,
     domain: 'general',

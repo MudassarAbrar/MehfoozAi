@@ -92,8 +92,11 @@ export const UserProfileView: React.FC<UserProfileProps> = ({
     user?.emergencyContacts && user.emergencyContacts.length > 0
       ? user.emergencyContacts
       : [
-          { id: 'c1', name: 'Protiva (Mom)', phone: '+92 300 1234567', relation: 'Mother', isDefaultNotified: true },
-          { id: 'c2', name: 'Subodh (Father)', phone: '+92 321 9876543', relation: 'Father', isDefaultNotified: true }
+          { id: 'c1', name: 'Zainab (Mom)', phone: '+92 300 1234567', relation: 'Mother', isDefaultNotified: true },
+          { id: 'c2', name: 'Tariq (Dad)', phone: '+92 321 9876543', relation: 'Father', isDefaultNotified: true },
+          { id: 'c3', name: 'Hamza (Brother)', phone: '+92 333 4567890', relation: 'Brother', isDefaultNotified: true },
+          { id: 'c4', name: 'Fatima (Friend)', phone: '+92 345 5566778', relation: 'Friend', isDefaultNotified: false },
+          { id: 'c5', name: 'Maryam (Sister)', phone: '+92 312 9988776', relation: 'Sister', isDefaultNotified: false }
         ]
   );
 

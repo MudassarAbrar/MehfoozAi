@@ -39,11 +39,14 @@ const INITIAL_DEMO_USER: UserProfile = {
   safeNickname: 'Ayesha',
   district: 'Lahore',
   phone: '+92 300 1234567',
-  emergencyContactName: 'Fatima Noor (Sister)',
-  emergencyContactPhone: '+92 321 9876543',
+  emergencyContactName: 'Zainab (Mom)',
+  emergencyContactPhone: '+92 300 1234567',
   emergencyContacts: [
-    { id: 'c1', name: 'Protiva (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true },
-    { id: 'c2', name: 'Subodh (Father)', relation: 'Father', phone: '+92 321 9876543', isDefaultNotified: true }
+    { id: 'c1', name: 'Zainab (Mom)', relation: 'Mother', phone: '+92 300 1234567', isDefaultNotified: true },
+    { id: 'c2', name: 'Tariq (Dad)', relation: 'Father', phone: '+92 321 9876543', isDefaultNotified: true },
+    { id: 'c3', name: 'Hamza (Brother)', relation: 'Brother', phone: '+92 333 4567890', isDefaultNotified: true },
+    { id: 'c4', name: 'Fatima (Friend)', relation: 'Friend', phone: '+92 345 5566778', isDefaultNotified: false },
+    { id: 'c5', name: 'Maryam (Sister)', relation: 'Sister', phone: '+92 312 9988776', isDefaultNotified: false }
   ],
   preferredLanguage: 'en',
   themeMode: 'light',
@@ -316,7 +319,9 @@ function friendlyAuthError(message: string): string {
   const m = message.toLowerCase();
   if (m.includes('invalid login credentials')) return 'Invalid email or password. Please try again.';
   if (m.includes('email not confirmed')) return 'Please confirm your email address first (check your inbox).';
-  if (m.includes('already registered') || m.includes('already exists')) return 'This email already has an account linked. Please sign in instead.';
+  if (m.includes('already registered') || m.includes('already exists')) {
+    return 'Please check your email to continue. If you already have an account, try signing in instead.';
+  }
   if (m.includes('password should be at least')) return 'Password must be at least 6 characters long.';
   if (m.includes('rate limit')) return 'Too many attempts. Please wait a moment and try again.';
   return message;
@@ -671,10 +676,10 @@ export async function signUpUser(params: {
       emergency_contact_phone: params.emergencyContactPhone?.trim() || ''
     });
 
-    // Strictly enforce email confirmation — DO NOT establish session or auto-login!
+    // Strictly enforce email confirmation — return neutral message to prevent account enumeration
     return {
       success: false,
-      error: 'Account created. Please confirm your email address (check your inbox), then sign in.'
+      error: 'Please check your email to continue. If you already have an account, try signing in instead.'
     };
   }
 
@@ -830,6 +835,26 @@ export async function resetUserPassword(email: string): Promise<{ success: boole
     return { success: true };
   }
   return { success: false, error: 'Password reset emails require an online account (Supabase is not configured).' };
+}
+
+/** Resends the signup confirmation email for an unconfirmed user account. */
+export async function resendConfirmationEmail(email: string): Promise<{ success: boolean; error?: string }> {
+  if (isSupabaseMode()) {
+    const supabase = getSupabase()!;
+    const redirectUrl = import.meta.env.VITE_APP_URL || 'https://mehfooz-legal-navigator.vercel.app';
+    const { error } = await supabase.auth.resend({
+      type: 'signup',
+      email: email.trim().toLowerCase(),
+      options: {
+        emailRedirectTo: redirectUrl
+      }
+    });
+    if (error) {
+      return { success: false, error: friendlyAuthError(error.message) };
+    }
+    return { success: true };
+  }
+  return { success: false, error: 'Resending verification email requires an online account (Supabase is not configured).' };
 }
 
 export async function changeUserPassword(email: string, oldPassword: string, newPassword: string): Promise<{ success: boolean; error?: string }> {

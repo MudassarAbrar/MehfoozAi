@@ -31,6 +31,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { AppLanguage, IncidentCategory, VaultRecord } from '../types';
 import { loadVaultRecords, persistVaultRecords } from '../utils/dataService';
+import { validateUploadedFile } from '../utils/security';
 import { ExportPdfModal } from './ExportPdfModal';
 import { getStoredProfile, verifyStealthPin } from '../utils/auth';
 import { hashPin, getVaultSalt } from '../utils/crypto';
@@ -290,6 +291,29 @@ export const IncidentVault: React.FC<IncidentVaultProps> = ({
     if (selected.length > 0) {
       onExportToComplaint(selected);
     }
+  };
+
+  const [photoUploadError, setPhotoUploadError] = useState<string | null>(null);
+
+  const handleRealPhotoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setPhotoUploadError(null);
+
+    const validation = await validateUploadedFile(file);
+    if (!validation.isValid) {
+      setPhotoUploadError(validation.error || 'File validation failed (invalid content structure).');
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === 'string') {
+        setHasPhoto(true);
+        setPhotoUrl(reader.result);
+      }
+    };
+    reader.readAsDataURL(file);
   };
 
   const handlePhotoUploadSim = () => {

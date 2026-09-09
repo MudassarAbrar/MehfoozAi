@@ -84,14 +84,38 @@ export function validateFunctionCall(
     return { valid: false, error: 'Tool arguments exceed maximum size' };
   }
 
-  // Check for suspicious patterns in string arguments
-  for (const [key, value] of Object.entries(args)) {
-    if (typeof value === 'string') {
-      // Reject arguments containing script tags or null bytes
-      if (value.includes('<script') || value.includes('\0')) {
-        return { valid: false, error: `Invalid characters in argument: ${key}` };
+  // Strict tool argument schema validation per tool
+  switch (name) {
+    case 'search_legal_corpus':
+      if (typeof args.query !== 'string' || !args.query.trim()) {
+        return { valid: false, error: 'Tool argument "query" must be a non-empty string.' };
       }
-    }
+      break;
+    case 'prepare_complaint_draft':
+      if (typeof args.category !== 'string' || typeof args.incidentSummary !== 'string') {
+        return { valid: false, error: 'Tool arguments "category" and "incidentSummary" must be strings.' };
+      }
+      break;
+    case 'save_incident_to_vault':
+      if (typeof args.title !== 'string' || typeof args.details !== 'string') {
+        return { valid: false, error: 'Tool arguments "title" and "details" must be strings.' };
+      }
+      break;
+    case 'start_safety_checkin':
+      if (typeof args.durationMinutes !== 'number' || typeof args.destination !== 'string') {
+        return { valid: false, error: 'Tool arguments "durationMinutes" (number) and "destination" (string) are required.' };
+      }
+      break;
+    case 'send_sms_to_contact':
+      if (typeof args.contactPhone !== 'string' || typeof args.message !== 'string') {
+        return { valid: false, error: 'Tool arguments "contactPhone" and "message" must be strings.' };
+      }
+      break;
+    case 'email_complaint_to_authority':
+      if (typeof args.channelId !== 'string' || typeof args.summary !== 'string') {
+        return { valid: false, error: 'Tool arguments "channelId" and "summary" must be strings.' };
+      }
+      break;
   }
 
   return { valid: true };

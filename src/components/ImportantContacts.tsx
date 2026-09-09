@@ -47,24 +47,57 @@ const DEFAULT_DEMO_CONTACTS: UserContact[] = [
     relation: 'Mother',
     contactType: 'family',
     phone: '+92 300 9876543',
-    email: 'mom.contact@example.pk',
+    email: 'zainab.mom@example.pk',
     isEmergencyContact: true,
     isDefaultNotified: true,
     avatarColor: 'bg-rose-500'
   },
   {
     id: 'c2',
+    name: 'Tariq (Dad)',
+    relation: 'Father',
+    contactType: 'family',
+    phone: '+92 321 9876543',
+    email: 'tariq.dad@example.pk',
+    isEmergencyContact: true,
+    isDefaultNotified: true,
+    avatarColor: 'bg-indigo-500'
+  },
+  {
+    id: 'c3',
     name: 'Hamza (Brother)',
     relation: 'Brother',
     contactType: 'family',
-    phone: '+92 321 4567890',
+    phone: '+92 333 4567890',
     email: 'hamza.brother@example.pk',
     isEmergencyContact: true,
     isDefaultNotified: true,
     avatarColor: 'bg-blue-500'
   },
   {
-    id: 'c3',
+    id: 'c4',
+    name: 'Fatima (Friend)',
+    relation: 'Friend',
+    contactType: 'friend',
+    phone: '+92 345 5566778',
+    email: 'fatima.friend@example.pk',
+    isEmergencyContact: false,
+    isDefaultNotified: false,
+    avatarColor: 'bg-teal-500'
+  },
+  {
+    id: 'c5',
+    name: 'Maryam (Sister)',
+    relation: 'Sister',
+    contactType: 'family',
+    phone: '+92 312 9988776',
+    email: 'maryam.sister@example.pk',
+    isEmergencyContact: false,
+    isDefaultNotified: false,
+    avatarColor: 'bg-purple-500'
+  },
+  {
+    id: 'c6',
     name: 'Adv. Asma Jahangir Legal Aid',
     relation: 'Pro-Bono Lawyer',
     contactType: 'lawyer',
@@ -74,17 +107,6 @@ const DEFAULT_DEMO_CONTACTS: UserContact[] = [
     isEmergencyContact: false,
     isDefaultNotified: false,
     avatarColor: 'bg-amber-600'
-  },
-  {
-    id: 'c4',
-    name: 'Dr. Ayesha Clinic',
-    relation: 'Family Physician',
-    contactType: 'doctor',
-    organization: 'Services Hospital Lahore',
-    phone: '+92 333 1122334',
-    isEmergencyContact: false,
-    isDefaultNotified: false,
-    avatarColor: 'bg-emerald-600'
   }
 ];
 

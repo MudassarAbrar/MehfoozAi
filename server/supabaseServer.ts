@@ -140,3 +140,64 @@ export async function generateSupabaseVerificationLink(email: string, redirectTo
   }
 }
 
+// 12-Hour Session Message Quota Tracking (Max 10 messages per 12 hours)
+interface ServerQuotaRecord {
+  count: number;
+  windowStart: number;
+}
+
+// Server store (keyed by userId, email, or IP)
+const serverQuotaStore = new Map<string, ServerQuotaRecord>();
+
+const QUOTA_LIMIT = 10;
+const QUOTA_WINDOW_MS = 12 * 60 * 60 * 1000; // 12 hours
+
+export async function checkAndConsumeServerQuota(identifier: string): Promise<{
+  allowed: boolean;
+  remaining: number;
+  resetInMs: number;
+}> {
+  const now = Date.now();
+  const cleanId = (identifier || 'guest').trim().toLowerCase();
+  
+  let record = serverQuotaStore.get(cleanId);
+  if (!record || (now - record.windowStart) > QUOTA_WINDOW_MS) {
+    record = { count: 0, windowStart: now };
+  }
+
+  if (record.count >= QUOTA_LIMIT) {
+    const resetInMs = QUOTA_WINDOW_MS - (now - record.windowStart);
+    return {
+      allowed: false,
+      remaining: 0,
+      resetInMs: Math.max(0, resetInMs)
+    };
+  }
+
+  record.count += 1;
+  serverQuotaStore.set(cleanId, record);
+
+  const remaining = QUOTA_LIMIT - record.count;
+  const resetInMs = QUOTA_WINDOW_MS - (now - record.windowStart);
+
+  return {
+    allowed: true,
+    remaining,
+    resetInMs
+  };
+}
+
+export function getServerQuotaStatus(identifier: string): { remaining: number; resetInMs: number } {
+  const now = Date.now();
+  const cleanId = (identifier || 'guest').trim().toLowerCase();
+  const record = serverQuotaStore.get(cleanId);
+
+  if (!record || (now - record.windowStart) > QUOTA_WINDOW_MS) {
+    return { remaining: QUOTA_LIMIT, resetInMs: QUOTA_WINDOW_MS };
+  }
+
+  const remaining = Math.max(0, QUOTA_LIMIT - record.count);
+  const resetInMs = Math.max(0, QUOTA_WINDOW_MS - (now - record.windowStart));
+  return { remaining, resetInMs };
+}
+

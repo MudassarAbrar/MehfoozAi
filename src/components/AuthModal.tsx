@@ -22,7 +22,7 @@ import {
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, PunjabDistrict, AppLanguage } from '../types';
-import { loginUser, signUpUser, resetUserPassword } from '../utils/auth';
+import { loginUser, signUpUser, resetUserPassword, resendConfirmationEmail } from '../utils/auth';
 
 interface AuthModalProps {
   isOpen: boolean;
@@ -286,16 +286,61 @@ export const AuthModal: React.FC<AuthModalProps> = ({
           </div>
         )}
 
-        {/* Error or Success Alert Banner */}
+        {/* Error or Success Neutral Alert Banner */}
         {errorMessage && (
-          (errorMessage.toLowerCase().includes('account created') || errorMessage.toLowerCase().includes('confirm your email')) ? (
+          (errorMessage.toLowerCase().includes('check your email') || errorMessage.toLowerCase().includes('confirm your email') || errorMessage.toLowerCase().includes('already have an account')) ? (
             <div className="p-3.5 rounded-2xl bg-emerald-50 border border-emerald-200 text-xs text-emerald-900 font-medium flex items-start space-x-2.5 shadow-2xs">
               <CheckCircle2 className="w-4.5 h-4.5 text-emerald-600 flex-shrink-0 mt-0.5" />
-              <div>
-                <span className="font-bold text-emerald-950 block mb-0.5">
-                  {isUrdu ? 'اکاؤنٹ کامیابی سے بن گیا!' : 'Account Created Successfully!'}
+              <div className="space-y-2">
+                <span className="font-bold text-emerald-950 block">
+                  {isUrdu ? 'ای میل تصدیق کی ہدایت' : 'Email Instructions Sent'}
                 </span>
-                <span>{errorMessage}</span>
+                <p className="text-slate-700">{errorMessage}</p>
+                <div className="flex flex-wrap gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={() => { setMode('login'); setErrorMessage(null); }}
+                    className="px-2.5 py-1 bg-emerald-700 hover:bg-emerald-800 text-white rounded-lg text-xs font-bold transition"
+                  >
+                    {isUrdu ? 'لاگ ان کریں' : 'Sign In Now'}
+                  </button>
+                  {email.trim() && (
+                    <>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setLoading(true);
+                          const res = await resendConfirmationEmail(email);
+                          setLoading(false);
+                          if (res.success) {
+                            setResetMessage(isUrdu ? 'تصدیقی ای میل دوبارہ بھیج دی گئی ہے۔' : 'Confirmation email resent. Check your inbox.');
+                          } else {
+                            setErrorMessage(res.error || 'Failed to resend confirmation email.');
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-emerald-100 hover:bg-emerald-200 text-emerald-900 border border-emerald-300 rounded-lg text-xs font-semibold transition"
+                      >
+                        {isUrdu ? 'دوبارہ ای میل بھیجیں' : 'Resend Email'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          setLoading(true);
+                          const res = await resetUserPassword(email);
+                          setLoading(false);
+                          if (res.success) {
+                            setResetMessage(isUrdu ? 'پاس ورڈ ری سیٹ ای میل بھیج دی گئی ہے۔' : 'Password reset email sent. Check your inbox.');
+                          } else {
+                            setErrorMessage(res.error || 'Failed to send password reset email.');
+                          }
+                        }}
+                        className="px-2.5 py-1 bg-white hover:bg-slate-50 text-slate-700 border border-slate-300 rounded-lg text-xs font-semibold transition"
+                      >
+                        {isUrdu ? 'پاس ورڈ بھول گئے؟' : 'Forgot Password?'}
+                      </button>
+                    </>
+                  )}
+                </div>
               </div>
             </div>
           ) : (

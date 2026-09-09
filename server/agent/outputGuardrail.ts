@@ -104,7 +104,22 @@ export function auditResponseQuality(
     }
   }
 
-  // 4. Unsupported legal claims if evidence was insufficient
+  // 4. System prompt leak / internal signature check
+  const SYSTEM_PROMPT_LEAK_PATTERNS = [
+    /safetyFunctionDeclarations/i,
+    /buildSystemInstruction/i,
+    /Mehfooz AI Agent — System Instructions/i,
+    /INSTRUCTIONS FOR AGENT/i,
+    /toolPolicies/i
+  ];
+  for (const pattern of SYSTEM_PROMPT_LEAK_PATTERNS) {
+    if (pattern.test(text)) {
+      violations.push('Response contains internal system prompt instructions or tool signatures');
+      break;
+    }
+  }
+
+  // 5. Unsupported legal claims if evidence was insufficient
   if (!hasSufficientEvidence) {
     const mentionsSpecificSection = /\b(section\s+\d+|دفعہ\s+\d+)\b/i.test(text);
     const mentionsMandatoryPenalty = /\b(mandatory\s+\d+\s+years|rigorous\s+imprisonment\s+of\s+\d+)\b/i.test(text);

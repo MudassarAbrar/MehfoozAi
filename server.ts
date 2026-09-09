@@ -14,7 +14,7 @@ import dotenv from 'dotenv';
 import rateLimit from 'express-rate-limit';
 import helmet from 'helmet';
 import crypto from 'crypto';
-import { isSupabaseServerConfigured, supabaseAuthOptional, requireSupabaseAuth, createUserClient, generateSupabaseVerificationLink, AuthedRequest } from './server/supabaseServer.js';
+import { isSupabaseServerConfigured, supabaseAuthOptional, requireSupabaseAuth, createUserClient, generateSupabaseVerificationLink, AuthedRequest, getServerQuotaStatus } from './server/supabaseServer.js';
 import { apiActivityTracker, logApiActivity } from './server/apiActivity.js';
 import { registerCheckInRoutes } from './server/checkIns.js';
 import { sendComplaintEmail, sendWelcomeEmail, sendConfirmationEmail, isEmailConfigured } from './server/email.js';
@@ -283,7 +283,8 @@ app.post('/api/orchestrate', supabaseAuthOptional, aiOrchestratorLimiter, async 
           riskLevel: 'standard',
           confidence: 0.95,
           retrieverMode: 'hybrid-embedding',
-          disclaimerRequired: true
+          disclaimerRequired: true,
+          quota: getServerQuotaStatus(authed.supabaseUserId || 'guest')
         };
 
         return res.json(agentResponse);

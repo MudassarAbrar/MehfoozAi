@@ -169,6 +169,10 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
   const [speakingId, setSpeakingId] = useState<string | null>(null);
   const [autoVoiceReadout, setAutoVoiceReadout] = useState(false);
   
+  // 12-hour session message quota (10 messages max)
+  const [remainingQuota, setRemainingQuota] = useState<number>(10);
+  const [quotaResetInMs, setQuotaResetInMs] = useState<number>(0);
+
   // 1. Menu and input attachment state
   const [isAttachMenuOpen, setIsAttachMenuOpen] = useState(false);
   const attachMenuRef = useRef<HTMLDivElement>(null);
@@ -542,6 +546,14 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
         );
 
         if (agentResp && agentResp.text && agentResp.type !== 'error') {
+          if ((agentResp as any)?.quota) {
+            const q = (agentResp as any).quota;
+            setRemainingQuota(q.remaining);
+            setQuotaResetInMs(q.resetInMs);
+          } else if (remainingQuota > 0) {
+            setRemainingQuota(prev => Math.max(0, prev - 1));
+          }
+
           if (agentResp.conversationId && agentResp.conversationId !== targetConvId) {
             targetConvId = agentResp.conversationId;
             setCurrentConversationId(agentResp.conversationId);
@@ -1315,14 +1327,15 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             {/* Text Input */}
             <input
               type="text"
+              disabled={remainingQuota === 0}
               value={inputText}
               onChange={(e) => setInputText(e.target.value)}
               placeholder={
-                isUrdu
-                  ? 'اپنا سوال لکھیں یا بولیں...'
-                  : 'Ask about legal rights or protection...'
+                remainingQuota === 0
+                  ? (isUrdu ? '12 گھنٹے کی حد (10/10) پوری ہو گئی ہے' : '12-hour quota reached (0/10 left)')
+                  : (isUrdu ? 'اپنا سوال لکھیں یا بولیں...' : 'Ask about legal rights or protection...')
               }
-              className={`flex-1 bg-transparent border-0 focus:outline-none px-2 py-1 text-sm sm:text-base text-[#1C2C34] placeholder:text-slate-400 ${
+              className={`flex-1 bg-transparent border-0 focus:outline-none px-2 py-1 text-sm sm:text-base text-[#1C2C34] placeholder:text-slate-400 disabled:opacity-50 ${
                 isUrdu ? 'font-urdu' : 'font-medium'
               }`}
             />
@@ -1330,7 +1343,7 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
             {/* Send Button */}
             <button
               type="submit"
-              disabled={(!inputText.trim() && attachedPhotos.length === 0) || loading}
+              disabled={remainingQuota === 0 || (!inputText.trim() && attachedPhotos.length === 0) || loading}
               className="w-8 h-8 rounded-xl bg-[#1C2C34] hover:bg-[#263842] disabled:opacity-30 text-white transition shadow-2xs flex items-center justify-center cursor-pointer shrink-0"
               title={isUrdu ? 'بھیجیں' : 'Send'}
             >
@@ -1339,14 +1352,24 @@ export const LegalAssistant: React.FC<LegalAssistantProps> = ({
           </div>
         </form>
 
-        {/* Short, precise safety subtitle */}
-        <div className="flex items-center justify-center space-x-1.5 mt-2 text-[10px] sm:text-xs text-[#5A6E78]">
-          <ShieldCheck className="w-3.5 h-3.5 text-[#1C2C34]" />
-          <span>
-            {isUrdu 
-              ? 'مکمل نجی اور انکرپٹڈ۔ کوئی ڈیٹا شیئر نہیں کیا جاتا۔' 
-              : 'Private & encrypted. Never shared externally.'}
-          </span>
+        {/* Safety Subtitle & Live Session Message Quota Badge */}
+        <div className="flex items-center justify-between mt-2 px-1 text-[10px] sm:text-xs text-[#5A6E78]">
+          <div className="flex items-center space-x-1.5">
+            <ShieldCheck className="w-3.5 h-3.5 text-[#1C2C34]" />
+            <span>
+              {isUrdu 
+                ? 'مکمل نجی اور انکرپٹڈ۔ کوئی ڈیٹا شیئر نہیں کیا جاتا۔' 
+                : 'Private & encrypted. Never shared externally.'}
+            </span>
+          </div>
+
+          {/* Live Remaining Messages Counter Badge */}
+          <div className="flex items-center space-x-1 font-bold">
+            <MessageSquare className="w-3.5 h-3.5 text-[#FC7454]" />
+            <span className={remainingQuota === 0 ? 'text-red-500 font-extrabold animate-pulse' : 'text-[#1C2C34]'}>
+              {remainingQuota}/10 {isUrdu ? 'پیغامات باقی ہیں' : 'messages left'}
+            </span>
+          </div>
         </div>
       </div>
 
